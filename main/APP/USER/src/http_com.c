@@ -3071,10 +3071,6 @@ uint16_t http_websocket_event_add_all(char* buf)
 	my_json_object_begin(&js, NULL);
 	if(lwipdev.client_websocket_id == 1)
 		my_json_add_str(&js, "id", sg_event_param.id);
-	else if(lwipdev.client_websocket_id == 2)
-		my_json_add_str(&js, "id", sg_event_param2.id);
-	else if(lwipdev.client_websocket_id == 3)
-		my_json_add_str(&js, "id", sg_event_param3.id);
 
 	my_json_object_begin(&js, "body");
 	my_json_add_str(&js, "subscribeEventID", uuid_buf);
