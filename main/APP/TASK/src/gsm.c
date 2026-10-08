@@ -60,7 +60,7 @@ __RESET:
 	memset(&sg_gsmoperate_t,0,sizeof(gsm_operate_t));
 	gprs_deinit_function(); // 清除数据再进行初始化
 	while(gprs_status_check_function() == 1) {
-		OSTimeDlyHMSM(0,0,0,10);
+		OSTimeDly(2);		/* 2 tick = 10ms @200Hz, see tcp_server.c */
 	}
 	/* 模块状态检测 */
 	if( gprs_get_module_status_function() != 1) {
@@ -128,7 +128,7 @@ __RESET:
 		#endif
 		gsm_gps_task_function();
 		IWDG_Feed();
-		OSTimeDlyHMSM(0,0,0,10);  // 延时10ms
+		OSTimeDly(2);		/* 2 tick = 10ms @200Hz, see tcp_server.c */
 	}
 }
 

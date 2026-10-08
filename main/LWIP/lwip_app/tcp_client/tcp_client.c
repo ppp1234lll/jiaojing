@@ -115,7 +115,7 @@ static void tcp_cilent1_thread(void *arg)
 			OSTaskDel(TCP_CLIENT1_PRIO);	// 删除TCP任务
 			OS_EXIT_CRITICAL();			// 开中断
 		}
-		OSTimeDlyHMSM(0,0,0,5);
+		OSTimeDly(1);				/* 1 tick = 5ms @200Hz, 按节拍显式延时, 避免 ms->tick 换算陷阱 */
 	}
 }
 

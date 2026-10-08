@@ -186,7 +186,7 @@ void app_task_function(void)
 			sg_sysparam_t.mem = mem_perused(SRAMIN);
 		}
 		IWDG_Feed();	
-		OSTimeDlyHMSM(0,0,0,10);  			// 延时10ms
+		OSTimeDly(2);  			/* 2 tick = 10ms @200Hz, 按节拍显式延时, 避免 ms->tick 换算陷阱 */
 	}
 }
 

@@ -47,7 +47,7 @@ void det_task_function(void)
 		det_set_bat_status();
 		app_detection_collection_param(); 	// 采集数据监测任务
 		IWDG_Feed();					// 喂狗	
-		OSTimeDlyHMSM(0,0,0,10);  	 	// 延时5ms
+		OSTimeDly(2);		/* 2 tick = 10ms @200Hz, see tcp_server.c */
 		
 	}
 }
