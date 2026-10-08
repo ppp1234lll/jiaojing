@@ -479,6 +479,16 @@
               <FilePath>..\APP\TOOL\src\mycJSON.c</FilePath>
             </File>
             <File>
+              <FileName>my_json.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\APP\TOOL\src\my_json.c</FilePath>
+            </File>
+            <File>
+              <FileName>jsmn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\APP\TOOL\src\jsmn.c</FilePath>
+            </File>
+            <File>
               <FileName>Queue.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\APP\TOOL\src\Queue.c</FilePath>
