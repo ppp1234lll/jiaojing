@@ -8,6 +8,7 @@
 #include "save.h"
 #include "lwip_comm.h"
 #include "cJSON.h"
+#include "my_json.h"
 #include "appconfig.h"
 #include "includes.h"
 #include "error.h"
@@ -21,16 +22,16 @@
 #include "cmox_crypto.h"
 #include "tcp_client.h"
 
-//¿Í»§¶Ë1´¦Àí
+//å®¢æˆ·ç«¯1å¤„ç†
 sys_json_t			sg_json_t 		= {0};
-queue_s 				sg_queue_http =	{0};	// ¶ÓÁĞ1
+queue_s 				sg_queue_http =	{0};	// é˜Ÿåˆ—1
 web_key_t 			web_key_data 	=	{0};
 com_http_cmd_t 	com_http_cmd 	=	{0};	
 com_websocket_data_t sg_websocket = {0};
 sys_event_t     sg_event_param  = {0};
 uint8_t    http_buff[1000]      = {0};	
-uint8_t	   http_send_buff[4096] = {0}; // ·¢ËÍ»º´æÇø
-uint16_t   http_send_length	  	=  0;	 // ·¢ËÍÊı¾İ³¤¶È
+uint8_t	   http_send_buff[4096] = {0}; // å‘é€ç¼“å­˜åŒº
+uint16_t   http_send_length	  	=  0;	 // å‘é€æ•°æ®é•¿åº¦
 
 const uint16_t HTTP_STATUS[5] = {HTTP_OK,HTTP_BAD_REQUEST,HTTP_FORBIDDEN,HTTP_NOT_FOUND,HTTP_SERVICE_UNAVAILABLE};
 
@@ -43,7 +44,7 @@ const char HTTP_PUBLIC_ERRORMSG[6][40]={ERRORMSG_OK,ERRORMSG_NOT_ACTIVATED,ERROR
 /************************************************************
 *
 * Function name	: http_com_buff_init
-* Description	: HTTP¶ÓÁĞ³õÊ¼»¯
+* Description	: HTTPé˜Ÿåˆ—åˆå§‹åŒ–
 * Parameter		: 
 * Return		: 
 *	
@@ -55,7 +56,7 @@ void http_com_buff_init(void)
 /************************************************************
 *
 * Function name	: http_com_stroage_data
-* Description	: ½«Êı¾İ´æ´¢µ½»º´æÇø
+* Description	: å°†æ•°æ®å­˜å‚¨åˆ°ç¼“å­˜åŒº
 * Parameter		: 
 * Return		: 
 *	
@@ -68,7 +69,7 @@ void http_com_stroage_data(uint8_t *buff,uint16_t len)
 /************************************************************
 *
 * Function name	: com_deal_http_info_function
-* Description	: HTTPÊı¾İ´¦Àí
+* Description	: HTTPæ•°æ®å¤„ç†
 * Parameter		: 
 * Return		: 
 *	
@@ -92,7 +93,7 @@ int8_t com_deal_http_info_function(void)
 				http_data_send_function(HTTP_WEBSOCKET_PING,1);
 			else
 			{
-				http_websocket_event_param((char*)sg_websocket.buf,&sg_event_param); // ´¦ÀíÊÂ¼şĞÅÏ¢
+				http_websocket_event_param((char*)sg_websocket.buf,&sg_event_param); // å¤„ç†äº‹ä»¶ä¿¡æ¯
 				http_event_anay_param(&sg_event_param,1);
 			}
 		}
@@ -100,7 +101,7 @@ int8_t com_deal_http_info_function(void)
 		{
 			memset(local_ipbuf,0,20);
 			sprintf(local_ipbuf,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-			str = strstr((char *)http_buff,HTTP_UPGRATE_WEBSOCKET1); // ÅĞ¶ÏÊÇ·ñÊÇĞ­Òé×ª»»
+			str = strstr((char *)http_buff,HTTP_UPGRATE_WEBSOCKET1); // åˆ¤æ–­æ˜¯å¦æ˜¯åè®®è½¬æ¢
 			if(str != NULL)
 			{
 				sprintf(local_ipbuf,"%d.%d.%d.%d:%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3],local->port);
@@ -109,12 +110,12 @@ int8_t com_deal_http_info_function(void)
 				str = strstr((char *)str,"Sec-WebSocket-Key:");
 				sscanf((char*)str,"%*[^: ]: %[^\r\n]",web_key_data.key); 
 				com_http_cmd.http_cmd = 1;
-				if((strcmp(com_http_cmd.host_ip,local_ipbuf) == 0)|| // ÅĞ¶ÏIPÊÇ·ñÕıÈ·
+				if((strcmp(com_http_cmd.host_ip,local_ipbuf) == 0)|| // åˆ¤æ–­IPæ˜¯å¦æ­£ç¡®
 					 (strcmp(com_http_cmd.host_ip,TEST_SERVER) == 0))
 				{
 					if(HTTP_COM_DEBUG) printf("HTTP_WEBSOCKET\n");
 					if(lwipdev.client_websocket_id == 0)
-						lwipdev.client_websocket_id = 1; // ÅĞ¶Ï¿Í»§¶Ë±àºÅ
+						lwipdev.client_websocket_id = 1; // åˆ¤æ–­å®¢æˆ·ç«¯ç¼–å·
 					com_http_cmd.http_cmd = 0;
 					http_data_send_function(HTTP_WEBSOCKET,1);			
 					return 0;
@@ -122,35 +123,35 @@ int8_t com_deal_http_info_function(void)
 			}
 			else
 			{
-				str = strstr((char *)http_buff,HTTP_CERTIFIED_HANDSHAKE); // ÕªÒªÈÏÖ¤
+				str = strstr((char *)http_buff,HTTP_CERTIFIED_HANDSHAKE); // æ‘˜è¦è®¤è¯
 				if(str != NULL)
 				{
-					str = strstr((char *)http_buff,HTTP_AUTHORIZATION); // ÕªÒªÈÏÖ¤
+					str = strstr((char *)http_buff,HTTP_AUTHORIZATION); // æ‘˜è¦è®¤è¯
 					if(str != NULL)
 						com_http_cmd.http_cmd = 3; 
 					else
-						com_http_cmd.http_cmd = 2; // Ê×´Î·µ»Ø
+						com_http_cmd.http_cmd = 2; // é¦–æ¬¡è¿”å›
 				}
 				http_com_data_deal((char *)http_buff,&com_http_cmd);
 			}
 			if(HTTP_COM_DEBUG) printf("com_http_cmd:%s......%s\n",com_http_cmd.cmd,com_http_cmd.host_ip);
-			if(strcmp(com_http_cmd.host_ip,local_ipbuf) == 0) // ÅĞ¶ÏIPÊÇ·ñÕıÈ·
+			if(strcmp(com_http_cmd.host_ip,local_ipbuf) == 0) // åˆ¤æ–­IPæ˜¯å¦æ­£ç¡®
 			{
 				switch(com_http_cmd.http_cmd)
 				{
-					case 1: // Ğ­Òé×ª»»
+					case 1: // åè®®è½¬æ¢
 						com_http_cmd.http_cmd = 0;
 						if(lwipdev.client_websocket_id == 0)
-							lwipdev.client_websocket_id = 1; // ÅĞ¶Ï¿Í»§¶Ë±àºÅ
+							lwipdev.client_websocket_id = 1; // åˆ¤æ–­å®¢æˆ·ç«¯ç¼–å·
 						http_data_send_function(HTTP_WEBSOCKET,1);						
 						break;
 
-					case 2: // Ê×´ÎÈÏÖ¤
+					case 2: // é¦–æ¬¡è®¤è¯
 						com_http_cmd.http_cmd = 0;
 						http_data_send_function(HTTP_ATTESTATION,1);				
 						break;	
 
-					case 3: // ÈÏÖ¤½á¹û
+					case 3: // è®¤è¯ç»“æœ
 						com_http_cmd.http_cmd = 0;
 						if(http_ack_certification_calculations(&com_http_cmd) == 1)
 							http_data_send_function(HTTP_CALCULATION_OK,1);
@@ -160,38 +161,38 @@ int8_t com_deal_http_info_function(void)
 					default:
 						if(http_ack_certification_calculations(&com_http_cmd) == 1)
 						{
-							if(HTTP_COM_DEBUG) printf("ÑéÖ¤³É¹¦....\n");
-							if(strcmp(com_http_cmd.cmd ,BoxSubModelMgr_GetSmartBoxDevList)==0 ) //»ñÈ¡»úÏä¹ÜÀíµÄÉè±¸ÁĞ±í
+							if(HTTP_COM_DEBUG) printf("éªŒè¯æˆåŠŸ....\n");
+							if(strcmp(com_http_cmd.cmd ,BoxSubModelMgr_GetSmartBoxDevList)==0 ) //è·å–æœºç®±ç®¡ç†çš„è®¾å¤‡åˆ—è¡¨
 								http_data_send_function(BoxDevList,1);
-							else if(strcmp(com_http_cmd.cmd ,DynamicCapability_GetDomains)==0 ) // Ë®½ş
+							else if(strcmp(com_http_cmd.cmd ,DynamicCapability_GetDomains)==0 ) // æ°´æµ¸
 								http_data_send_function(DOMINS,1);
-							else if(strcmp(com_http_cmd.cmd ,WaterOutSense_WaterOutStatus)==0 ) // Ë®½ş
+							else if(strcmp(com_http_cmd.cmd ,WaterOutSense_WaterOutStatus)==0 ) // æ°´æµ¸
 								http_data_send_function(WATER_OUT,1);
-							else if(strcmp(com_http_cmd.cmd ,InfoMgr_DeviceDescription)==0 ) // Éè±¸ĞÅÏ¢
+							else if(strcmp(com_http_cmd.cmd ,InfoMgr_DeviceDescription)==0 ) // è®¾å¤‡ä¿¡æ¯
 								http_data_send_function(DEV_INFO,1);
-							else if(strcmp(com_http_cmd.cmd ,InfoMgr_DeviceServiceDescription)==0 ) // Éè±¸Éú²úĞÅÏ¢
+							else if(strcmp(com_http_cmd.cmd ,InfoMgr_DeviceServiceDescription)==0 ) // è®¾å¤‡ç”Ÿäº§ä¿¡æ¯
 								http_data_send_function(DEV_PRODUCE,1);
-							else if(strcmp(com_http_cmd.cmd ,InfoMgr_DeviceVersion)==0 ) // Éè±¸°æ±¾ĞÅÏ¢
+							else if(strcmp(com_http_cmd.cmd ,InfoMgr_DeviceVersion)==0 ) // è®¾å¤‡ç‰ˆæœ¬ä¿¡æ¯
 								http_data_send_function(DEV_VERSION,1);
-							else if(strcmp(com_http_cmd.cmd ,DeviceTiltDetection_DevRealtimeTiltData)==0 ) // ÇãĞ±¶È
+							else if(strcmp(com_http_cmd.cmd ,DeviceTiltDetection_DevRealtimeTiltData)==0 ) // å€¾æ–œåº¦
 								http_data_send_function(ANGLE_DATA,1);
-							else if(strcmp(com_http_cmd.cmd ,Humiture_Temperature)==0 ) // ÎÂ¶È
+							else if(strcmp(com_http_cmd.cmd ,Humiture_Temperature)==0 ) // æ¸©åº¦
 								http_data_send_function(TEMPERATURE_DATA,1);
-							else if(strcmp(com_http_cmd.cmd ,Humiture_Humidity)==0 ) // Êª¶È
+							else if(strcmp(com_http_cmd.cmd ,Humiture_Humidity)==0 ) // æ¹¿åº¦
 								http_data_send_function(HUMIDITY_DATA,1);
-							else if(strcmp(com_http_cmd.cmd ,Fan_FanStatus)==0 ) // ·çÉÈ×´Ì¬
+							else if(strcmp(com_http_cmd.cmd ,Fan_FanStatus)==0 ) // é£æ‰‡çŠ¶æ€
 								http_data_send_function(FAN_TWO_STATUS,1);
-							else if(strcmp(com_http_cmd.cmd ,BoxDoorMgr_BoxDoorStatus)==0 ) // »úÏäÃÅ×´Ì¬
+							else if(strcmp(com_http_cmd.cmd ,BoxDoorMgr_BoxDoorStatus)==0 ) // æœºç®±é—¨çŠ¶æ€
 								http_data_send_function(BOX_STATUS,1);
-							else if(strcmp(com_http_cmd.cmd ,NetworkAddress_IPAddressCfgList)==0 ) // ÍøÂçĞÅÏ¢
+							else if(strcmp(com_http_cmd.cmd ,NetworkAddress_IPAddressCfgList)==0 ) // ç½‘ç»œä¿¡æ¯
 								http_data_send_function(NETWORK_VERSION,1);
-							else if(strcmp(com_http_cmd.cmd ,PowerMgr_DeviceRealTimePowerParam)==0 ) // µçÁ¦²ÎÊı
+							else if(strcmp(com_http_cmd.cmd ,PowerMgr_DeviceRealTimePowerParam)==0 ) // ç”µåŠ›å‚æ•°
 								http_data_send_function(POWER_DATA,1);	
-							else if(strcmp(com_http_cmd.cmd ,PowerMgr_PowerPortSwitchTimePlan)==0 ) // µç¿Ú¿ª¹ØÊ±¼ä
+							else if(strcmp(com_http_cmd.cmd ,PowerMgr_PowerPortSwitchTimePlan)==0 ) // ç”µå£å¼€å…³æ—¶é—´
 								http_data_send_function(POWER_PLAN_TIME,1);	
-							else if(strcmp(com_http_cmd.cmd ,PowerMgr_GetPowerPortStatusList)==0 ) // »ñÈ¡¹©µç¿Ú×´Ì¬ÁĞ±í
+							else if(strcmp(com_http_cmd.cmd ,PowerMgr_GetPowerPortStatusList)==0 ) // è·å–ä¾›ç”µå£çŠ¶æ€åˆ—è¡¨
 								http_data_send_function(POWER_PORT_STATUS,1);	
-							else if(strcmp(com_http_cmd.cmd ,DeviceTiltDetection_DevTiltDetectionParam)==0 ) // Éè±¸ÇãĞ±¼ì²â²ÎÊı
+							else if(strcmp(com_http_cmd.cmd ,DeviceTiltDetection_DevTiltDetectionParam)==0 ) // è®¾å¤‡å€¾æ–œæ£€æµ‹å‚æ•°
 							{
 								http_deal_json_param(&sg_json_t,(char*)http_buff);							
 								if(http_com_deal_configure_angle(sg_json_t.buf)<0)
@@ -199,7 +200,7 @@ int8_t com_deal_http_info_function(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,1);	
 							}
-							else if(strcmp(com_http_cmd.cmd ,Humiture_HumidityAlarmThreshold)==0 ) // Êª¶È¸æ¾¯ãĞÖµ
+							else if(strcmp(com_http_cmd.cmd ,Humiture_HumidityAlarmThreshold)==0 ) // æ¹¿åº¦å‘Šè­¦é˜ˆå€¼
 							{
 								http_deal_json_param(&sg_json_t,(char*)http_buff);							
 								if(http_com_deal_configure_humiture(sg_json_t.buf)<0)
@@ -207,7 +208,7 @@ int8_t com_deal_http_info_function(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,1);				
 							}
-							else if(strcmp(com_http_cmd.cmd ,Humiture_TemperatureAlarmThreshold)==0 ) // ÎÂ¶È¸æ¾¯ãĞÖµ
+							else if(strcmp(com_http_cmd.cmd ,Humiture_TemperatureAlarmThreshold)==0 ) // æ¸©åº¦å‘Šè­¦é˜ˆå€¼
 							{
 								http_deal_json_param(&sg_json_t,(char*)http_buff);							
 								if(http_com_deal_configure_temperature(sg_json_t.buf)<0)
@@ -215,7 +216,7 @@ int8_t com_deal_http_info_function(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,1);	
 							}
-							else if(strcmp(com_http_cmd.cmd ,PowerMgr_ModifyPowerPortWorkParamList)==0 ) // ĞŞ¸Ä¹©µç¿Ú¹¤×÷²ÎÊıÁĞ±í
+							else if(strcmp(com_http_cmd.cmd ,PowerMgr_ModifyPowerPortWorkParamList)==0 ) // ä¿®æ”¹ä¾›ç”µå£å·¥ä½œå‚æ•°åˆ—è¡¨
 							{
 								http_deal_json_param(&sg_json_t,(char*)http_buff);							
 								if(http_com_deal_configure_powerport(sg_json_t.buf) < 0 )
@@ -223,14 +224,14 @@ int8_t com_deal_http_info_function(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,1);										
 							}
-							else if(strcmp(com_http_cmd.cmd ,SystemMaintenance_SystemReset)==0 ) // Éè±¸ÏµÍ³»Ö¸´³ö³§ÉèÖÃ
+							else if(strcmp(com_http_cmd.cmd ,SystemMaintenance_SystemReset)==0 ) // è®¾å¤‡ç³»ç»Ÿæ¢å¤å‡ºå‚è®¾ç½®
 							{
 								W25QXX_Erase_Chip();
 								set_reboot_time_function(1000);
 							}
-							else if(strcmp(com_http_cmd.cmd ,SystemMaintenance_SystemBasicReset)==0 ) // Éè±¸ÏµÍ³»Ö¸´Ä¬ÈÏÉèÖÃ
+							else if(strcmp(com_http_cmd.cmd ,SystemMaintenance_SystemBasicReset)==0 ) // è®¾å¤‡ç³»ç»Ÿæ¢å¤é»˜è®¤è®¾ç½®
 								app_set_reset_function();
-							else if(strcmp(com_http_cmd.cmd ,SystemMaintenance_SystemReboot)==0 ) // Éè±¸ÏµÍ³ÖØÆô
+							else if(strcmp(com_http_cmd.cmd ,SystemMaintenance_SystemReboot)==0 ) // è®¾å¤‡ç³»ç»Ÿé‡å¯
 								set_reboot_time_function(1000);		
 							else
 								http_data_send_function(NO_SUPPORT,1);
@@ -243,7 +244,7 @@ int8_t com_deal_http_info_function(void)
 			}
 			else
 			{
-				if(HTTP_COM_DEBUG) printf("IP error\n"); // ip´íÎó
+				if(HTTP_COM_DEBUG) printf("IP error\n"); // ipé”™è¯¯
 				http_data_send_function(SERVER_ERROR,1);	
 				return -1;
 			}
@@ -251,7 +252,7 @@ int8_t com_deal_http_info_function(void)
 	}
 	else if(size < 0)
 	{
-		if(HTTP_COM_DEBUG) printf("http size error\n"); // httpÊı¾İ½âÎö´íÎó
+		if(HTTP_COM_DEBUG) printf("http size error\n"); // httpæ•°æ®è§£æé”™è¯¯
 		http_data_send_function(SERVER_ERROR,1);	
 	}	
 	return -1;
@@ -271,7 +272,7 @@ Host: 37.10.168.39
 /************************************************************
 *
 * Function name	: com_http_queue_find_info
-* Description	: »ñÈ¡Ò»°üÊı¾İ
+* Description	: è·å–ä¸€åŒ…æ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -285,7 +286,7 @@ int com_http_queue_find_info(uint8_t *msg,uint16_t size)
 	int buf_length 	= 0;
 	static uint16_t http_length = 0;
 	
-	if(Get_Queue_Count(&sg_queue_http) > 0 ) // ÓĞÊı¾İ½ÓÊÕ
+	if(Get_Queue_Count(&sg_queue_http) > 0 ) // æœ‰æ•°æ®æ¥æ”¶
 	{	
 		if(com_http_cmd.data_recving == 0)
 		{
@@ -322,7 +323,7 @@ int com_http_queue_find_info(uint8_t *msg,uint16_t size)
 						line_start = strstr((char *)(sg_queue_http.buf+sg_queue_http.front), "POST");
 						if (line_start == NULL)
 						{					
-							Clear_Queue(&sg_queue_http);  // Çå¿Õ¶ÓÁĞ
+							Clear_Queue(&sg_queue_http);  // æ¸…ç©ºé˜Ÿåˆ—
 							return -1;
 						}
 						else
@@ -345,27 +346,27 @@ int com_http_queue_find_info(uint8_t *msg,uint16_t size)
 					sscanf((char*)line_str,"Length:%d\r\n",&buf_length); 
 //				else
 //					printf("length error\n");
-				if((line_end == NULL)||( line_end < line_start))// Î´ÕÒµ½°üÎ² »ò °üÍ·°üÎ²´íÎó
+				if((line_end == NULL)||( line_end < line_start))// æœªæ‰¾åˆ°åŒ…å°¾ æˆ– åŒ…å¤´åŒ…å°¾é”™è¯¯
 				{
-					Clear_Queue(&sg_queue_http);  // Çå¿Õ¶ÓÁĞ
+					Clear_Queue(&sg_queue_http);  // æ¸…ç©ºé˜Ÿåˆ—
 					return -1;
 				}
-				if(buf_length !=0)  // ÅĞ¶ÏºóÃæÊÇ·ñÓĞÊı¾İ
+				if(buf_length !=0)  // åˆ¤æ–­åé¢æ˜¯å¦æœ‰æ•°æ®
 				{
 					sg_json_t.len = buf_length;
 					line_str = strstr((char *)line_end, "{");
-					if(line_str == NULL) // ºóÃæÎŞÊı¾İ
+					if(line_str == NULL) // åé¢æ— æ•°æ®
 					{
-						com_http_cmd.data_recving = 1; // ¼ÌĞø½ÓÊÕ
+						com_http_cmd.data_recving = 1; // ç»§ç»­æ¥æ”¶
 						buf_length = 0;
 					}
 					else
-						com_http_cmd.data_recving = 0; // ÒÑ¾­½ÓÊÕÍê³É
+						com_http_cmd.data_recving = 0; // å·²ç»æ¥æ”¶å®Œæˆ
 				}
 				else
 					com_http_cmd.data_recving = 0;
 			
-				line_end = line_end+4+buf_length; // »ñÈ¡µ±Ç°ËùÓĞµÄÊı¾İ
+				line_end = line_end+4+buf_length; // è·å–å½“å‰æ‰€æœ‰çš„æ•°æ®
 				
 				if(line_start > line_end)
 				{
@@ -375,7 +376,7 @@ int com_http_queue_find_info(uint8_t *msg,uint16_t size)
 					Dequeue_Bytes_To_Buffer(&sg_queue_http,msg+length,(line_end-(char *)sg_queue_http.buf));
 					memset(sg_queue_http.buf,0,(line_end-(char *)sg_queue_http.buf));
 					if(sg_queue_http.count == 0)
-						Clear_Queue(&sg_queue_http);  // Çå¿Õ¶ÓÁĞ			
+						Clear_Queue(&sg_queue_http);  // æ¸…ç©ºé˜Ÿåˆ—			
 					http_length = line_end+QUEUE_BUF_SIZE-line_start;
 					return http_length;
 				}
@@ -383,7 +384,7 @@ int com_http_queue_find_info(uint8_t *msg,uint16_t size)
 				{
 					Dequeue_Bytes_To_Buffer(&sg_queue_http,msg,(line_end-line_start));
 					if(sg_queue_http.count == 0)
-						Clear_Queue(&sg_queue_http);  // Çå¿Õ¶ÓÁĞ
+						Clear_Queue(&sg_queue_http);  // æ¸…ç©ºé˜Ÿåˆ—
 					memset(line_start,0,(line_end-line_start));	
 					http_length = line_end-line_start;
 					return http_length;				
@@ -415,7 +416,7 @@ int com_http_queue_find_info(uint8_t *msg,uint16_t size)
 }
 
 
-/* HTTP ¸ñÊ½
+/* HTTP æ ¼å¼
 HTTP/1.1 404 Not Found
 Content-Type: application/json; charset="UTF-8"
 Content-Length: 0000000079
@@ -425,7 +426,7 @@ Content-Length: 0000000079
 /************************************************************
 *
 * Function name	: http_com_ack_function
-* Description	: HTTP»Ø¸´Êı¾İ
+* Description	: HTTPå›å¤æ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -464,7 +465,7 @@ void http_com_ack_function(char *data, uint16_t *len, char *json_str,uint16_t js
 /************************************************************
 *
 * Function name	: http_json_ack_status
-* Description	: HTTP»Ø¸´Êı¾İ:²Ù×÷×´Ì¬
+* Description	: HTTPå›å¤æ•°æ®:æ“ä½œçŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -474,14 +475,14 @@ void http_json_ack_status(char* buf,uint16_t *size,uint8_t status_ID)
 	char *json_data = NULL;
 	cJSON *json        = NULL;
 
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 
 	if(json != NULL )
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -493,7 +494,7 @@ void http_json_ack_status(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_waterout
-* Description	: Ë®½ş×´Ì¬
+* Description	: æ°´æµ¸çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -505,7 +506,7 @@ void http_json_ack_waterout(char* buf,uint16_t *size,uint8_t status_ID)
 	cJSON *data        = NULL;
 	uint8_t stauts = 0;
 	if(HTTP_COM_DEBUG) printf("http_json_ack_waterout \n");
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	
 	if(det_get_water_status() == 1)
@@ -515,12 +516,12 @@ void http_json_ack_waterout(char* buf,uint16_t *size,uint8_t status_ID)
 	
 	if(json != NULL && data != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		cJSON_AddItemToObject(json,"data",data);		
 		cJSON_AddNumberToObject(data,"Value",stauts);
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}	
 	*size = strlen(json_data);
 	memcpy(buf,json_data,*size);
@@ -533,7 +534,7 @@ void http_json_ack_waterout(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_devicedescription
-* Description	: Éè±¸ĞÅÏ¢
+* Description	: è®¾å¤‡ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -548,41 +549,41 @@ void http_json_ack_devicedescription(char* buf,uint16_t *size,uint8_t status_ID)
 	struct local_ip_t   	*local   = app_get_local_network_function();
 	char temp[20] = {0};
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	
 	if(json != NULL && data != NULL && value != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddStringToObject(value,"deviceName",""); 				// Éè±¸Ãû³Æ
-		cJSON_AddStringToObject(value,"deviceDescription",""); 	// Éè±¸ÃèÊö
-		cJSON_AddStringToObject(value,"deviceLocation",""); 		// Éè±¸Î»ÖÃ
-		cJSON_AddStringToObject(value,"model",HARD_NO_STR);  		// Éè±¸ĞÍºÅ
+		cJSON_AddStringToObject(value,"deviceName",""); 				// è®¾å¤‡åç§°
+		cJSON_AddStringToObject(value,"deviceDescription",""); 	// è®¾å¤‡æè¿°
+		cJSON_AddStringToObject(value,"deviceLocation",""); 		// è®¾å¤‡ä½ç½®
+		cJSON_AddStringToObject(value,"model",HARD_NO_STR);  		// è®¾å¤‡å‹å·
 		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d",device->id.i);
-		cJSON_AddStringToObject(value,"serialNumber",temp); 		// Éè±¸ĞòÁĞºÅ
-		cJSON_AddStringToObject(value,"subSerialNumber",""); 		// ×ÓĞòÁĞºÅ
+		cJSON_AddStringToObject(value,"serialNumber",temp); 		// è®¾å¤‡åºåˆ—å·
+		cJSON_AddStringToObject(value,"subSerialNumber",""); 		// å­åºåˆ—å·
 		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x:%02x:%02x:%02x:%02x:%02x",
 											local->mac[0],local->mac[1],local->mac[2],
 											local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(value,"macAddress",temp); 				// MACµØÖ·
-		cJSON_AddStringToObject(value,"ARCID",""); 							// ARC±àºÅ
-		cJSON_AddStringToObject(value,"boardModel",""); 				// °å¿¨ĞÍºÅ
-		cJSON_AddStringToObject(value,"mainboardModel",""); 		// Ö÷°åĞÍºÅ
-		cJSON_AddStringToObject(value,"chipPlatform","GD32F107"); // Ğ¾Æ¬Æ½Ì¨
-		cJSON_AddStringToObject(value,"deviceType","MCU"); 			// Éè±¸ÀàĞÍ
+		cJSON_AddStringToObject(value,"macAddress",temp); 				// MACåœ°å€
+		cJSON_AddStringToObject(value,"ARCID",""); 							// ARCç¼–å·
+		cJSON_AddStringToObject(value,"boardModel",""); 				// æ¿å¡å‹å·
+		cJSON_AddStringToObject(value,"mainboardModel",""); 		// ä¸»æ¿å‹å·
+		cJSON_AddStringToObject(value,"chipPlatform","GD32F107"); // èŠ¯ç‰‡å¹³å°
+		cJSON_AddStringToObject(value,"deviceType","MCU"); 			// è®¾å¤‡ç±»å‹
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}	
 	*size = strlen(json_data);
 	memcpy(buf,json_data,*size);
@@ -596,7 +597,7 @@ void http_json_ack_devicedescription(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_deviceservicedescription
-* Description	: Éè±¸Éú²úĞÅÏ¢
+* Description	: è®¾å¤‡ç”Ÿäº§ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -608,25 +609,25 @@ void http_json_ack_deviceservicedescription(char* buf,uint16_t *size,uint8_t sta
 	cJSON *data        = NULL;
 	cJSON *value       = NULL;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	
 	if(json != NULL && data != NULL && value != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddStringToObject(value,"systemContact","fengniao"); 				// Éú²úÉÌ
-		cJSON_AddStringToObject(value,"companyName","fengniao"); 	// Éú²ú¹«Ë¾¼ò³Æ
-		cJSON_AddStringToObject(value,"copyright",""); 			// °æÈ¨ĞÅÏ¢
-		cJSON_AddStringToObject(value,"supportUrl","undefined");  		// ·şÎñÃÅ»§ÍøÕ¾
+		cJSON_AddStringToObject(value,"systemContact","fengniao"); 				// ç”Ÿäº§å•†
+		cJSON_AddStringToObject(value,"companyName","fengniao"); 	// ç”Ÿäº§å…¬å¸ç®€ç§°
+		cJSON_AddStringToObject(value,"copyright",""); 			// ç‰ˆæƒä¿¡æ¯
+		cJSON_AddStringToObject(value,"supportUrl","undefined");  		// æœåŠ¡é—¨æˆ·ç½‘ç«™
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	*size = strlen(json_data);
 	memcpy(buf,json_data,*size);
@@ -641,7 +642,7 @@ void http_json_ack_deviceservicedescription(char* buf,uint16_t *size,uint8_t sta
 /************************************************************
 *
 * Function name	: http_json_ack_deviceversion
-* Description	: Éè±¸°æ±¾ĞÅÏ¢
+* Description	: è®¾å¤‡ç‰ˆæœ¬ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -653,31 +654,31 @@ void http_json_ack_deviceversion(char* buf,uint16_t *size,uint8_t status_ID)
 	cJSON *data        = NULL;
 	cJSON *value       = NULL;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	
 	if(json != NULL && data != NULL && value != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddStringToObject(value,"firmwareVersion",SOFT_NO_STR); 				// Ö÷¿Ø°æ±¾ºÅ
-		cJSON_AddStringToObject(value,"firmwareReleasedDate",SOFT_NO_DAT); 	// Ö÷¿Ø°æ±¾ÈÕÆÚ
-		cJSON_AddStringToObject(value,"firmwareVersionInfo",""); 					// Ö÷¿Ø°æ±¾ÃèÊöĞÅÏ¢
-		cJSON_AddStringToObject(value,"softwareVersion",SOFT_NO_STR);  		// Èí¼ş°æ±¾ĞÅÏ¢
-		cJSON_AddStringToObject(value,"playbackLibraryVersion","");  		// ²¥·Å¿â°æ±¾
-		cJSON_AddStringToObject(value,"kernelVersion","");  		// ÄÚºË°æ±¾
-		cJSON_AddStringToObject(value,"DSPVersion","");  			// DSP°æ±¾
-		cJSON_AddStringToObject(value,"BSPVersion","");  			// BSP°æ±¾
-		cJSON_AddStringToObject(value,"FPGAVersion","");  		// FPGA°æ±¾
-		cJSON_AddStringToObject(value,"hardwareVersion","V1.2");  		// Ó²¼ş°æ±¾
+		cJSON_AddStringToObject(value,"firmwareVersion",SOFT_NO_STR); 				// ä¸»æ§ç‰ˆæœ¬å·
+		cJSON_AddStringToObject(value,"firmwareReleasedDate",SOFT_NO_DAT); 	// ä¸»æ§ç‰ˆæœ¬æ—¥æœŸ
+		cJSON_AddStringToObject(value,"firmwareVersionInfo",""); 					// ä¸»æ§ç‰ˆæœ¬æè¿°ä¿¡æ¯
+		cJSON_AddStringToObject(value,"softwareVersion",SOFT_NO_STR);  		// è½¯ä»¶ç‰ˆæœ¬ä¿¡æ¯
+		cJSON_AddStringToObject(value,"playbackLibraryVersion","");  		// æ’­æ”¾åº“ç‰ˆæœ¬
+		cJSON_AddStringToObject(value,"kernelVersion","");  		// å†…æ ¸ç‰ˆæœ¬
+		cJSON_AddStringToObject(value,"DSPVersion","");  			// DSPç‰ˆæœ¬
+		cJSON_AddStringToObject(value,"BSPVersion","");  			// BSPç‰ˆæœ¬
+		cJSON_AddStringToObject(value,"FPGAVersion","");  		// FPGAç‰ˆæœ¬
+		cJSON_AddStringToObject(value,"hardwareVersion","V1.2");  		// ç¡¬ä»¶ç‰ˆæœ¬
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	*size = strlen((char*)json_data);
 	memcpy(buf,json_data,*size);
@@ -691,7 +692,7 @@ void http_json_ack_deviceversion(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_angle
-* Description	: ÇãĞ±¶È
+* Description	: å€¾æ–œåº¦
 * Parameter		: 
 * Return		: 
 *	
@@ -706,27 +707,27 @@ void http_json_ack_angle(char* buf,uint16_t *size,uint8_t status_ID)
 	struct threshold_params *threshol = app_get_threshold_param_function();
 	char tiltStatus[10] = {0}; 
 		
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	
 	if(json != NULL && data != NULL && value != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddNumberToObject(value,"inclination",angle_data); 	// ÇãĞ±½Ç¶È
+		cJSON_AddNumberToObject(value,"inclination",angle_data); 	// å€¾æ–œè§’åº¦
 		
 		if(angle_data < threshol->angle)
 			sprintf(tiltStatus,"%s","normal");
 		else
 			sprintf(tiltStatus,"%s","abnormal");
-		cJSON_AddStringToObject(value,"tiltStatus",tiltStatus); 	// ÇãĞ±×´Ì¬
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		cJSON_AddStringToObject(value,"tiltStatus",tiltStatus); 	// å€¾æ–œçŠ¶æ€
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	*size = strlen(json_data);
 	memcpy(buf,json_data,*size);
@@ -740,7 +741,7 @@ void http_json_ack_angle(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_tempature
-* Description	: ÎÂ¶È
+* Description	: æ¸©åº¦
 * Parameter		: 
 * Return		: 
 *	
@@ -751,20 +752,20 @@ void http_json_ack_tempature(char* buf,uint16_t *size,uint8_t status_ID)
 	cJSON *json        = NULL;
 	cJSON *data        = NULL;
 
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	
 	if(json != NULL && data != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddNumberToObject(data,"Value",det_get_inside_temp()); 	// ÎÂ¶È
+		cJSON_AddNumberToObject(data,"Value",det_get_inside_temp()); 	// æ¸©åº¦
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	*size = strlen(json_data);
 	memcpy(buf,json_data,*size);
@@ -777,7 +778,7 @@ void http_json_ack_tempature(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_humidity
-* Description	: Êª¶È
+* Description	: æ¹¿åº¦
 * Parameter		: 
 * Return		: 
 *	
@@ -788,20 +789,20 @@ void http_json_ack_humidity(char* buf,uint16_t *size,uint8_t status_ID)
 	cJSON *json        = NULL;
 	cJSON *data        = NULL;
 
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	
 	if(json != NULL && data != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddNumberToObject(data,"Value",det_get_inside_humi()); 	// Êª¶È
+		cJSON_AddNumberToObject(data,"Value",det_get_inside_humi()); 	// æ¹¿åº¦
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -815,7 +816,7 @@ void http_json_ack_humidity(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_fanstatus
-* Description	: ·çÉÈ×´Ì¬
+* Description	: é£æ‰‡çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -831,22 +832,22 @@ void http_json_ack_fanstatus(char* buf,uint16_t *size,uint8_t status_ID)
 
 	uint8_t fan_1 = fan_get_status_function(FAN_1);
 
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
 		cJSON_AddItemToObject(value, "fanStatusList", cjson_list);
 		
-    /* Ìí¼ÓÒ»¸öÊı×éÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+    /* æ·»åŠ ä¸€ä¸ªæ•°ç»„ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		fanStatus1 = cJSON_CreateObject();
 		if(fanStatus1 != NULL)
 		{
@@ -865,7 +866,7 @@ void http_json_ack_fanstatus(char* buf,uint16_t *size,uint8_t status_ID)
 			cJSON_AddNumberToObject(fanStatus1, "curRunningTime", app_get_fan_time(0));
 			cJSON_AddNumberToObject(fanStatus1, "totalRunningTime",app_get_fan_time(1));	
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	*size = strlen(json_data);
 	memcpy(buf,json_data,*size);
@@ -881,7 +882,7 @@ void http_json_ack_fanstatus(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_doorstatus
-* Description	: ÃÇ×´Ì¬
+* Description	: ä»¬çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -896,22 +897,22 @@ void http_json_ack_doorstatus(char* buf,uint16_t *size,uint8_t status_ID)
 	cJSON *doorstatus   = NULL;
 	uint8_t door = det_get_open_door();
 		
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
 		cJSON_AddItemToObject(value, "doorStatusList", cjson_list);
 		
-    /* Ìí¼ÓÒ»¸öÊı×éÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+    /* æ·»åŠ ä¸€ä¸ªæ•°ç»„ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		doorstatus = cJSON_CreateObject();
 		if(doorstatus != NULL )
 		{
@@ -926,7 +927,7 @@ void http_json_ack_doorstatus(char* buf,uint16_t *size,uint8_t status_ID)
 				cJSON_AddStringToObject(doorstatus, "doorStatus","closed");				
 			}	
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -943,7 +944,7 @@ void http_json_ack_doorstatus(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_networkaddress
-* Description	: ÍøÂçµØÖ·¹ÜÀí
+* Description	: ç½‘ç»œåœ°å€ç®¡ç†
 * Parameter		: 
 * Return		: 
 *	
@@ -952,51 +953,51 @@ void http_json_ack_networkaddress(char* buf,uint16_t *size,uint8_t status_ID)
 {
 	char  *json_data = NULL;
 	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // Êı¾İ
-	cJSON *value       = NULL;  // ²ÎÊı
-	cJSON* cjson_list  = NULL;  // ÁĞ±í
-	cJSON *ipaddress1_param  = NULL; // ÍøÂç 1ĞÅÏ¢
-	cJSON *ipaddresscfg  = NULL; 		// ÍøÂçµØÖ·	
-	cJSON *iplink  = NULL; 					// Á¬½ÓĞÅÏ¢
-	cJSON *ipAddress  = NULL; 			// ipµØÖ·
-	cJSON *subnetMask  = NULL; 			// ×ÓÍøÑÚÂë	
-	cJSON *defaultGateway  = NULL; 	// Ä¬ÈÏÍø¹Ø	
-	cJSON *primaryDNS  = NULL; 			// Ê×Ñ¡DNS	
-	cJSON *secondaryDNS  = NULL; 		// ±¸ÓÃDNS
+	cJSON *data        = NULL;  // æ•°æ®
+	cJSON *value       = NULL;  // å‚æ•°
+	cJSON* cjson_list  = NULL;  // åˆ—è¡¨
+	cJSON *ipaddress1_param  = NULL; // ç½‘ç»œ 1ä¿¡æ¯
+	cJSON *ipaddresscfg  = NULL; 		// ç½‘ç»œåœ°å€	
+	cJSON *iplink  = NULL; 					// è¿æ¥ä¿¡æ¯
+	cJSON *ipAddress  = NULL; 			// ipåœ°å€
+	cJSON *subnetMask  = NULL; 			// å­ç½‘æ©ç 	
+	cJSON *defaultGateway  = NULL; 	// é»˜è®¤ç½‘å…³	
+	cJSON *primaryDNS  = NULL; 			// é¦–é€‰DNS	
+	cJSON *secondaryDNS  = NULL; 		// å¤‡ç”¨DNS
 	
 	struct local_ip_t  *local = app_get_local_network_function();
 	char temp[20] = {0};	
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
 		cJSON_AddItemToObject(value, "ipAddressCfgList", cjson_list);
 		
-    /* Ìí¼ÓÒ»¸öÊı×éÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+    /* æ·»åŠ ä¸€ä¸ªæ•°ç»„ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		ipaddress1_param = cJSON_CreateObject();
 		if(ipaddress1_param != NULL )
 		{
 			cJSON_AddItemToArray(cjson_list, ipaddress1_param);
-			cJSON_AddNumberToObject(ipaddress1_param, "id",1);  // Íø¿ÚË÷Òı
+			cJSON_AddNumberToObject(ipaddress1_param, "id",1);  // ç½‘å£ç´¢å¼•
 			ipaddresscfg = cJSON_CreateObject();
 			iplink = cJSON_CreateObject();
 			if(ipaddresscfg != NULL && iplink != NULL)
 			{			
 				cJSON_AddItemToObject(ipaddress1_param,"ipAddressCfg",ipaddresscfg);	
 				cJSON_AddItemToObject(ipaddress1_param,"link",iplink);	
-				cJSON_AddStringToObject(ipaddresscfg,"ipVersion","ipv4"); // ipµØÖ·ÀàĞÍ
-				cJSON_AddStringToObject(ipaddresscfg,"ipv4addressingMethod","static");// ipv4µØÖ·»ñÈ¡·½·¨			
-				cJSON_AddStringToObject(ipaddresscfg,"ipv6addressMethod","undefined");// ipv4µØÖ·»ñÈ¡·½·¨
+				cJSON_AddStringToObject(ipaddresscfg,"ipVersion","ipv4"); // ipåœ°å€ç±»å‹
+				cJSON_AddStringToObject(ipaddresscfg,"ipv4addressingMethod","static");// ipv4åœ°å€è·å–æ–¹æ³•			
+				cJSON_AddStringToObject(ipaddresscfg,"ipv6addressMethod","undefined");// ipv4åœ°å€è·å–æ–¹æ³•
 				ipAddress = cJSON_CreateObject();
 				subnetMask = cJSON_CreateObject();
 				defaultGateway = cJSON_CreateObject();			
@@ -1009,39 +1010,39 @@ void http_json_ack_networkaddress(char* buf,uint16_t *size,uint8_t status_ID)
 					cJSON_AddItemToObject(ipaddresscfg,"defaultGateway",defaultGateway);	
 					cJSON_AddItemToObject(ipaddresscfg,"primaryDNS",primaryDNS);	
 					cJSON_AddItemToObject(ipaddresscfg,"secondaryDNS",secondaryDNS);	
-					// IPµØÖ·
+					// IPåœ°å€
 					memset(temp,0,sizeof(temp));
 					sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 					cJSON_AddStringToObject(ipAddress,"ipv4Address",temp);			
 					cJSON_AddStringToObject(ipAddress,"ipv6Address","undefined");			
-					// ×ÓÍøÑÚÂë
+					// å­ç½‘æ©ç 
 					memset(temp,0,sizeof(temp));
 					sprintf(temp,"%d.%d.%d.%d",local->netmask[0],local->netmask[1],local->netmask[2],local->netmask[3]);
 					cJSON_AddStringToObject(subnetMask,"ipv4Address",temp);			
 					cJSON_AddStringToObject(subnetMask,"ipv6Address","undefined");							
-					/* Íø¹Ø */
+					/* ç½‘å…³ */
 					memset(temp,0,sizeof(temp));
 					sprintf(temp,"%d.%d.%d.%d",local->gateway[0],local->gateway[1],local->gateway[2],local->gateway[3]);
 					cJSON_AddStringToObject(defaultGateway,"ipv4Address",temp);			
 					cJSON_AddStringToObject(defaultGateway,"ipv6Address","undefined");					
-					/* Ê×Ñ¡DNS */
+					/* é¦–é€‰DNS */
 					memset(temp,0,sizeof(temp));
 					sprintf(temp,"%d.%d.%d.%d",local->dns[0],local->dns[1],local->dns[2],local->dns[3]);
 					cJSON_AddStringToObject(primaryDNS,"ipv4Address",temp);			
 					cJSON_AddStringToObject(primaryDNS,"ipv6Address","undefined");
-					/* ±¸ÓÃDNS */
+					/* å¤‡ç”¨DNS */
 					cJSON_AddStringToObject(secondaryDNS,"ipv4Address","undefined");			
 					cJSON_AddStringToObject(secondaryDNS,"ipv6Address","undefined");				
 				}
-				/* Ìí¼ÓÒ»¸öÖµÎª False µÄ²¼¶ûÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+				/* æ·»åŠ ä¸€ä¸ªå€¼ä¸º False çš„å¸ƒå°”ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 				cJSON_AddFalseToObject(ipaddresscfg, "dnsEnable");		
 				memset(temp,0,sizeof(temp));
 				sprintf(temp,"%02x:%02x:%02x:%02x:%02x:%02x",
 													local->mac[0],local->mac[1],local->mac[2],
 													local->mac[3],local->mac[4],local->mac[5]);
 				cJSON_AddStringToObject(iplink,"macAddress",temp);	
-				cJSON_AddTrueToObject(iplink, "autoNegotiation");	 // ×Ô¶¯Ğ­ÉÌÊ¹ÄÜ					
-				cJSON_AddNumberToObject(iplink,"linkSpeed",LAN8720_Get_Speed());	 // Á¬½ÓËÙÂÊ	
+				cJSON_AddTrueToObject(iplink, "autoNegotiation");	 // è‡ªåŠ¨åå•†ä½¿èƒ½					
+				cJSON_AddNumberToObject(iplink,"linkSpeed",LAN8720_Get_Speed());	 // è¿æ¥é€Ÿç‡	
 				if(LAN8720_Get_Duplex() == 1)
 					cJSON_AddStringToObject(iplink,"linkDuplex","half");	
 				else if(LAN8720_Get_Duplex() == 2)
@@ -1049,7 +1050,7 @@ void http_json_ack_networkaddress(char* buf,uint16_t *size,uint8_t status_ID)
 				cJSON_AddNumberToObject(iplink,"mtu",TCP_MSS);								
 			}	
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -1073,7 +1074,7 @@ void http_json_ack_networkaddress(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_devicerealtimepowerparam
-* Description	: µçÁ¦ÊµÊ±²ÎÊı
+* Description	: ç”µåŠ›å®æ—¶å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1082,44 +1083,44 @@ void http_json_ack_devicerealtimepowerparam(char* buf,uint16_t *size,uint8_t sta
 {
 	char  *json_data 	 = NULL;
 	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // Êı¾İ
-	cJSON *value       = NULL;  // ²ÎÊı
-	cJSON* cjson_list  = NULL;  // ÁĞ±í
-	cJSON *power_param[8] = {NULL}; // µç¿Ú1
+	cJSON *data        = NULL;  // æ•°æ®
+	cJSON *value       = NULL;  // å‚æ•°
+	cJSON* cjson_list  = NULL;  // åˆ—è¡¨
+	cJSON *power_param[8] = {NULL}; // ç”µå£1
 	
 	data_collection_t *det_param = det_get_collect_data();
 	struct threshold_params *shold_param = app_get_threshold_param_function();
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
 	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
 		cJSON_AddItemToObject(value,"powerList",cjson_list);
 		
-    /* Ìí¼ÓÒ»¸öÊı×éÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+    /* æ·»åŠ ä¸€ä¸ªæ•°ç»„ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		for(uint8_t i=0;i<8;i++)
 		{
 			power_param[i] = cJSON_CreateObject();
 			if(power_param[i] != NULL )
 			{		
 				cJSON_AddItemToArray(cjson_list,power_param[i]);
-				cJSON_AddNumberToObject(power_param[i],"powerID",i+1);  // Ë÷Òı
+				cJSON_AddNumberToObject(power_param[i],"powerID",i+1);  // ç´¢å¼•
 				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // ¼ÌµçÆ÷¹Ø±Õ
+				if(relay_get_status_function((RELAY_DEV)i) == 0) // ç»§ç”µå™¨å…³é—­
 					cJSON_AddStringToObject(power_param[i],"powerStatus","abnormal");	
 				else if(relay_get_status_function((RELAY_DEV)i) == 1)
 					cJSON_AddStringToObject(power_param[i],"powerStatus","normal");			
 	
-				if(det_param->vin220v < 50)  // ÊĞµçµçÑ¹ < 50V£¬ËµÃ÷¶Ïµç
+				if(det_param->vin220v < 50)  // å¸‚ç”µç”µå‹ < 50Vï¼Œè¯´æ˜æ–­ç”µ
 					cJSON_AddStringToObject(power_param[i],"status","notPower");	
 				else if(det_param->vin220v > 200) 
 					cJSON_AddStringToObject(power_param[i],"status","normal");	
@@ -1128,25 +1129,25 @@ void http_json_ack_devicerealtimepowerparam(char* buf,uint16_t *size,uint8_t sta
 
 				cJSON_AddStringToObject(power_param[i],"powerType","AC");	
 
-				cJSON_AddNumberToObject(power_param[i],"ratedPower",1000); // ¶î¶¨¹¦ÂÊ
+				cJSON_AddNumberToObject(power_param[i],"ratedPower",1000); // é¢å®šåŠŸç‡
 				
-				cJSON_AddNumberToObject(power_param[i],"totalPower",det_param->power[i]); // ×Ü¹¦ÂÊ
+				cJSON_AddNumberToObject(power_param[i],"totalPower",det_param->power[i]); // æ€»åŠŸç‡
 				
-				cJSON_AddNumberToObject(power_param[i],"powerConsumption",det_param->electricity[i]); // ×ÜºÄµçÁ¿
+				cJSON_AddNumberToObject(power_param[i],"powerConsumption",det_param->electricity[i]); // æ€»è€—ç”µé‡
 				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // ¼ÌµçÆ÷¹Ø±Õ
-					cJSON_AddNumberToObject(power_param[i],"voltage",0); // µçÑ¹
+				if(relay_get_status_function((RELAY_DEV)i) == 0) // ç»§ç”µå™¨å…³é—­
+					cJSON_AddNumberToObject(power_param[i],"voltage",0); // ç”µå‹
 				else if(relay_get_status_function((RELAY_DEV)i) == 1)
-					cJSON_AddNumberToObject(power_param[i],"voltage",det_param->vin220v); // µçÑ¹
+					cJSON_AddNumberToObject(power_param[i],"voltage",det_param->vin220v); // ç”µå‹
 				
-				cJSON_AddNumberToObject(power_param[i],"electricCurrent",det_param->current[i]/1000.000f); // µçÁ÷
+				cJSON_AddNumberToObject(power_param[i],"electricCurrent",det_param->current[i]/1000.000f); // ç”µæµ
 				
-				cJSON_AddStringToObject(power_param[i],"reclosingStatus","closed");	// ÖØºÏÕ¢×´Ì¬
-				cJSON_AddStringToObject(power_param[i],"electricLeakageStatus","notSupport");	// Â©µç×´Ì¬
+				cJSON_AddStringToObject(power_param[i],"reclosingStatus","closed");	// é‡åˆé—¸çŠ¶æ€
+				cJSON_AddStringToObject(power_param[i],"electricLeakageStatus","notSupport");	// æ¼ç”µçŠ¶æ€
 				
 				if(shold_param->current !=0)
 				{
-					if(det_param->current[i] < shold_param->current)// µçÁ÷×´Ì¬	
+					if(det_param->current[i] < shold_param->current)// ç”µæµçŠ¶æ€	
 						cJSON_AddStringToObject(power_param[i],"electricCurrentStatus","normal");	
 					else if(det_param->current[i] > shold_param->current)
 						cJSON_AddStringToObject(power_param[i],"electricCurrentStatus","high");		
@@ -1155,7 +1156,7 @@ void http_json_ack_devicerealtimepowerparam(char* buf,uint16_t *size,uint8_t sta
 					cJSON_AddStringToObject(power_param[i],"electricCurrentStatus","normal");	
 				if(shold_param->volt_max !=0 && shold_param->volt_min !=0)
 				{
-					if((det_param->vin220v < shold_param->volt_min)&& (det_param->vin220v > 30))// µçÑ¹×´Ì¬	
+					if((det_param->vin220v < shold_param->volt_min)&& (det_param->vin220v > 30))// ç”µå‹çŠ¶æ€	
 						cJSON_AddStringToObject(power_param[i],"voltageStatus","low");	
 					else if((det_param->vin220v < shold_param->volt_max)&& (det_param->vin220v > shold_param->volt_min))
 						cJSON_AddStringToObject(power_param[i],"voltageStatus","normal");	
@@ -1165,13 +1166,13 @@ void http_json_ack_devicerealtimepowerparam(char* buf,uint16_t *size,uint8_t sta
 				else
 					cJSON_AddStringToObject(power_param[i],"voltageStatus","normal");	
 				cJSON_AddNumberToObject(power_param[i],"undercurrentTimes",0);	//  
-				cJSON_AddNumberToObject(power_param[i],"overcurrentTimes",shold_param->overcurrentTimes);			// ¹ıÁ÷´ÎÊı				
-				cJSON_AddNumberToObject(power_param[i],"electricLeakageTimes",0);	// Â©µç´ÎÊı
-				cJSON_AddNumberToObject(power_param[i],"undervoltageTimes",shold_param->undervoltageTimes);			// Ç·Ñ¹´ÎÊı				
-				cJSON_AddNumberToObject(power_param[i],"overvoltageTimes",shold_param->overvoltageTimes);			// ¹ıÑ¹´ÎÊı				
+				cJSON_AddNumberToObject(power_param[i],"overcurrentTimes",shold_param->overcurrentTimes);			// è¿‡æµæ¬¡æ•°				
+				cJSON_AddNumberToObject(power_param[i],"electricLeakageTimes",0);	// æ¼ç”µæ¬¡æ•°
+				cJSON_AddNumberToObject(power_param[i],"undervoltageTimes",shold_param->undervoltageTimes);			// æ¬ å‹æ¬¡æ•°				
+				cJSON_AddNumberToObject(power_param[i],"overvoltageTimes",shold_param->overvoltageTimes);			// è¿‡å‹æ¬¡æ•°				
 			}
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -1238,12 +1239,12 @@ void http_json_ack_domins(char* buf,uint16_t *size,uint8_t status_ID)
 	cJSON *domains  = NULL;
 
 	if(HTTP_COM_DEBUG) printf("http_json_ack_waterout22 \n");
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	domains = cJSON_CreateArray();
 	if(json != NULL && data != NULL && domains != NULL)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
@@ -1260,7 +1261,7 @@ void http_json_ack_domins(char* buf,uint16_t *size,uint8_t status_ID)
 		cJSON_AddItemToArray(domains,cJSON_CreateString("NetworkAddress"));		
 		cJSON_AddItemToArray(domains,cJSON_CreateString("PowerMgr"));		
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}	
 	*size = strlen(json_data);
 	memcpy(buf,json_data,*size);
@@ -1272,7 +1273,7 @@ void http_json_ack_domins(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_BoxSubModelMgr
-* Description	: »ñÈ¡»úÏä¹ÜÀíµÄÉè±¸ÁĞ±í
+* Description	: è·å–æœºç®±ç®¡ç†çš„è®¾å¤‡åˆ—è¡¨
 * Parameter		: 
 * Return		: 
 *	
@@ -1281,25 +1282,25 @@ void http_json_ack_BoxSubModelMgr(char* buf,uint16_t *size,uint8_t status_ID)
 {
 	char  *json_data 	 = NULL;
 	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // Êı¾İ
-	cJSON* cjson_list  = NULL;  // ÁĞ±í
-	cJSON *device_param[8] = {NULL}; // µç¿Ú1
+	cJSON *data        = NULL;  // æ•°æ®
+	cJSON* cjson_list  = NULL;  // åˆ—è¡¨
+	cJSON *device_param[8] = {NULL}; // ç”µå£1
 	char dataid[3] = {0};
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && data != NULL && cjson_list != NULL)
 	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);		
 		cJSON_AddItemToObject(data,"deviceList",cjson_list);
 		
-    /* Ìí¼ÓÒ»¸öÊı×éÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+    /* æ·»åŠ ä¸€ä¸ªæ•°ç»„ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		for(uint8_t i=0;i<8;i++)
 		{
 			device_param[i] = cJSON_CreateObject();
@@ -1312,7 +1313,7 @@ void http_json_ack_BoxSubModelMgr(char* buf,uint16_t *size,uint8_t status_ID)
 				cJSON_AddStringToObject(device_param[i],"ipV6Address","");
 				cJSON_AddStringToObject(device_param[i],"macAddress","");
 								
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // ¼ÌµçÆ÷¹Ø±Õ
+				if(relay_get_status_function((RELAY_DEV)i) == 0) // ç»§ç”µå™¨å…³é—­
 					cJSON_AddStringToObject(device_param[i],"powerStatus","abnormal");	
 				else if(relay_get_status_function((RELAY_DEV)i) == 1)
 					cJSON_AddStringToObject(device_param[i],"powerStatus","normal");			
@@ -1323,11 +1324,11 @@ void http_json_ack_BoxSubModelMgr(char* buf,uint16_t *size,uint8_t status_ID)
 				
 				cJSON_AddNumberToObject(device_param[i],"SDKPort",1);
 				cJSON_AddNumberToObject(device_param[i],"httpPort",1);
-				cJSON_AddNumberToObject(device_param[i],"portID",1); // ½»»»»ú¶Ë¿ÚË÷Òı
+				cJSON_AddNumberToObject(device_param[i],"portID",1); // äº¤æ¢æœºç«¯å£ç´¢å¼•
 				cJSON_AddStringToObject(device_param[i],"portName","undefined");
 			}
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -1346,7 +1347,7 @@ void http_json_ack_BoxSubModelMgr(char* buf,uint16_t *size,uint8_t status_ID)
 /************************************************************
 *
 * Function name	: http_json_ack_PowerPortSwitchTime
-* Description	: µç¿Ú¿ª¹ØÊ±¼ä¼Æ»®
+* Description	: ç”µå£å¼€å…³æ—¶é—´è®¡åˆ’
 * Parameter		: 
 * Return		: 
 *	
@@ -1355,29 +1356,29 @@ void http_json_ack_PowerPortSwitchTime(char* buf,uint16_t *size,uint8_t status_I
 {
 	char  *json_data 	 = NULL;
 	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // Êı¾İ
-	cJSON *value       = NULL;  // ²ÎÊı
-	cJSON* cjson_list  = NULL;  // ÁĞ±í
-	cJSON* plan_list   = NULL;  // ÁĞ±í
-	cJSON *power_plan[8] = {NULL}; // µç¿Ú1
+	cJSON *data        = NULL;  // æ•°æ®
+	cJSON *value       = NULL;  // å‚æ•°
+	cJSON* cjson_list  = NULL;  // åˆ—è¡¨
+	cJSON* plan_list   = NULL;  // åˆ—è¡¨
+	cJSON *power_plan[8] = {NULL}; // ç”µå£1
 	char data_id[3] = {0};	
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	value = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
 	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		cJSON_AddItemToObject(data,"Value",value);		
 		cJSON_AddItemToObject(value,"powerPortDevList",cjson_list);
 		
-    /* Ìí¼ÓÒ»¸öÊı×éÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+    /* æ·»åŠ ä¸€ä¸ªæ•°ç»„ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		for(uint8_t i=0;i<8;i++)
 		{
 			power_plan[i] = cJSON_CreateObject();
@@ -1385,8 +1386,8 @@ void http_json_ack_PowerPortSwitchTime(char* buf,uint16_t *size,uint8_t status_I
 			{		
 				cJSON_AddItemToArray(cjson_list,power_plan[i]);
 				sprintf(data_id,"%d",i+1);
-				cJSON_AddStringToObject(power_plan[i],"portCode",data_id);  // ¹©µç¿Ú±àÂë
-				cJSON_AddTrueToObject(power_plan[i],"planEnabled"); // Ê±¼ä¼Æ»®Ê¹ÄÜ
+				cJSON_AddStringToObject(power_plan[i],"portCode",data_id);  // ä¾›ç”µå£ç¼–ç 
+				cJSON_AddTrueToObject(power_plan[i],"planEnabled"); // æ—¶é—´è®¡åˆ’ä½¿èƒ½
 				
 				plan_list = cJSON_CreateArray();
 				if(plan_list != NULL )
@@ -1394,12 +1395,12 @@ void http_json_ack_PowerPortSwitchTime(char* buf,uint16_t *size,uint8_t status_I
 					cJSON_AddItemToObject(power_plan[i],"timeSpanList",plan_list);
 					cJSON* time = cJSON_CreateObject();
 					cJSON_AddItemToArray(plan_list,time);
-					cJSON_AddStringToObject(time,"startTime","00:00:00");  // ¿ªÊ¼Ê±¼ä
-					cJSON_AddStringToObject(time,"endTime","23:59:59"); // ½áÊøÊ±¼ä				
+					cJSON_AddStringToObject(time,"startTime","00:00:00");  // å¼€å§‹æ—¶é—´
+					cJSON_AddStringToObject(time,"endTime","23:59:59"); // ç»“æŸæ—¶é—´				
 				}
 			}
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -1419,7 +1420,7 @@ void http_json_ack_PowerPortSwitchTime(char* buf,uint16_t *size,uint8_t status_I
 /************************************************************
 *
 * Function name	: http_json_ack_GetPowerPortStatusList
-* Description	: »ñÈ¡¹©µç¿Ú×´Ì¬ÁĞ±í
+* Description	: è·å–ä¾›ç”µå£çŠ¶æ€åˆ—è¡¨
 * Parameter		: 
 * Return		: 
 *	
@@ -1428,23 +1429,23 @@ void http_json_ack_GetPowerPortStatusList(char* buf,uint16_t *size,uint8_t statu
 {
 	char  *json_data 	 = NULL;
 	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // Êı¾İ
-	cJSON* cjson_list  = NULL;  // ÁĞ±í
-	cJSON *power_state[8] = {NULL}; // µç¿Ú1
+	cJSON *data        = NULL;  // æ•°æ®
+	cJSON* cjson_list  = NULL;  // åˆ—è¡¨
+	cJSON *power_state[8] = {NULL}; // ç”µå£1
 	char dataid[3] = {0};
 	
 	data_collection_t *det_param = det_get_collect_data();
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && data != NULL && cjson_list != NULL)
 	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
 		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
 		
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);		
 		cJSON_AddItemToObject(data,"powerPortStatusList",cjson_list);
 		
@@ -1457,25 +1458,25 @@ void http_json_ack_GetPowerPortStatusList(char* buf,uint16_t *size,uint8_t statu
 				sprintf(dataid,"%d",i+1);
 				cJSON_AddStringToObject(power_state[i],"portCode",dataid);
 				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // ¼ÌµçÆ÷¹Ø±Õ
-					cJSON_AddNumberToObject(power_state[i],"voltage",0); // µçÑ¹	
+				if(relay_get_status_function((RELAY_DEV)i) == 0) // ç»§ç”µå™¨å…³é—­
+					cJSON_AddNumberToObject(power_state[i],"voltage",0); // ç”µå‹	
 				else if(relay_get_status_function((RELAY_DEV)i) == 1)
-					cJSON_AddNumberToObject(power_state[i],"voltage",det_param->vin220v); // µçÑ¹
+					cJSON_AddNumberToObject(power_state[i],"voltage",det_param->vin220v); // ç”µå‹
 				
-				cJSON_AddNumberToObject(power_state[i],"electricCurrent",det_param->current[i]/1000.000f); // µçÁ÷
-				cJSON_AddNumberToObject(power_state[i],"totalPower",det_param->power[i]); // ×Ü¹¦ÂÊ			
-				cJSON_AddNumberToObject(power_state[i],"powerConsumption",det_param->electricity[i]); // ×ÜºÄµçÁ¿
+				cJSON_AddNumberToObject(power_state[i],"electricCurrent",det_param->current[i]/1000.000f); // ç”µæµ
+				cJSON_AddNumberToObject(power_state[i],"totalPower",det_param->power[i]); // æ€»åŠŸç‡			
+				cJSON_AddNumberToObject(power_state[i],"powerConsumption",det_param->electricity[i]); // æ€»è€—ç”µé‡
 				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // ¼ÌµçÆ÷¹Ø±Õ
+				if(relay_get_status_function((RELAY_DEV)i) == 0) // ç»§ç”µå™¨å…³é—­
 					cJSON_AddStringToObject(power_state[i],"powerPortStatus","abnormal");	
 				else if(relay_get_status_function((RELAY_DEV)i) == 1)
 					cJSON_AddStringToObject(power_state[i],"powerPortStatus","normal");	
 
-				if(det_param->power[i] < 1) // ¹¦ÂÊĞ¡ÓÚ1W£¬ÅĞ¶ÏÎªÎ´²åÈë
+				if(det_param->power[i] < 1) // åŠŸç‡å°äº1Wï¼Œåˆ¤æ–­ä¸ºæœªæ’å…¥
 					cJSON_AddStringToObject(power_state[i],"powerPortStatus","notInsert");	
 			}
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -1492,7 +1493,7 @@ void http_json_ack_GetPowerPortStatusList(char* buf,uint16_t *size,uint8_t statu
 }
 
 
-/* HTTP ×ª webSocket
+/* HTTP è½¬ webSocket
 GET /chat HTTP/1.1
 Host: server.example.com
 Upgrade: websocket
@@ -1505,7 +1506,7 @@ Origin: http://example.com
 /************************************************************
 *
 * Function name	: http_to_websocket_function
-* Description	: HTTPÉı¼¶ÎªwebSocket
+* Description	: HTTPå‡çº§ä¸ºwebSocket
 * Parameter		: 
 * Return		: 
 *	
@@ -1539,7 +1540,7 @@ void http_to_websocket_function(char* data,uint16_t *len)
 	*len = str_len;
 }
 
-/* HTTP ×ª webSocket
+/* HTTP è½¬ webSocket
 HTTP/1.1 101 Switching Protocols
 Upgrade: WebSocket
 Connection: Upgrade
@@ -1549,7 +1550,7 @@ Sec-WebSocket-Protocol: ws-protocol-example\r\n\r\n
 /************************************************************
 *
 * Function name	: http_to_websocket_verification
-* Description	: ÑéÖ¤·şÎñÆ÷»Ø¸´ÏûÏ¢ÊÇ·ñÕıÈ·
+* Description	: éªŒè¯æœåŠ¡å™¨å›å¤æ¶ˆæ¯æ˜¯å¦æ­£ç¡®
 * Parameter		: 
 * Return		: 
 *	
@@ -1595,7 +1596,7 @@ Frame format:
 /************************************************************
 *
 * Function name	: http_websocket_analy_data
-* Description	: websocketÊı¾İ½âÎö
+* Description	: websocketæ•°æ®è§£æ
 * Parameter		: 
 * Return		: 
 *	
@@ -1606,17 +1607,17 @@ int http_websocket_analy_data(char* data,uint16_t len,com_websocket_data_t *webs
 
 	if (strlen(data) < 2)  return 0;  
 
-	websocket_data->fin = data[0]&0x80;   // ±íÊ¾ÊÇÏûÏ¢µÄ×îºóÒ»Ö¡
+	websocket_data->fin = data[0]&0x80;   // è¡¨ç¤ºæ˜¯æ¶ˆæ¯çš„æœ€åä¸€å¸§
 	if (websocket_data->fin != 0x80) return 0;
 
-	websocket_data->rsv = data[0]&0x70; // À©Õ¹¶¨Òå
+	websocket_data->rsv = data[0]&0x70; // æ‰©å±•å®šä¹‰
 	if (websocket_data->rsv != 0x00) return 0;
 
-	websocket_data->opcode = data[0]&0x0F; // ½âÊÍ Payload Êı¾İ
+	websocket_data->opcode = data[0]&0x0F; // è§£é‡Š Payload æ•°æ®
 
-	websocket_data->mask = (data[1] & 0x80);  // ÑÚÂë 
+	websocket_data->mask = (data[1] & 0x80);  // æ©ç  
 
-	websocket_data->len = data[1] & 0x7F; // Payload Êı¾İµÄ³¤¶È  
+	websocket_data->len = data[1] & 0x7F; // Payload æ•°æ®çš„é•¿åº¦  
 	if (websocket_data->len == 126)  
 	{
 		websocket_data->len = (data[2]<<8)| data[3];   
@@ -1678,7 +1679,7 @@ int http_websocket_analy_data(char* data,uint16_t len,com_websocket_data_t *webs
 /************************************************************
 *
 * Function name	: http_websocket_pong_data
-* Description	: ´ò°üpongÊı¾İ
+* Description	: æ‰“åŒ…pongæ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -1698,7 +1699,7 @@ void http_websocket_pong_data(char* data,uint16_t *len)
 /************************************************************
 *
 * Function name	: http_websocket_pack_data
-* Description	: ´ò°üwebsocketÊı¾İ
+* Description	: æ‰“åŒ…websocketæ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -1709,46 +1710,46 @@ void http_websocket_pack_data(char* data,uint16_t *len,uint16_t event_type,uint8
 	uint16_t event_len = 0;
 	switch(event_type)
 	{
-		case FLAG_WATER_ERROR: // Ë®½ş¸æ¾¯
+		case FLAG_WATER_ERROR: // æ°´æµ¸å‘Šè­¦
 		event_len = websocket_event_alerts_waterout(event_buf);
 		break;
-		case FLAG_WATER_NOEMAL: // Ë®½ş»Ö¸´
+		case FLAG_WATER_NOEMAL: // æ°´æµ¸æ¢å¤
 		event_len = websocket_event_alerts_wateroutreset(event_buf);
 		break;
-		case FLAG_SPD: // ·ÀÀ×
+		case FLAG_SPD: // é˜²é›·
 		event_len = websocket_event_alerts_devlightingprotectionstatusreport(event_buf);
 		break;
-		case FLAG_ANGLE: // ÇãĞ±
+		case FLAG_ANGLE: // å€¾æ–œ
 		event_len = websocket_event_alerts_devicetiltalarm(event_buf);
 		break;
-		case FLAG_TEMP_HIGH: // ÎÂ¶È¹ı¸ß
+		case FLAG_TEMP_HIGH: // æ¸©åº¦è¿‡é«˜
 		event_len = websocket_event_alerts_temperaturetoohigh(event_buf);
 		break;
-		case FLAG_TEMP_LOW: // ÎÂ¶È¹ıµÍ
+		case FLAG_TEMP_LOW: // æ¸©åº¦è¿‡ä½
 		event_len = websocket_event_alerts_temperaturetoolow(event_buf);
 		break;
-		case FLAG_HUMI_HIGH: // Êª¶È¹ı¸ß
+		case FLAG_HUMI_HIGH: // æ¹¿åº¦è¿‡é«˜
 		event_len = websocket_event_alerts_humiditytoohigh(event_buf);
 		break;
-		case FLAG_HUMI_LOW: // Êª¶È¹ıµÍ
+		case FLAG_HUMI_LOW: // æ¹¿åº¦è¿‡ä½
 		event_len = websocket_event_alerts_humiditytoolow(event_buf);
 		break;
-		case FLAG_DOOR: // ÏäÃÅ
+		case FLAG_DOOR: // ç®±é—¨
 		event_len = websocket_event_alerts_BoxDoorStatusReport(event_buf);
 		break;
-		case FLAG_POWER: // µçÁ¿
+		case FLAG_POWER: // ç”µé‡
 		event_len = websocket_event_alerts_DevicePowerParamAlarm(event_buf,power_type);
 		break;
-		case FLAG_AC_STATUS: // µçÔ´×´Ì¬
+		case FLAG_AC_STATUS: // ç”µæºçŠ¶æ€
 		event_len = websocket_event_alerts_DevPowerStatusReport(event_buf);
 		break;
-		case FLAG_ADD_ALL: // Ìí¼ÓÊÂ¼ş
+		case FLAG_ADD_ALL: // æ·»åŠ äº‹ä»¶
 		event_len = http_websocket_event_add_all(event_buf);
 		break;
-		case FLAG_FAN: // ·çÉÈ
+		case FLAG_FAN: // é£æ‰‡
 		event_len = websocket_event_alerts_fan_status(event_buf);
 		break;
-//		case FLAG_DELE_ALL: // É¾³ıÊÂ¼ş
+//		case FLAG_DELE_ALL: // åˆ é™¤äº‹ä»¶
 //		event_len = websocket_event_alerts_waterout(event_buf);
 //		break;		
 	}
@@ -1789,7 +1790,7 @@ void http_websocket_pack_data(char* data,uint16_t *len,uint16_t event_type,uint8
 /************************************************************
 *
 * Function name	: websocket_event_alerts_wateroutreset
-* Description	: Ë®½ş»Ö¸´ÊÂ¼ş
+* Description	: æ°´æµ¸æ¢å¤äº‹ä»¶
 * Parameter		: 
 * Return		: 
 *	
@@ -1808,7 +1809,7 @@ uint16_t websocket_event_alerts_wateroutreset(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	notification = cJSON_CreateObject();
 	pictures = cJSON_CreateArray();
@@ -1816,12 +1817,12 @@ uint16_t websocket_event_alerts_wateroutreset(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/WaterOutSense/WaterOutReset");	
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 											local->mac[0],local->mac[1],local->mac[2],
@@ -1859,7 +1860,7 @@ uint16_t websocket_event_alerts_wateroutreset(char* buf)
 			cJSON_AddStringToObject(pictures_pam,"checksum","undefined");
 			cJSON_AddNumberToObject(pictures_pam,"lifecycle",0);		
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(pictures_pam);
 	cJSON_Delete(pictures);
@@ -1877,7 +1878,7 @@ uint16_t websocket_event_alerts_wateroutreset(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_waterout
-* Description	: Ë®½ş¸æ¾¯ÊÂ¼ş
+* Description	: æ°´æµ¸å‘Šè­¦äº‹ä»¶
 * Parameter		: 
 * Return		: 
 *	
@@ -1896,7 +1897,7 @@ uint16_t websocket_event_alerts_waterout(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	notification = cJSON_CreateObject();
 	pictures = cJSON_CreateArray();
@@ -1904,12 +1905,12 @@ uint16_t websocket_event_alerts_waterout(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/WaterOutSense/WaterOut");	
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 											local->mac[0],local->mac[1],local->mac[2],
@@ -1947,7 +1948,7 @@ uint16_t websocket_event_alerts_waterout(char* buf)
 			cJSON_AddStringToObject(pictures_pam,"checksum","undefined");
 			cJSON_AddNumberToObject(pictures_pam,"lifecycle",0);		
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(pictures_pam);
 	cJSON_Delete(pictures);
@@ -1965,7 +1966,7 @@ uint16_t websocket_event_alerts_waterout(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_devlightingprotectionstatusreport
-* Description	: Éè±¸·ÀÀ×ÊÂ¼ş
+* Description	: è®¾å¤‡é˜²é›·äº‹ä»¶
 * Parameter		: 
 * Return		: 
 *	
@@ -1983,19 +1984,19 @@ uint16_t websocket_event_alerts_devlightingprotectionstatusreport(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
 	if(json != NULL && basic != NULL && payload != NULL)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/LightningProtectionMgr/DevLightingProtectionStatusReport");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2020,7 +2021,7 @@ uint16_t websocket_event_alerts_devlightingprotectionstatusreport(char* buf)
 		else
 			cJSON_AddStringToObject(payload,"lightningProtectionStatus","normal");
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(payload);
 	cJSON_Delete(basic);
@@ -2036,7 +2037,7 @@ uint16_t websocket_event_alerts_devlightingprotectionstatusreport(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_devicetiltalarm
-* Description	: ÇãĞ±ÊÂ¼ş
+* Description	: å€¾æ–œäº‹ä»¶
 * Parameter		: 
 * Return		: 
 *	
@@ -2056,7 +2057,7 @@ uint16_t websocket_event_alerts_devicetiltalarm(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
 	inclinationParam = cJSON_CreateObject();
@@ -2064,12 +2065,12 @@ uint16_t websocket_event_alerts_devicetiltalarm(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/DeviceTiltDetection/DeviceTiltAlarm");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2096,7 +2097,7 @@ uint16_t websocket_event_alerts_devicetiltalarm(char* buf)
 		
 		cJSON_AddNumberToObject(inclinationParam,"inclination",det_param->attitude_acc);
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(inclinationParam);
 	cJSON_Delete(payload);
@@ -2113,7 +2114,7 @@ uint16_t websocket_event_alerts_devicetiltalarm(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_humiditytoohigh
-* Description	: Êª¶È¹ı¸ß
+* Description	: æ¹¿åº¦è¿‡é«˜
 * Parameter		: 
 * Return		: 
 *	
@@ -2133,7 +2134,7 @@ uint16_t websocket_event_alerts_humiditytoohigh(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	notification = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
@@ -2141,12 +2142,12 @@ uint16_t websocket_event_alerts_humiditytoohigh(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/HumidityTooHigh");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2170,7 +2171,7 @@ uint16_t websocket_event_alerts_humiditytoohigh(char* buf)
 		cJSON_AddItemToObject(json,"payload",payload);		
 		cJSON_AddNumberToObject(payload,"humidity",det_param->humi_inside);
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(payload);
 	cJSON_Delete(notification);
@@ -2187,7 +2188,7 @@ uint16_t websocket_event_alerts_humiditytoohigh(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_humiditytoolow
-* Description	: Êª¶È¹ıµÍ¸æ¾¯
+* Description	: æ¹¿åº¦è¿‡ä½å‘Šè­¦
 * Parameter		: 
 * Return		: 
 *	
@@ -2207,7 +2208,7 @@ uint16_t websocket_event_alerts_humiditytoolow(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	notification = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
@@ -2215,12 +2216,12 @@ uint16_t websocket_event_alerts_humiditytoolow(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/HumidityTooLow");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2244,7 +2245,7 @@ uint16_t websocket_event_alerts_humiditytoolow(char* buf)
 		cJSON_AddItemToObject(json,"payload",payload);		
 		cJSON_AddNumberToObject(payload,"humidity",det_param->humi_inside);
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(payload);
 	cJSON_Delete(notification);
@@ -2261,7 +2262,7 @@ uint16_t websocket_event_alerts_humiditytoolow(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_humiditytoolow
-* Description	: ÎÂ¶È¹ıµÍ¸æ¾¯
+* Description	: æ¸©åº¦è¿‡ä½å‘Šè­¦
 * Parameter		: 
 * Return		: 
 *	
@@ -2281,7 +2282,7 @@ uint16_t websocket_event_alerts_temperaturetoolow(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	notification = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
@@ -2289,12 +2290,12 @@ uint16_t websocket_event_alerts_temperaturetoolow(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/TemperatureTooLow");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2319,7 +2320,7 @@ uint16_t websocket_event_alerts_temperaturetoolow(char* buf)
 		cJSON_AddNumberToObject(payload,"temperature",det_param->temp_inside);
 		cJSON_AddStringToObject(payload,"unit","celsius");
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(payload);
 	cJSON_Delete(notification);
@@ -2336,7 +2337,7 @@ uint16_t websocket_event_alerts_temperaturetoolow(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_temperaturetoohigh
-* Description	: ÎÂ¶È¹ı¸ß¸æ¾¯
+* Description	: æ¸©åº¦è¿‡é«˜å‘Šè­¦
 * Parameter		: 
 * Return		: 
 *	
@@ -2356,7 +2357,7 @@ uint16_t websocket_event_alerts_temperaturetoohigh(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	notification = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
@@ -2364,12 +2365,12 @@ uint16_t websocket_event_alerts_temperaturetoohigh(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/TemperatureTooHigh");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2394,7 +2395,7 @@ uint16_t websocket_event_alerts_temperaturetoohigh(char* buf)
 		cJSON_AddNumberToObject(payload,"temperature",det_param->temp_inside);
 		cJSON_AddStringToObject(payload,"unit","celsius");
 		
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(payload);
 	cJSON_Delete(notification);
@@ -2411,7 +2412,7 @@ uint16_t websocket_event_alerts_temperaturetoohigh(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_BoxDoorStatusReport
-* Description	: ÏäÃÅ×´Ì¬ÉÏ±¨
+* Description	: ç®±é—¨çŠ¶æ€ä¸ŠæŠ¥
 * Parameter		: 
 * Return		: 
 *	
@@ -2471,7 +2472,7 @@ uint16_t websocket_event_alerts_BoxDoorStatusReport(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	doorStatusList = cJSON_CreateArray();
 	payload = cJSON_CreateObject();
@@ -2479,12 +2480,12 @@ uint16_t websocket_event_alerts_BoxDoorStatusReport(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/BoxDoorMgr/BoxDoorStatusReport");	
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2513,7 +2514,7 @@ uint16_t websocket_event_alerts_BoxDoorStatusReport(char* buf)
 			else if(det_param->open_door == 1)
 				cJSON_AddStringToObject(door_status,"doorStatus","opened");
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(door_status);
 	cJSON_Delete(doorStatusList);
@@ -2531,7 +2532,7 @@ uint16_t websocket_event_alerts_BoxDoorStatusReport(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_DevicePowerParamAlarm
-* Description	: Éè±¸µçÁ¦²ÎÊı±¨¾¯
+* Description	: è®¾å¤‡ç”µåŠ›å‚æ•°æŠ¥è­¦
 * Parameter		: 
 * Return		: 
 *	
@@ -2552,7 +2553,7 @@ uint16_t websocket_event_alerts_DevicePowerParamAlarm(char* buf,uint8_t typef)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
 	voltageparam = cJSON_CreateObject();
@@ -2561,12 +2562,12 @@ uint16_t websocket_event_alerts_DevicePowerParamAlarm(char* buf,uint8_t typef)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/PowerMgr/DevicePowerParamAlarm");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2588,15 +2589,15 @@ uint16_t websocket_event_alerts_DevicePowerParamAlarm(char* buf,uint8_t typef)
 					
 		switch(typef)
 		{
-			case 0: // µçÑ¹µÍ
+			case 0: // ç”µå‹ä½
 				cJSON_AddStringToObject(payload,"paramType","voltage");	
 				cJSON_AddStringToObject(payload,"exceptionType","low");	
 				break;
-			case 1: // µçÑ¹¸ß
+			case 1: // ç”µå‹é«˜
 				cJSON_AddStringToObject(payload,"paramType","voltage");	
 				cJSON_AddStringToObject(payload,"exceptionType","high");	
 				break;			
-			case 2: // µçÁ÷¸ß
+			case 2: // ç”µæµé«˜
 				cJSON_AddStringToObject(payload,"paramType","current");	
 				cJSON_AddStringToObject(payload,"exceptionType","high");	
 				break;	
@@ -2610,7 +2611,7 @@ uint16_t websocket_event_alerts_DevicePowerParamAlarm(char* buf,uint8_t typef)
 		cJSON_AddItemToObject(payload,"currentparam",currentparam);	
 		cJSON_AddNumberToObject(currentparam,"electricCurrent",det_param->total_current);
 
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(currentparam);
 	cJSON_Delete(voltageparam);
@@ -2628,7 +2629,7 @@ uint16_t websocket_event_alerts_DevicePowerParamAlarm(char* buf,uint8_t typef)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_DevPowerStatusReport
-* Description	: Éè±¸µçÔ´×´Ì¬ÉÏ±¨
+* Description	: è®¾å¤‡ç”µæºçŠ¶æ€ä¸ŠæŠ¥
 * Parameter		: 
 * Return		: 
 *	
@@ -2647,19 +2648,19 @@ uint16_t websocket_event_alerts_DevPowerStatusReport(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	payload = cJSON_CreateObject();
 	if(json != NULL && basic != NULL && payload != NULL)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/PowerMgr/DevPowerStatusReport");
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2683,7 +2684,7 @@ uint16_t websocket_event_alerts_DevPowerStatusReport(char* buf)
 		cJSON_AddStringToObject(payload,"reclosingStatus","closed");	
 		cJSON_AddStringToObject(payload,"electricLeakageStatus","normal");	
 
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(payload);
 	cJSON_Delete(basic);
@@ -2699,7 +2700,7 @@ uint16_t websocket_event_alerts_DevPowerStatusReport(char* buf)
 /************************************************************
 *
 * Function name	: websocket_event_alerts_fan_status
-* Description	: ·çÉÈ×´Ì¬ÉÏ±¨
+* Description	: é£æ‰‡çŠ¶æ€ä¸ŠæŠ¥
 * Parameter		: 
 * Return		: 
 *	
@@ -2721,7 +2722,7 @@ uint16_t websocket_event_alerts_fan_status(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	basic = cJSON_CreateObject();
 	fanStatusList = cJSON_CreateArray();
 	payload = cJSON_CreateObject();
@@ -2729,12 +2730,12 @@ uint16_t websocket_event_alerts_fan_status(char* buf)
 	{
 		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Fan/FanStatusReport");	
 		cJSON_AddItemToObject(json,"basic",basic);
-		// IPµØÖ·
+		// IPåœ°å€
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
 		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MACµØÖ·		
+		// MACåœ°å€		
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
@@ -2774,7 +2775,7 @@ uint16_t websocket_event_alerts_fan_status(char* buf)
 			cJSON_AddNumberToObject(fanStatus1, "curRunningTime", app_get_fan_time(0));
 			cJSON_AddNumberToObject(fanStatus1, "totalRunningTime",app_get_fan_time(1));
 		}
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(fanStatus1);
 	cJSON_Delete(fanStatusList);
@@ -2791,7 +2792,7 @@ uint16_t websocket_event_alerts_fan_status(char* buf)
 
 
 
-/* HTTP ¸ñÊ½
+/* HTTP æ ¼å¼
 HTTP/1.1 401 Unauthorized
 Content-Type: text/html
 Date: Mon, 01 Feb 2021 14:06:08 GMT
@@ -2805,7 +2806,7 @@ const char WEEK[7][5] = {"Mon","Tue","Wed","Thur","Fri","Sat","Sun"};
 /************************************************************
 *
 * Function name	: http_ack_authentication
-* Description	: httpÈÏÖ¤Ëã·¨Éú³É
+* Description	: httpè®¤è¯ç®—æ³•ç”Ÿæˆ
 * Parameter		: 
 * Return		: 
 *	
@@ -2831,7 +2832,7 @@ void http_ack_authentication_algorithms(char* buf,uint16_t *size,uint8_t id)
 /************************************************************
 *
 * Function name	: http_com_certified_handshake_ack_function
-* Description	: HTTPÕªÒªÈÏÖ¤
+* Description	: HTTPæ‘˜è¦è®¤è¯
 * Parameter		: 
 * Return		: 
 *	
@@ -2885,7 +2886,7 @@ void http_com_certified_handshake_ack_function(char *data, uint16_t *len, char *
 /************************************************************
 *
 * Function name	: http_ack_certification_calculations
-* Description	: httpÈÏÖ¤¼ÆËã£¬ÑéÖ¤»Ø¸´ĞÅÏ¢
+* Description	: httpè®¤è¯è®¡ç®—ï¼ŒéªŒè¯å›å¤ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -2900,7 +2901,7 @@ int http_ack_certification_calculations(com_http_cmd_t *com_cmd)
 	uint8_t buff[256] = {0};	
 	uint16_t str_len = 0;
 	
-	if(strcmp(com_cmd->algorithm ,"MD5")==0 ) // ¼ÓÃÜ·½Ê½
+	if(strcmp(com_cmd->algorithm ,"MD5")==0 ) // åŠ å¯†æ–¹å¼
 	{
 		if(HTTP_COM_DEBUG) printf("...MD5...\n");
 		str_len = sprintf((char*)buff,"%s:%s:%s","root",com_cmd->realm,device->password); 
@@ -2923,7 +2924,7 @@ int http_ack_certification_calculations(com_http_cmd_t *com_cmd)
 		for(uint8_t i=0;i<16;i++)
 			str_len += sprintf((char*)(response+str_len),"%02x",HA3[i]);		
 	}
-	else if(strcmp(com_cmd->algorithm ,"SHA-256")==0 ) // ¼ÓÃÜ·½Ê½
+	else if(strcmp(com_cmd->algorithm ,"SHA-256")==0 ) // åŠ å¯†æ–¹å¼
 	{
 		if(HTTP_COM_DEBUG) printf("...SHA-256...\n");
 		str_len = sprintf((char*)buff,"%s:%s:%s","root",com_cmd->realm,device->password); 
@@ -2947,7 +2948,7 @@ int http_ack_certification_calculations(com_http_cmd_t *com_cmd)
 			str_len += sprintf((char*)(response+str_len),"%02x",HA3[i]);		
 	}
 
-	if(strcmp(response,com_cmd->response)== 0 ) // ÅĞ¶ÏÓ¦´ğÊı¾İ
+	if(strcmp(response,com_cmd->response)== 0 ) // åˆ¤æ–­åº”ç­”æ•°æ®
 		return 1;
 	else
 		return 0;
@@ -2956,7 +2957,7 @@ int http_ack_certification_calculations(com_http_cmd_t *com_cmd)
 /************************************************************
 *
 * Function name	: http_ack_certification_status
-* Description	: HTTPÈÏÖ¤×´Ì¬
+* Description	: HTTPè®¤è¯çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -2967,13 +2968,13 @@ void http_ack_certification_status(char* buf,uint16_t *size,uint8_t flag)
 	cJSON *json        = NULL;
 	cJSON *data        = NULL;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	data = cJSON_CreateObject();
 	if(json != NULL && data != NULL)
 	{
 		if(flag == 0)
 		{
-			cJSON_AddNumberToObject(json, "status",200);/* Ìí¼ÓÒ»Ìõ×Ö·û´®ÀàĞÍµÄJSONÊı¾İ(Ìí¼ÓÒ»¸öÁ´±í½Úµã) */
+			cJSON_AddNumberToObject(json, "status",200);/* æ·»åŠ ä¸€æ¡å­—ç¬¦ä¸²ç±»å‹çš„JSONæ•°æ®(æ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹) */
 			cJSON_AddStringToObject(json, "code","0x00000000");
 			cJSON_AddStringToObject(json, "errorMsg","Succeeded.");
 		}
@@ -2983,7 +2984,7 @@ void http_ack_certification_status(char* buf,uint16_t *size,uint8_t flag)
 			cJSON_AddStringToObject(json, "code","0x00100001");
 			cJSON_AddStringToObject(json, "errorMsg","The device is not activated.");		
 		}
-    /* Ìí¼ÓÇ¶Ì×µÄJSONÊı¾İ£¨Ìí¼ÓÒ»¸öÁ´±í½Úµã£© */
+    /* æ·»åŠ åµŒå¥—çš„JSONæ•°æ®ï¼ˆæ·»åŠ ä¸€ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼‰ */
 		cJSON_AddItemToObject(json,"data",data);	
 		if(flag == 0)
 		{	
@@ -2999,7 +3000,7 @@ void http_ack_certification_status(char* buf,uint16_t *size,uint8_t flag)
 		cJSON_AddFalseToObject(data, "isRiskPassword");	
 		cJSON_AddTrueToObject(data, "isActivated");
 		cJSON_AddNumberToObject(data,"residualValidity",9999);
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 
 	*size = strlen(json_data);
@@ -3014,7 +3015,7 @@ void http_ack_certification_status(char* buf,uint16_t *size,uint8_t flag)
 /************************************************************
 *
 * Function name	: local_to_utc_time
-* Description	: ±¾µØÊ±¼ä×ªUTCÊ±¼ä
+* Description	: æœ¬åœ°æ—¶é—´è½¬UTCæ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -3022,8 +3023,8 @@ void http_ack_certification_status(char* buf,uint16_t *size,uint8_t flag)
 void local_to_utc_time(rtc_time_t *utc_time, int8_t timezone, rtc_time_t local_time)
 {
 	int year,month,day,hour,week;
-	int lastday = 0;			//last day of this month ±¾ÔÂÌìÊı
-	int lastlastday = 0;		//last day of last month ÉÏ¸öÔÂÌìÊı
+	int lastday = 0;			//last day of this month æœ¬æœˆå¤©æ•°
+	int lastlastday = 0;		//last day of last month ä¸Šä¸ªæœˆå¤©æ•°
 
 	year	= local_time.year;	//utc time
 	month = local_time.month;
@@ -3031,11 +3032,11 @@ void local_to_utc_time(rtc_time_t *utc_time, int8_t timezone, rtc_time_t local_t
 	hour 	= local_time.hour + timezone; 
 	week  = local_time.week;
 	
-	//1ÔÂ´ó£¬2ÔÂĞ¡£¬3ÔÂ´ó£¬4ÔÂĞ¡£¬5ÔÂ´ó£¬6ÔÂĞ¡£¬7ÔÂ´ó£¬8ÔÂ´ó£¬9ÔÂĞ¡£¬10ÔÂ´ó£¬11ÔÂĞ¡£¬12ÔÂ´ó
+	//1æœˆå¤§ï¼Œ2æœˆå°ï¼Œ3æœˆå¤§ï¼Œ4æœˆå°ï¼Œ5æœˆå¤§ï¼Œ6æœˆå°ï¼Œ7æœˆå¤§ï¼Œ8æœˆå¤§ï¼Œ9æœˆå°ï¼Œ10æœˆå¤§ï¼Œ11æœˆå°ï¼Œ12æœˆå¤§
 	if(month==1 || month==3 || month==5 || month==7 || month==8 || month==10 || month==12)
 	{
-		lastday = 31;//±¾ÔÂÌìÊı
-		lastlastday = 30;//ÕâÀïÓ¦¸Ã²¹ÉÏÉÏ¸öÔÂµÄÌìÊı
+		lastday = 31;//æœ¬æœˆå¤©æ•°
+		lastlastday = 30;//è¿™é‡Œåº”è¯¥è¡¥ä¸Šä¸Šä¸ªæœˆçš„å¤©æ•°
 		
 		if(month == 3)
 		{
@@ -3045,7 +3046,7 @@ void local_to_utc_time(rtc_time_t *utc_time, int8_t timezone, rtc_time_t local_t
 				lastlastday = 28;
 		}
 		
-		if(month == 8 || month == 1)//ÕâÀïÓ¦¸ÃÊÇ8ÔÂºÍ1ÔÂ£¬ÒòÎª8ÔÂºÍ1ÔÂµÄÉÏÒ»¸öÔÂ£¨7ÔÂºÍ12ÔÂ£©µÄÌìÊıÊÇ31ÌìµÄ
+		if(month == 8 || month == 1)//è¿™é‡Œåº”è¯¥æ˜¯8æœˆå’Œ1æœˆï¼Œå› ä¸º8æœˆå’Œ1æœˆçš„ä¸Šä¸€ä¸ªæœˆï¼ˆ7æœˆå’Œ12æœˆï¼‰çš„å¤©æ•°æ˜¯31å¤©çš„
 			lastlastday = 31;
 	}
 	else if(month == 4 || month == 6 || month == 9 || month == 11)
@@ -3067,7 +3068,7 @@ void local_to_utc_time(rtc_time_t *utc_time, int8_t timezone, rtc_time_t local_t
 	{					
 		hour -= 24;
 		day += 1;
-		week+= 1;		// ÈÕÆÚ¼Ó1
+		week+= 1;		// æ—¥æœŸåŠ 1
 		if(week > 7)
 			week = 1;  
 		if(day > lastday)// next month, day-lastday of this month
@@ -3112,7 +3113,7 @@ void local_to_utc_time(rtc_time_t *utc_time, int8_t timezone, rtc_time_t local_t
 /************************************************************
 *
 * Function name	: app_deal_http_json_param
-* Description	: »ñÈ¡JSONÊı¾İ
+* Description	: è·å–JSONæ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -3132,7 +3133,7 @@ int http_deal_json_param(sys_json_t *json_d,char* data)
 /************************************************************
 *
 * Function name	: http_com_data_deal
-* Description	: ´¦ÀíhttpÊı¾İ
+* Description	: å¤„ç†httpæ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -3154,19 +3155,19 @@ void http_com_data_deal(char* data,com_http_cmd_t *com_cmd)
 	
 	if((com_cmd->http_cmd != 1)||(com_cmd->http_cmd != 2))
 	{
-		str1 = strstr(data,"realm="); // »ñÈ¡ÏŞÖÆÓò
+		str1 = strstr(data,"realm="); // è·å–é™åˆ¶åŸŸ
 		sscanf(str1,"%*[^=\"]=\"%[^\"]",com_cmd->realm); 		
 
-		str1 = strstr(data,"nonce="); // Ëæ»úÊı
+		str1 = strstr(data,"nonce="); // éšæœºæ•°
 		sscanf(str1,"%*[^=\"]=\"%[^\"]",com_cmd->nonce); 
 		
 		str1 = strstr(data,"uri="); // URI
 		sscanf(str1,"%*[^=\"]=\"%[^\"]",com_cmd->uri);
 
-		str1 = strstr(data,"algorithm="); //¼ÓÃÜ·½Ê½
+		str1 = strstr(data,"algorithm="); //åŠ å¯†æ–¹å¼
 		sscanf(str1,"%*[^=\"]=\"%[^\"]",com_cmd->algorithm); 
 		
-		str1 = strstr(data,"cnonce="); // ¿Í»§¶ËÃÜÂë
+		str1 = strstr(data,"cnonce="); // å®¢æˆ·ç«¯å¯†ç 
 		sscanf(str1,"%*[^=\"]=\"%[^\"]",com_cmd->cnonce); 
 		
 		str1 = strstr(data,"nc=");
@@ -3186,7 +3187,7 @@ void http_com_data_deal(char* data,com_http_cmd_t *com_cmd)
 /************************************************************
 *
 * Function name	: app_set_http_json_length
-* Description	: ÉèÖÃJSONÊı¾İ³¤¶È
+* Description	: è®¾ç½®JSONæ•°æ®é•¿åº¦
 * Parameter		: 
 * Return		: 
 *	
@@ -3200,7 +3201,7 @@ void app_set_http_json_length(uint16_t data)
 /************************************************************
 *
 * Function name	: http_com_deal_configure_angle
-* Description	: ÅäÖÃÇãĞ±¶È
+* Description	: é…ç½®å€¾æ–œåº¦
 * Parameter		: 
 * Return		: 
 *	
@@ -3208,57 +3209,44 @@ void app_set_http_json_length(uint16_t data)
 int http_com_deal_configure_angle(char* buf)
 {
 	struct threshold_params *param = app_get_threshold_param_function();
-	cJSON *json    = NULL;
-	cJSON *data    = NULL;
-	cJSON *Value 	 = NULL;
-	cJSON *angle_enable = NULL;	
-	cJSON *angle_low 	 	= NULL;	
-	cJSON *angle_high 	= NULL;	
-	int ret=0;
-	
-	json = cJSON_Parse(buf); //½«µÃµ½µÄ×Ö·û´®½âÎö³ÉjsonĞÎÊ½
-	if(json != NULL)
+	static jsmntok_t tokens[MY_JSON_MAX_TOKENS];
+	jsmn_parser parser;
+	int ntok, t_data, t_value, t_en, t_high;
+	int ret = -1;
+
+	if(HTTP_COM_DEBUG) printf("http_com_deal_configure_angle....\n");
+	if(buf == NULL) return -1;
+
+	/* jsmn è§£æ(ä¸ä½¿ç”¨ cJSON) */
+	jsmn_init(&parser);
+	ntok = jsmn_parse(&parser, buf, strlen(buf), tokens, MY_JSON_MAX_TOKENS);
+	if(ntok < 0) return -1;
+
+	t_data  = my_json_find(buf, tokens, ntok, 0, "data");
+	t_value = (t_data  >= 0) ? my_json_find(buf, tokens, ntok, t_data, "Value") : -1;
+	t_en    = (t_value >= 0) ? my_json_find(buf, tokens, ntok, t_value, "enabled") : -1;
+	t_high  = (t_value >= 0) ? my_json_find(buf, tokens, ntok, t_value, "tiltAngleHignThreshold") : -1;
+
+	if(t_en >= 0)
+		app_set_report_switch_status(my_json_is_true(buf, &tokens[t_en]) ? 1 : 0, FLAG_A);
+
+	if(t_high >= 0)
 	{
-		data = cJSON_GetObjectItem( json ,"data");
-		if(data != NULL)
+		int angle = my_json_to_int(buf, &tokens[t_high]);
+		if((angle > 0) && (angle < 180))
 		{
-			Value = cJSON_GetObjectItem( data ,"Value");	
-			if(Value != NULL)
-			{		
-				angle_enable = cJSON_GetObjectItem(Value ,"enabled");	
-				angle_low = cJSON_GetObjectItem(Value ,"tiltAngleLowThreshold");	
-				angle_high = cJSON_GetObjectItem(Value ,"tiltAngleHignThreshold");	
-				
-				if (cJSON_IsTrue(angle_enable))
-					app_set_report_switch_status(1,FLAG_A);
-				else
-					app_set_report_switch_status(0,FLAG_A);	
-					
-				if((angle_high->valueint>0)&&(angle_high->valueint<180))
-				{
-					param->angle = angle_high->valueint;	
-					app_set_threshold_param_function(*param);
-					ret = 0;
-				}
-				else
-					ret = -1;
-			}
+			param->angle = angle;
+			app_set_threshold_param_function(*param);
+			ret = 0;
 		}
 	}
-	if(HTTP_COM_DEBUG) printf("http_com_deal_configure_angle....\n");
-	cJSON_Delete(angle_high); 
-	cJSON_Delete(angle_low); 
-	cJSON_Delete(angle_enable); 
-	cJSON_Delete(Value); 
-	cJSON_Delete(data); 
-	cJSON_Delete(json); 
 	return ret;
 }
 
 /************************************************************
 *
 * Function name	: http_com_deal_configure_humiture
-* Description	: ÅäÖÃÊª¶È
+* Description	: é…ç½®æ¹¿åº¦
 * Parameter		: 
 * Return		: 
 *	
@@ -3266,67 +3254,64 @@ int http_com_deal_configure_angle(char* buf)
 int http_com_deal_configure_humiture(char* buf)
 {
 	struct threshold_params *param = app_get_threshold_param_function();
-	cJSON *json    = NULL;
-	cJSON *data    = NULL;
-	cJSON *Value 	 = NULL;
-	cJSON *humi_enable = NULL;	
-	cJSON *humi_low 	 	= NULL;	
-	cJSON *humi_high 	= NULL;	
-	int error1,error2 ;
-	json = cJSON_Parse(buf); //½«µÃµ½µÄ×Ö·û´®½âÎö³ÉjsonĞÎÊ½
-	if(json != NULL)
-	{
-		data = cJSON_GetObjectItem( json ,"data");
-		if(data != NULL)
-		{
-			Value = cJSON_GetObjectItem( data ,"Value");	
-			if(Value != NULL)
-			{		
-				humi_enable = cJSON_GetObjectItem(Value ,"enabled");	
-				humi_low = cJSON_GetObjectItem(Value ,"minHumidity");	
-				humi_high = cJSON_GetObjectItem(Value ,"maxHumidity");	
-				
-				if (cJSON_IsTrue(humi_enable))
-				{
-					app_set_report_switch_status(1,FLAG_H_L);
-					app_set_report_switch_status(1,FLAG_H_H);
-				}
-				else
-				{
-					app_set_report_switch_status(0,FLAG_H_L);
-					app_set_report_switch_status(0,FLAG_H_H);
-				}	
-				if((humi_high->valueint>0)&&(humi_high->valueint<100))
-				{
-					param->temp_high = humi_high->valueint;
-					error1 = 0;
-				}	
-				else{
-					error1 = -1;
-					goto HUMI_ERROR;
-				}
+	static jsmntok_t tokens[MY_JSON_MAX_TOKENS];
+	jsmn_parser parser;
+	int ntok, t_data, t_value, t_en, t_low, t_high;
+	int error1 = -1, error2 = -1;
 
-				if((humi_low->valueint>0)&&(humi_low->valueint<100))
-				{
-					param->temp_low = humi_low->valueint;
-					app_set_threshold_param_function(*param);
-					error2 = 0;
-				}	
-				else
-					error2 = -1;
+	if(HTTP_COM_DEBUG) printf("http_com_deal_configure_humiture....\n");
+	if(buf == NULL) return -1;
+
+	jsmn_init(&parser);
+	ntok = jsmn_parse(&parser, buf, strlen(buf), tokens, MY_JSON_MAX_TOKENS);
+	if(ntok < 0) return -1;
+
+	t_data  = my_json_find(buf, tokens, ntok, 0, "data");
+	t_value = (t_data  >= 0) ? my_json_find(buf, tokens, ntok, t_data, "Value") : -1;
+	if(t_value >= 0)
+	{
+		t_en   = my_json_find(buf, tokens, ntok, t_value, "enabled");
+		t_low  = my_json_find(buf, tokens, ntok, t_value, "minHumidity");
+		t_high = my_json_find(buf, tokens, ntok, t_value, "maxHumidity");
+
+		if(t_en >= 0)
+		{
+			if(my_json_is_true(buf, &tokens[t_en]))
+			{
+				app_set_report_switch_status(1,FLAG_H_L);
+				app_set_report_switch_status(1,FLAG_H_H);
+			}
+			else
+			{
+				app_set_report_switch_status(0,FLAG_H_L);
+				app_set_report_switch_status(0,FLAG_H_H);
+			}
+		}
+
+		if(t_high >= 0)
+		{
+			int v = my_json_to_int(buf, &tokens[t_high]);
+			if((v > 0) && (v < 100))
+			{
+				param->temp_high = v;
+				error1 = 0;
+			}
+		}
+
+		/* é«˜å€¼æ— æ•ˆæ—¶ä¸åŸé€»è¾‘ä¸€è‡´: è·³è¿‡ä½å€¼å¤„ç† */
+		if((error1 == 0) && (t_low >= 0))
+		{
+			int v = my_json_to_int(buf, &tokens[t_low]);
+			if((v > 0) && (v < 100))
+			{
+				param->temp_low = v;
+				app_set_threshold_param_function(*param);
+				error2 = 0;
 			}
 		}
 	}
-	HUMI_ERROR:
-	if(HTTP_COM_DEBUG) printf("http_com_deal_configure_humiture....\n");
-	cJSON_Delete(humi_high); 
-	cJSON_Delete(humi_low); 
-	cJSON_Delete(humi_enable); 
-	cJSON_Delete(Value); 
-	cJSON_Delete(data); 
-	cJSON_Delete(json); 
 
-	if((error1 == 0)&&(error2==0))
+	if((error1 == 0) && (error2 == 0))
 		return 0;
 	else
 		return -1;
@@ -3335,7 +3320,7 @@ int http_com_deal_configure_humiture(char* buf)
 /************************************************************
 *
 * Function name	: http_com_deal_configure_temperature
-* Description	: ÅäÖÃÎÂ¶È
+* Description	: é…ç½®æ¸©åº¦
 * Parameter		: 
 * Return		: 
 *	
@@ -3343,67 +3328,64 @@ int http_com_deal_configure_humiture(char* buf)
 int http_com_deal_configure_temperature(char* buf)
 {
 	struct threshold_params *param = app_get_threshold_param_function();
-	cJSON *json    = NULL;
-	cJSON *data    = NULL;
-	cJSON *Value 	 = NULL;
-	cJSON *temp_enable = NULL;	
-	cJSON *temp_low 	 	= NULL;	
-	cJSON *temp_high 	= NULL;	
-	int error1,error2 ;
-	json = cJSON_Parse(buf); //½«µÃµ½µÄ×Ö·û´®½âÎö³ÉjsonĞÎÊ½
-	if(json != NULL)
+	static jsmntok_t tokens[MY_JSON_MAX_TOKENS];
+	jsmn_parser parser;
+	int ntok, t_data, t_value, t_en, t_low, t_high;
+	int error1 = -1, error2 = -1;
+
+	if(HTTP_COM_DEBUG) printf("http_com_deal_configure_temperature....\n");
+	if(buf == NULL) return -1;
+
+	jsmn_init(&parser);
+	ntok = jsmn_parse(&parser, buf, strlen(buf), tokens, MY_JSON_MAX_TOKENS);
+	if(ntok < 0) return -1;
+
+	t_data  = my_json_find(buf, tokens, ntok, 0, "data");
+	t_value = (t_data  >= 0) ? my_json_find(buf, tokens, ntok, t_data, "Value") : -1;
+	if(t_value >= 0)
 	{
-		if(HTTP_COM_DEBUG) printf("http_com_deal_configure_temperature....\n");
-		data = cJSON_GetObjectItem( json ,"data");
-		if(data != NULL)
+		t_en   = my_json_find(buf, tokens, ntok, t_value, "enabled");
+		t_low  = my_json_find(buf, tokens, ntok, t_value, "minTemperature");
+		t_high = my_json_find(buf, tokens, ntok, t_value, "maxTemperature");
+
+		if(t_en >= 0)
 		{
-			Value = cJSON_GetObjectItem( data ,"Value");	
-			if(Value != NULL)
-			{		
-				temp_enable = cJSON_GetObjectItem(Value ,"enabled");	
-				temp_low = cJSON_GetObjectItem(Value ,"minTemperature");	
-				temp_high = cJSON_GetObjectItem(Value ,"maxTemperature");	
-				
-				if (cJSON_IsTrue(temp_enable))
-				{
-					app_set_report_switch_status(1,FLAG_T_L);
-					app_set_report_switch_status(1,FLAG_T_H);
-				}
-				else
-				{
-					app_set_report_switch_status(0,FLAG_T_L);
-					app_set_report_switch_status(0,FLAG_T_H);
-				}	
-				if((temp_high->valueint>-100)&&(temp_high->valueint<1000))
-				{
-					param->temp_high = temp_high->valueint;
-					error1 = 0;
-				}	
-				else
-				{
-					error1 = -1;
-					goto TEMP_ERROR;
-				}
-				if((temp_low->valueint>-100)&&(temp_low->valueint<1000))
-				{
-					param->temp_low = temp_low->valueint;
-					app_set_threshold_param_function(*param);
-					error2 = 0;
-				}	
-				else
-					error2 = -1;
+			if(my_json_is_true(buf, &tokens[t_en]))
+			{
+				app_set_report_switch_status(1,FLAG_T_L);
+				app_set_report_switch_status(1,FLAG_T_H);
+			}
+			else
+			{
+				app_set_report_switch_status(0,FLAG_T_L);
+				app_set_report_switch_status(0,FLAG_T_H);
+			}
+		}
+
+		if(t_high >= 0)
+		{
+			int v = my_json_to_int(buf, &tokens[t_high]);
+			if((v > -100) && (v < 1000))
+			{
+				param->temp_high = v;
+				error1 = 0;
+			}
+		}
+
+		/* é«˜å€¼æ— æ•ˆæ—¶ä¸åŸé€»è¾‘ä¸€è‡´: è·³è¿‡ä½å€¼å¤„ç† */
+		if((error1 == 0) && (t_low >= 0))
+		{
+			int v = my_json_to_int(buf, &tokens[t_low]);
+			if((v > -100) && (v < 1000))
+			{
+				param->temp_low = v;
+				app_set_threshold_param_function(*param);
+				error2 = 0;
 			}
 		}
 	}
-	TEMP_ERROR:
-	cJSON_Delete(temp_high); 
-	cJSON_Delete(temp_low); 
-	cJSON_Delete(temp_enable); 
-	cJSON_Delete(Value); 
-	cJSON_Delete(data); 
-	cJSON_Delete(json); 
-	
-	if((error1 == 0)&&(error2==0))
+
+	if((error1 == 0) && (error2 == 0))
 		return 0;
 	else
 		return -1;
@@ -3412,74 +3394,63 @@ int http_com_deal_configure_temperature(char* buf)
 /************************************************************
 *
 * Function name	: http_com_deal_configure_powerport
-* Description	: ÅäÖÃ¹©µç¿Ú
+* Description	: é…ç½®ä¾›ç”µå£
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 int http_com_deal_configure_powerport(char* buf)
 {
-	cJSON *json    = NULL;
-	cJSON *data    = NULL;
-	cJSON *list_arr= NULL;
-	cJSON *powerlist = NULL;	
-	cJSON *portCode = NULL;	
-	cJSON *powerEnabled 	 	= NULL;	
-	int error = 0;
+	static jsmntok_t tokens[MY_JSON_MAX_TOKENS];
+	jsmn_parser parser;
+	int ntok, t_data, t_list, t_item, t_code, t_en;
+	int count, idx, error = 0;
 	uint8_t port_id[8]={0};
 	uint8_t port_status[8]={0};
-	
-	json = cJSON_Parse(buf); //½«µÃµ½µÄ×Ö·û´®½âÎö³ÉjsonĞÎÊ½
-	if(json != NULL)
+
+	if(HTTP_COM_DEBUG) printf("http_com_deal_configure_powerport....\n");
+	if(buf == NULL) return -1;
+
+	jsmn_init(&parser);
+	ntok = jsmn_parse(&parser, buf, strlen(buf), tokens, MY_JSON_MAX_TOKENS);
+	if(ntok < 0)
 	{
-		if(HTTP_COM_DEBUG) 
-			printf("http_com_deal_configure_powerport....\n");
-		data = cJSON_GetObjectItem( json ,"data");
-		if(data != NULL)
+		printf("json error\n");
+		return -1;
+	}
+
+	t_data = my_json_find(buf, tokens, ntok, 0, "data");
+	t_list = (t_data >= 0) ? my_json_find(buf, tokens, ntok, t_data, "powerPortCfgList") : -1;
+	if(!my_json_is_array((t_list >= 0) ? &tokens[t_list] : NULL))
+		return -1;
+
+	count = my_json_arr_size(tokens, t_list);
+	if(count > 8) count = 8;			/* é˜²æ­¢ port_id[]/port_status[] è¶Šç•Œ */
+	for(idx = 0; idx < count; idx++)
+	{
+		t_item = my_json_arr_item(tokens, t_list, idx);
+		if(t_item < 0) break;
+
+		t_code = my_json_find(buf, tokens, ntok, t_item, "portCode");
+		t_en   = my_json_find(buf, tokens, ntok, t_item, "powerEnabled");
+		if(t_code >= 0)
+			port_id[idx] = (uint8_t)my_json_to_int(buf, &tokens[t_code]);
+		if(t_en >= 0)
+			port_status[idx] = my_json_is_true(buf, &tokens[t_en]) ? RELAY_ON : RELAY_OFF;
+
+		if((port_id[idx] > 0) && (port_id[idx] <= 8))
 		{
-			list_arr = cJSON_GetObjectItem( data ,"powerPortCfgList");	
-			if(cJSON_IsArray(list_arr))
-			{
-				for(uint8_t idx = 0; idx < cJSON_GetArraySize(list_arr); idx++)
-				{
-					powerlist = cJSON_GetArrayItem(list_arr, idx);
-					portCode = cJSON_GetObjectItem(powerlist, "portCode");
-					powerEnabled = cJSON_GetObjectItem(powerlist ,"powerEnabled");	
-					port_id[idx] = atoi(portCode->valuestring);
-					if (cJSON_IsTrue(powerEnabled))
-						port_status[idx] = RELAY_ON ;
-					else
-						port_status[idx] = RELAY_OFF ;	
-					
-					if((port_id[idx]>0)&&(port_id[idx]<=8))
-					{
-						if(app_opeare_relay_function(idx,port_id[idx],port_status[idx])<0)
-							error = -1;
-						else
-							error = 0;
-					}
-					else
-					{
-						error = -1;
-						goto POWERPORT_ERROR;
-					}
-				}		
-			}
+			if(app_opeare_relay_function(idx, port_id[idx], port_status[idx]) < 0)
+				error = -1;
+			else
+				error = 0;
+		}
+		else
+		{
+			error = -1;
+			break;			/* åŸ goto POWERPORT_ERROR */
 		}
 	}
-	else
-	{
-		error = -1;
-		printf("json error\n");
-	}
-POWERPORT_ERROR:
-	cJSON_Delete(portCode); 
-	cJSON_Delete(powerEnabled); 
-	cJSON_Delete(list_arr); 
-	cJSON_Delete(powerlist); 
-	cJSON_Delete(data); 
-	cJSON_Delete(json); 
-	
 	return error;
 }
 
@@ -3500,7 +3471,7 @@ POWERPORT_ERROR:
 /************************************************************
 *
 * Function name	: http_websocket_event_param
-* Description	: ½âÎöÊÂ¼ş¶©ÔÄ
+* Description	: è§£æäº‹ä»¶è®¢é˜…
 * Parameter		: 
 * Return		: 
 *	
@@ -3511,13 +3482,13 @@ int http_websocket_event_param(char* data,sys_event_t *sys_event)
 	char *str_start = NULL; 
 	char *str_end = NULL; 
 	str = strstr((char *)data,"\"URI\"");
-	if(strstr(str,EventSubscription_DeleteEventSubscribeCfg) != NULL) // É¾³ıÊÂ¼ş¶©ÔÄ
+	if(strstr(str,EventSubscription_DeleteEventSubscribeCfg) != NULL) // åˆ é™¤äº‹ä»¶è®¢é˜…
 		sys_event->uri = 1;
-	else if(strstr(str,EventSubscription_GetEventSubscribeCfg) != NULL) // »ñÈ¡ÊÂ¼ş¶©ÔÄÅäÖÃ
+	else if(strstr(str,EventSubscription_GetEventSubscribeCfg) != NULL) // è·å–äº‹ä»¶è®¢é˜…é…ç½®
 		sys_event->uri = 2;
-	else if(strstr(str,EventSubscription_AddEventSubscribeCfg) != NULL) // Ìí¼ÓÊÂ¼ş¶©ÔÄÅäÖÃ
+	else if(strstr(str,EventSubscription_AddEventSubscribeCfg) != NULL) // æ·»åŠ äº‹ä»¶è®¢é˜…é…ç½®
 		sys_event->uri = 3;	
-	else if(strstr(str,EventSubscription_ModifyEventSubscribeCfg) != NULL) // ĞŞ¸ÄÊÂ¼ş¶©ÔÄÅäÖÃ
+	else if(strstr(str,EventSubscription_ModifyEventSubscribeCfg) != NULL) // ä¿®æ”¹äº‹ä»¶è®¢é˜…é…ç½®
 		sys_event->uri = 4;	
 	
 	str = strstr((char *)data,"\"id\"");
@@ -3550,7 +3521,7 @@ int http_websocket_event_param(char* data,sys_event_t *sys_event)
 /************************************************************
 *
 * Function name	: http_event_anay_param
-* Description	: ÊÂ¼ş¶©ÔÄÉèÖÃ
+* Description	: äº‹ä»¶è®¢é˜…è®¾ç½®
 * Parameter		: 
 * Return		: 
 *	
@@ -3559,8 +3530,8 @@ void http_event_anay_param(sys_event_t *sys_event,uint8_t cliend_id)
 {   
 	switch(sys_event->uri)
 	{
-		case 1:  // É¾³ıÊÂ¼ş¶©ÔÄ
-			if(strstr(sys_event->mode,"all") != NULL) // È«²¿Ìí¼Ó
+		case 1:  // åˆ é™¤äº‹ä»¶è®¢é˜…
+			if(strstr(sys_event->mode,"all") != NULL) // å…¨éƒ¨æ·»åŠ 
 			{
 				http_data_send_function(DELE_EVENT_ALL ,cliend_id);	
 			}
@@ -3570,8 +3541,8 @@ void http_event_anay_param(sys_event_t *sys_event,uint8_t cliend_id)
 			}
 			break;
 	
-		case 3:  // Ìí¼ÓÊÂ¼ş¶©ÔÄ
-			if(strstr(sys_event->mode,"all") != NULL) // È«²¿Ìí¼Ó
+		case 3:  // æ·»åŠ äº‹ä»¶è®¢é˜…
+			if(strstr(sys_event->mode,"all") != NULL) // å…¨éƒ¨æ·»åŠ 
 			{
 				http_data_send_function(ADDEVENT_ALL,cliend_id);	
 			}
@@ -3588,7 +3559,7 @@ void http_event_anay_param(sys_event_t *sys_event,uint8_t cliend_id)
 /************************************************************
 *
 * Function name	: http_websocket_event_add_all
-* Description	: Ìí¼ÓÊÂ¼ş
+* Description	: æ·»åŠ äº‹ä»¶
 * Parameter		: 
 * Return		: 
 *	
@@ -3613,7 +3584,7 @@ uint16_t http_websocket_event_add_all(char* buf)
 	char *uuid_buf = app_get_device_uuid();
 	uint16_t jsonlen = 0;
 	
-	json = cJSON_CreateObject();  /* ´´½¨Ò»¸öJSONÊı¾İ¶ÔÏó(Á´±íÍ·½áµã) */
+	json = cJSON_CreateObject();  /* åˆ›å»ºä¸€ä¸ªJSONæ•°æ®å¯¹è±¡(é“¾è¡¨å¤´ç»“ç‚¹) */
 	body = cJSON_CreateObject();
 	cjson_list = cJSON_CreateArray();
 	if(json != NULL && body != NULL && cjson_list != NULL)
@@ -3628,7 +3599,7 @@ uint16_t http_websocket_event_add_all(char* buf)
 		cJSON_AddItemToObject(json,"body",body);
 		cJSON_AddStringToObject(body,"subscribeEventID",uuid_buf);//"1");
 	
-		json_data = cJSON_PrintUnformatted(json); // Éú³ÉJSONÊı¾İ - Ê¹ÓÃºóĞèÒªÊÍ·ÅÄÚ´æ
+		json_data = cJSON_PrintUnformatted(json); // ç”ŸæˆJSONæ•°æ® - ä½¿ç”¨åéœ€è¦é‡Šæ”¾å†…å­˜
 	}
 	cJSON_Delete(cjson_list);
 	cJSON_Delete(body);
@@ -3645,7 +3616,7 @@ uint16_t http_websocket_event_add_all(char* buf)
 /************************************************************
 *
 * Function name	: http_data_send_function
-* Description	: HTTPÍ¨ĞÅ·¢ËÍº¯Êı
+* Description	: HTTPé€šä¿¡å‘é€å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -3655,7 +3626,7 @@ void http_data_send_function(uint32_t status,uint8_t client_id)
 	char *ack_json_buf = NULL;
 	uint16_t json_len = 0;
 	
-	ack_json_buf = (char *)mymalloc(SRAMIN,4000);  // ÉêÇëÄÚ´æ
+	ack_json_buf = (char *)mymalloc(SRAMIN,4000);  // ç”³è¯·å†…å­˜
 	memset(ack_json_buf,0,4000);		
 	memset(http_send_buff,0,sizeof(http_send_buff));
 	switch(client_id)
@@ -3667,13 +3638,13 @@ void http_data_send_function(uint32_t status,uint8_t client_id)
 	}
 	switch(status)
 	{
-		case NO_SUPPORT: // ²»Ö§³Ö¸Ã¹¦ÄÜ
+		case NO_SUPPORT: // ä¸æ”¯æŒè¯¥åŠŸèƒ½
 			http_json_ack_status(ack_json_buf,&json_len,3);
 			http_com_ack_function((char*)http_send_buff,&http_send_length,ack_json_buf,json_len,3);
 			tcp_cilent_send_buff(http_send_buff,http_send_length,0); 
 		break;
 		
-		case DOMINS: // Éè±¸Ö§³ÖµÄ¹¦ÄÜ²ÎÊı
+		case DOMINS: // è®¾å¤‡æ”¯æŒçš„åŠŸèƒ½å‚æ•°
 			http_json_ack_domins(ack_json_buf,&json_len,0);
 			http_com_ack_function((char*)http_send_buff,&http_send_length,ack_json_buf,json_len,0);
 			tcp_cilent_send_buff(http_send_buff,http_send_length,0);
@@ -3811,17 +3782,17 @@ void http_data_send_function(uint32_t status,uint8_t client_id)
 			tcp_cilent_send_buff(http_send_buff,http_send_length,1);
 			break;
 		
-		case ADDEVENT_ALL: // Ìí¼ÓÊÂ¼ş
+		case ADDEVENT_ALL: // æ·»åŠ äº‹ä»¶
 			http_websocket_pack_data((char*)http_send_buff,&http_send_length,FLAG_ADD_ALL,0);
 			tcp_cilent_send_buff(http_send_buff,http_send_length,1);
 			break;
-		case DELE_EVENT_ALL: // É¾³ıÊÂ¼ş
+		case DELE_EVENT_ALL: // åˆ é™¤äº‹ä»¶
 			http_websocket_pack_data((char*)http_send_buff,&http_send_length,FLAG_DELE_ALL,0);
 			tcp_cilent_send_buff(http_send_buff,http_send_length,1);
 			break;			
 	}
 //		printf("http_send_buff:%s\n",http_send_buff);
-	myfree(SRAMIN,ack_json_buf);   // ÊÍ·ÅÄÚ´æ
+	myfree(SRAMIN,ack_json_buf);   // é‡Šæ”¾å†…å­˜
 }
 
 
