@@ -1,0 +1,21 @@
+# ===== Keil MDK 编译产物 =====
+*.o
+*.d
+*.crf
+*.dep
+*.lnp
+*.iex
+*.axf
+*.map
+*.build_log.htm
+
+# Keil 输出目录
+Objects/
+OBJ/
+DebugConfig/
+
+# Keil 用户界面/调试设置（与机器相关）
+*.uvguix.*
+
+# 编辑器与合并备份
+*.orig
