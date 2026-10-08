@@ -13,14 +13,14 @@
 
 struct netconn *tcp_server_conn, *tcp_server_newconn;
 
-//TCP¿Í»§¶ËÈÎÎñ
+//TCPå®¢æˆ·ç«¯ä»»åŠ¡
 #define TCPSERVER_PRIO			10
-//ÈÎÎñ¶ÑÕ»´óĞ¡
+//ä»»åŠ¡å †æ ˆå¤§å°
 #define TCPSERVER_STK_SIZE	256
-//ÈÎÎñ¶ÑÕ»
+//ä»»åŠ¡å †æ ˆ
 __align(8) static OS_STK TCPSERVER_TASK_STK[TCPSERVER_STK_SIZE];
 
-//tcp·şÎñÆ÷ÈÎÎñ
+//tcpæœåŠ¡å™¨ä»»åŠ¡
 static void tcp_server_thread(void *arg)
 {
 	err_t err;
@@ -32,9 +32,9 @@ static void tcp_server_thread(void *arg)
 	
 	while (1) 
 	{
-		if(lwipdev.tcp_server_status == LWIP_TCP_INIT_CONNECT) // TCP´´½¨
+		if(lwipdev.tcp_server_status == LWIP_TCP_INIT_CONNECT) // TCPåˆ›å»º
 		{	
-			tcp_server_conn = netconn_new(NETCONN_TCP);//´´½¨Ò»¸öTCP·şÎñÆ÷Á¬½Ó
+			tcp_server_conn = netconn_new(NETCONN_TCP);//åˆ›å»ºä¸€ä¸ªTCPæœåŠ¡å™¨è¿æ¥
 			if(tcp_server_conn == NULL)
 			{
 				if(TCP_SERVER_DEBUG) printf("tcp_server_conn error \r\n");
@@ -42,15 +42,15 @@ static void tcp_server_thread(void *arg)
 			}
 			else
 			{
-				err = netconn_bind(tcp_server_conn,IP_ADDR_ANY,local->port);//°ó¶¨¶Ë¿ÚºÅTCP_SERVER_PORT
+				err = netconn_bind(tcp_server_conn,IP_ADDR_ANY,local->port);//ç»‘å®šç«¯å£å·TCP_SERVER_PORT
 				if(err == ERR_OK)
 				{
-					err = netconn_listen(tcp_server_conn);	//½øÈë¼àÌıÄ£Ê½
+					err = netconn_listen(tcp_server_conn);	//è¿›å…¥ç›‘å¬æ¨¡å¼
 					if(err == ERR_OK)
 					{
 						if(TCP_SERVER_DEBUG) printf("TCP Server ready to accept");
-						tcp_server_conn->recv_timeout = 10;		//½ûÖ¹×èÈûÏß³Ì µÈ´ı20ms
-						lwipdev.tcp_server_status = LWIP_TCP_SERVER_LINK;	// ·şÎñÆ÷µÈ´ıÁ¬½Ó				
+						tcp_server_conn->recv_timeout = 10;		//ç¦æ­¢é˜»å¡çº¿ç¨‹ ç­‰å¾…20ms
+						lwipdev.tcp_server_status = LWIP_TCP_SERVER_LINK;	// æœåŠ¡å™¨ç­‰å¾…è¿æ¥				
 					}
 					else
 						if(TCP_SERVER_DEBUG) printf("TCP Server listen failed");
@@ -59,54 +59,56 @@ static void tcp_server_thread(void *arg)
 					if(TCP_SERVER_DEBUG) printf("netconn bind failed");			
 			}
 		}
-		else if(lwipdev.tcp_server_status == LWIP_TCP_SERVER_LINK) // TCP´´½¨³É¹¦
+		else if(lwipdev.tcp_server_status == LWIP_TCP_SERVER_LINK) // TCPåˆ›å»ºæˆåŠŸ
 		{
-			err = netconn_accept(tcp_server_conn,&tcp_server_newconn);  //½ÓÊÕÁ¬½ÓÇëÇó
-			if (err == ERR_OK)    //´¦ÀíĞÂÁ¬½ÓµÄÊı¾İ
+			err = netconn_accept(tcp_server_conn,&tcp_server_newconn);  //æ¥æ”¶è¿æ¥è¯·æ±‚
+			if (err == ERR_OK)    //å¤„ç†æ–°è¿æ¥çš„æ•°æ®
 			{ 		
 				if(TCP_SERVER_DEBUG) printf("netconn_accept\n");			
 				tcp_server_newconn->recv_timeout = 10;
-				// ´´½¨¿Í»§¶ËÈÎÎñ
+				// åˆ›å»ºå®¢æˆ·ç«¯ä»»åŠ¡(å•è¿æ¥æ§½; æ§½ä½å ç”¨æˆ–åˆ›å»ºå¤±è´¥æ—¶, æ–°è¿æ¥å·²åœ¨ tcp_client_init å†…å…³é—­)
 				osres = tcp_client_init((void *)tcp_server_newconn);
-				if(TCP_SERVER_DEBUG) printf("tcp_server:%d\n",osres);		
+				if(TCP_SERVER_DEBUG) printf("tcp_server:%d\n",osres);
+				if(osres != OS_ERR_NONE)
+					tcp_server_newconn = NULL;		// æ–°è¿æ¥å·²é‡Šæ”¾, é¿å…æ‚¬ç©º
 
 				led_control_function(LD_LAN,LD_FLICKER);
-				lwipdev.tcp_server_link = 1; // ±êÖ¾Î»ÖÃ1
+				lwipdev.tcp_server_link = 1; // æ ‡å¿—ä½ç½®1
 			}
 		}
-		/* Í£Ö¹tcp */
-		if(lwipdev.tcp_server_reset == 1)					  // ÖØÆôtcpÁ¬½Ó
+		/* åœæ­¢tcp */
+		if(lwipdev.tcp_server_reset == 1)					  // é‡å¯tcpè¿æ¥
 		{
 			lwipdev.tcp_server_reset = 0;
 			tcp_server_stop_function();
 		}	
 		IWDG_Feed();
-		OSTimeDlyHMSM(0,0,0,10);
+		OSTimeDlyHMSM(0,0,0,2);		// åŠ å¿« accept è½®è¯¢, ä¾¿äºå¿«é€ŸçŸ­è¿æ¥åŠæ—¶æ¥å…¥
 	}
 }
 
 
-//´´½¨TCP·şÎñÆ÷Ïß³Ì
-//·µ»ØÖµ:0 TCP·şÎñÆ÷´´½¨³É¹¦
-//		ÆäËû TCP·şÎñÆ÷´´½¨Ê§°Ü
+//åˆ›å»ºTCPæœåŠ¡å™¨çº¿ç¨‹
+//è¿”å›å€¼:0 TCPæœåŠ¡å™¨åˆ›å»ºæˆåŠŸ
+//		å…¶ä»– TCPæœåŠ¡å™¨åˆ›å»ºå¤±è´¥
 INT8U tcp_server_init(void)
 {
 	INT8U res, err;
 	OS_CPU_SR cpu_sr;
 	
-	OS_ENTER_CRITICAL();	//¹ØÖĞ¶Ï
-	OSTaskCreateExt(	 tcp_server_thread, 																					//½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-										(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-										(OS_STK*)&TCPSERVER_TASK_STK[TCPSERVER_STK_SIZE-1], 					//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-										(INT8U)TCPSERVER_PRIO, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-										(INT16U)TCPSERVER_PRIO,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-										(OS_STK *)&TCPSERVER_TASK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-										(INT32U)TCPSERVER_STK_SIZE, 															//Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-										(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+	OS_ENTER_CRITICAL();	//å…³ä¸­æ–­
+	OSTaskCreateExt(	 tcp_server_thread, 																					//å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+										(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+										(OS_STK*)&TCPSERVER_TASK_STK[TCPSERVER_STK_SIZE-1], 					//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+										(INT8U)TCPSERVER_PRIO, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+										(INT16U)TCPSERVER_PRIO,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+										(OS_STK *)&TCPSERVER_TASK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+										(INT32U)TCPSERVER_STK_SIZE, 															//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+										(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 	OSTaskNameSet(TCPSERVER_PRIO, (INT8U *)(void *)"tcp_server", &err);
-//	res = OSTaskCreate(tcp_server_thread,(void*)0,(OS_STK*)&TCPSERVER_TASK_STK[TCPSERVER_STK_SIZE-1],TCPSERVER_PRIO); //´´½¨TCP·şÎñÆ÷Ïß³Ì
-	OS_EXIT_CRITICAL();		//¿ªÖĞ¶Ï
+//	res = OSTaskCreate(tcp_server_thread,(void*)0,(OS_STK*)&TCPSERVER_TASK_STK[TCPSERVER_STK_SIZE-1],TCPSERVER_PRIO); //åˆ›å»ºTCPæœåŠ¡å™¨çº¿ç¨‹
+	OS_EXIT_CRITICAL();		//å¼€ä¸­æ–­
 	
 	return res;
 }
@@ -114,14 +116,14 @@ INT8U tcp_server_init(void)
 /************************************************************
 *
 * Function name	: tcp_server_start_function
-* Description	: tcp·şÎñÆ÷Æô¶¯º¯Êı
+* Description	: tcpæœåŠ¡å™¨å¯åŠ¨å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void tcp_server_start_function(void)
 {
-	/* ´´½¨TCP·şÎñÆ÷ */
+	/* åˆ›å»ºTCPæœåŠ¡å™¨ */
 	lwipdev.tcp_server_status = 0;
 	tcp_server_init();
 }
@@ -129,7 +131,7 @@ void tcp_server_start_function(void)
 /************************************************************
 *
 * Function name	: tcp_server_stop_function
-* Description	: tcp·şÎñÆ÷Í£Ö¹º¯Êı
+* Description	: tcpæœåŠ¡å™¨åœæ­¢å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -140,39 +142,37 @@ void tcp_server_stop_function(void)
 	
 	OS_CPU_SR cpu_sr;
 	led_control_function(LD_LAN,LD_ON);
+	/* å…³é—­å¹¶é‡Šæ”¾å®¢æˆ·ç«¯è¿æ¥(å•æ§½): tcp_server_newconn ä¸ tcp_cilent1_conn æ˜¯åŒä¸€å¯¹è±¡,
+	   å·²ç”± tcp_client_stop_function() é‡Šæ”¾, æ­¤å¤„åªæ¸…ç©º, é¿å…åŒä¸€ netconn äºŒæ¬¡é‡Šæ”¾ */
 	tcp_client_stop_function();
-	/* ¹Ø±Õtcp·şÎñÆ÷ */
+	tcp_server_newconn = NULL;
+
+	/* å…³é—­tcpæœåŠ¡å™¨(ä»…ç›‘å¬å¯¹è±¡) */
 	if(lwipdev.tcp_server_status != LWIP_TCP_NO_CONNECT)
 	{
-		if(tcp_server_newconn!= NULL)
-		{
-			netconn_close(tcp_server_newconn);
-			netconn_delete(tcp_server_newconn);
-		}
 		if(tcp_server_conn!= NULL)
 		{
 			netconn_close(tcp_server_conn);
 			netconn_delete(tcp_server_conn);
 		}
 	}
-	tcp_server_newconn = NULL;
 	tcp_server_conn = NULL;
 	lwipdev.tcp_server_link = 0;
 	lwipdev.tcp_server_status = LWIP_TCP_NO_CONNECT;
 	
-	OS_ENTER_CRITICAL();		// ¹ØÖĞ¶Ï
-	OSTaskDel(TCPSERVER_PRIO);	// É¾³ıTCPÈÎÎñ
-	OS_EXIT_CRITICAL();			// ¿ªÖĞ¶Ï
+	OS_ENTER_CRITICAL();		// å…³ä¸­æ–­
+	OSTaskDel(TCPSERVER_PRIO);	// åˆ é™¤TCPä»»åŠ¡
+	OS_EXIT_CRITICAL();			// å¼€ä¸­æ–­
 }
 
 
 /************************************************************
 *
 * Function name	: tcp_server_get_link_status
-* Description	: »ñÈ¡TCPÁ¬½Ó×´Ì¬
+* Description	: è·å–TCPè¿æ¥çŠ¶æ€
 * Parameter		: 
 * Return		: 
-*	Ö»ÓĞÔÚTCPÁ¬½ÓÊ±²Å¿ÉÒÔ·¢ËÍÊı¾İ
+*	åªæœ‰åœ¨TCPè¿æ¥æ—¶æ‰å¯ä»¥å‘é€æ•°æ®
 ************************************************************/
 uint8_t tcp_server_get_link_status(void)
 {

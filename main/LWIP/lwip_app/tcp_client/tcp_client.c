@@ -10,62 +10,57 @@
 #include "http_com.h"
 #include "eth.h"
 
-//CLIENT1¿Í»§¶ËÈÎÎñ
+/*
+ * å• HTTP æœåŠ¡å™¨æ”¹é€ :
+ *   è®¾å¤‡åªä¿ç•™ 1 ä¸ª TCP å®¢æˆ·ç«¯è¿žæŽ¥æ§½(client1), ç”¨äºŽ WebSocket é•¿è¿žæŽ¥ / HTTP çŸ­è¿žæŽ¥;
+ *   client2 / client3 çš„å¤šè¿žæŽ¥å‰¯æœ¬(åŠå…¶å¯¹åº” http_com2/3) å·²ç§»é™¤, é¿å…é‡å¤å¤„ç†é€»è¾‘
+ *   ä¸Žå…¨å±€å‘é€ç¼“å†²(http_send_buff)çš„å¹¶å‘ç«žæ€ã€‚
+ *   æ–°è¿žæŽ¥åˆ°æ¥æ—¶è‹¥æ§½ä½å·²è¢«å ç”¨, ç›´æŽ¥å…³é—­è¯¥æ–°è¿žæŽ¥, æœåŠ¡å™¨ç»§ç»­ç›‘å¬ã€‚
+ */
+
+//CLIENT1å®¢æˆ·ç«¯ä»»åŠ¡
 #define TCP_CLIENT1_PRIO			 6
-//ÈÎÎñ¶ÑÕ»´óÐ¡
+//ä»»åŠ¡å †æ ˆå¤§å°
 #define TCP_CLIENT1_STK_SIZE	 256
-//ÈÎÎñ¶ÑÕ»
+//ä»»åŠ¡å †æ ˆ
 __align(8) static OS_STK TCP_CLIENT1_TASK_STK[TCP_CLIENT1_STK_SIZE];
 
-//CLIENT2¿Í»§¶ËÈÎÎñ
-#define TCP_CLIENT2_PRIO			 7
-//ÈÎÎñ¶ÑÕ»´óÐ¡
-#define TCP_CLIENT2_STK_SIZE	 256
-//ÈÎÎñ¶ÑÕ»
-__align(8) static OS_STK TCP_CLIENT2_TASK_STK[TCP_CLIENT2_STK_SIZE];
 
-//CLIENT3¿Í»§¶ËÈÎÎñ
-#define TCP_CLIENT3_PRIO			 8
-//ÈÎÎñ¶ÑÕ»´óÐ¡
-#define TCP_CLIENT3_STK_SIZE	 256
-//ÈÎÎñ¶ÑÕ»
-__align(8) static OS_STK TCP_CLIENT3_TASK_STK[TCP_CLIENT3_STK_SIZE];
-
-
-struct netconn *tcp_cilent1_conn = NULL;	// cilent1ÍøÂçÁ¬½Ó½á¹¹Ìå
+struct netconn *tcp_cilent1_conn = NULL;	// cilent1ç½‘ç»œè¿žæŽ¥ç»“æž„ä½“
 struct netbuf *sg_cilent1_recvbuf = NULL;
 u8 *tcp_cilent1_sendbuf;	
-uint16_t tcp_cilent1_flag;								//cilent1Êý¾Ý·¢ËÍ±êÖ¾Î»
-uint8_t tcp_cilent1_recvflag;						//cilent1Êý¾Ý½ÓÊÕ
+uint16_t tcp_cilent1_flag;								//cilent1æ•°æ®å‘é€æ ‡å¿—ä½
+uint8_t tcp_cilent1_recvflag;						//cilent1æ•°æ®æŽ¥æ”¶
 
+/* ä»¥ä¸‹ client2/client3 å˜é‡ä¿ç•™(ä¾›å¤´æ–‡ä»¶å£°æ˜Žçš„æŽ¥å£ä½¿ç”¨), ä½†ä¸å†åˆ›å»ºå¯¹åº”è¿žæŽ¥ä»»åŠ¡ */
 
-struct netconn *tcp_client2_conn = NULL;	// client2ÍøÂçÁ¬½Ó½á¹¹Ìå
+struct netconn *tcp_client2_conn = NULL;	// client2ç½‘ç»œè¿žæŽ¥ç»“æž„ä½“
 struct netbuf *sg_client2_recvbuf = NULL;
 u8 *tcp_client2_sendbuf;	
-uint16_t tcp_client2_flag;					    //client2Êý¾Ý·¢ËÍ±êÖ¾Î»
-uint8_t tcp_client2_recvflag;						//client2Êý¾Ý½ÓÊÕ
+uint16_t tcp_client2_flag;					    //client2æ•°æ®å‘é€æ ‡å¿—ä½
+uint8_t tcp_client2_recvflag;						//client2æ•°æ®æŽ¥æ”¶
 
 
-struct netconn *tcp_client3_conn = NULL;	// client2ÍøÂçÁ¬½Ó½á¹¹Ìå
+struct netconn *tcp_client3_conn = NULL;	// client3ç½‘ç»œè¿žæŽ¥ç»“æž„ä½“
 struct netbuf *sg_client3_recvbuf = NULL;
 u8 *tcp_client3_sendbuf;	
-uint16_t tcp_client3_flag;								//client2Êý¾Ý·¢ËÍ±êÖ¾Î»
-uint8_t tcp_client3_recvflag;						//client2Êý¾Ý½ÓÊÕ
+uint16_t tcp_client3_flag;								//client3æ•°æ®å‘é€æ ‡å¿—ä½
+uint8_t tcp_client3_recvflag;						//client3æ•°æ®æŽ¥æ”¶
 
-// cilent1ÈÎÎñº¯Êý
+// cilent1ä»»åŠ¡å‡½æ•°
 static void tcp_cilent1_thread(void *arg)
 {
 	err_t err,recv_err;
 	struct pbuf *q;
 	u32 data_len = 0;
 	OS_CPU_SR cpu_sr;
-	u16 			 port; // client ¶Ë¿ÚºÅ
-	ip_addr_t  ip;   // client IPµØÖ·
+	u16 			 port; // client ç«¯å£å·
+	ip_addr_t  ip;   // client IPåœ°å€
 	u32 link_count = 0;
 	
 	LWIP_UNUSED_ARG(arg);
 	if(TCP_CLIENT_DEBUG) printf("cilent1...1\n");
-	netconn_getaddr(tcp_cilent1_conn,&ip,&port,0);   //»ñÈ¡Ô¶¶ËIPµØÖ·ºÍ¶Ë¿ÚºÅ	
+	netconn_getaddr(tcp_cilent1_conn,&ip,&port,0);   //èŽ·å–è¿œç«¯IPåœ°å€å’Œç«¯å£å·	
 	while (1) 
 	{
 		link_count++;
@@ -77,7 +72,7 @@ static void tcp_cilent1_thread(void *arg)
 				goto CLIENT1_ERROR;
 			}
 		}
-		if((tcp_cilent1_flag & TCP_CLIENT1_DATA) == TCP_CLIENT1_DATA) //ÓÐÊý¾ÝÒª·¢ËÍ
+		if((tcp_cilent1_flag & TCP_CLIENT1_DATA) == TCP_CLIENT1_DATA) //æœ‰æ•°æ®è¦å‘é€
 		{
 			err = netconn_write(tcp_cilent1_conn,tcp_cilent1_sendbuf,(tcp_cilent1_flag & 0x3fff),NETCONN_COPY); 
 			if(TCP_CLIENT_DEBUG) printf("cilent1_send end...\n");
@@ -88,374 +83,105 @@ static void tcp_cilent1_thread(void *arg)
 			tcp_cilent1_flag &= ~TCP_CLIENT1_DATA;
 		}
 		
-		if((recv_err = netconn_recv(tcp_cilent1_conn,&sg_cilent1_recvbuf)) == ERR_OK)  	//½ÓÊÕµ½Êý¾Ý
+		if((recv_err = netconn_recv(tcp_cilent1_conn,&sg_cilent1_recvbuf)) == ERR_OK)  	//æŽ¥æ”¶åˆ°æ•°æ®
 		{
-				OS_ENTER_CRITICAL(); //¹ØÖÐ¶Ï
-				for(q=sg_cilent1_recvbuf->p;q!=NULL;q=q->next)  //±éÀúÍêÕû¸öpbufÁ´±í
+				OS_ENTER_CRITICAL(); //å…³ä¸­æ–­
+				for(q=sg_cilent1_recvbuf->p;q!=NULL;q=q->next)  //éåŽ†å®Œæ•´ä¸ªpbufé“¾è¡¨
 				{
 					if(q->len > 0) 
 						http_com_stroage_data(q->payload,q->len);
 					data_len += q->len;  	
 				}
-				OS_EXIT_CRITICAL();  // ¿ªÖÐ¶Ï
-				if(TCP_CLIENT_DEBUG)	printf("cilent1_recv:%d...\n",data_len);  //½ÓÊÕµ½µÄÊý¾Ý
-				data_len=0;  				 // ¸´ÖÆÍê³Éºódata_lenÒªÇåÁã¡£	
+				OS_EXIT_CRITICAL();  // å¼€ä¸­æ–­
+				if(TCP_CLIENT_DEBUG)	printf("cilent1_recv:%d...\n",data_len);  //æŽ¥æ”¶åˆ°çš„æ•°æ®
+				data_len=0;  				 // å¤åˆ¶å®ŒæˆåŽdata_lenè¦æ¸…é›¶ã€‚	
 				netbuf_delete(sg_cilent1_recvbuf);
 				sg_cilent1_recvbuf = NULL;			
 		}
-		else if(recv_err == ERR_CLSD||recv_err==ERR_RST)      //½ÓÊÕµ½¹Ø±Õ»ò¸´Î»Êý¾Ý
+		else if(recv_err == ERR_CLSD||recv_err==ERR_RST)      //æŽ¥æ”¶åˆ°å…³é—­æˆ–å¤ä½æ•°æ®
 		{
 			CLIENT1_ERROR:
-			netconn_close(tcp_cilent1_conn);                            //¹Ø±ÕÁ¬½Ó
-			netconn_delete(tcp_cilent1_conn);                           //É¾³ýÁ¬½Ó
+			netconn_close(tcp_cilent1_conn);                            //å…³é—­è¿žæŽ¥
+			netconn_delete(tcp_cilent1_conn);                           //åˆ é™¤è¿žæŽ¥
+			tcp_cilent1_conn = NULL;
 			if(lwipdev.client_websocket_id == 1)
 			{
 				lwipdev.client_websocket_id = 0;
 				eth_set_network_reset();
 			}
-			lwipdev.tcp_client1 = 0;                          //µÚ client->num ¸öÉè±¸×´Ì¬ÖÃ0 ±íÊ¾¿Í»§¶ËÎ´Á¬½Ó
+			lwipdev.tcp_client1 = 0;                          //ç¬¬ client->num ä¸ªè®¾å¤‡çŠ¶æ€ç½®0 è¡¨ç¤ºå®¢æˆ·ç«¯æœªè¿žæŽ¥
 			if(TCP_CLIENT_DEBUG) printf("cilent1...2\n");
-			OS_ENTER_CRITICAL();		// ¹ØÖÐ¶Ï
-			OSTaskDel(TCP_CLIENT1_PRIO);	// É¾³ýTCPÈÎÎñ
-			OS_EXIT_CRITICAL();			// ¿ªÖÐ¶Ï
+			OS_ENTER_CRITICAL();		// å…³ä¸­æ–­
+			OSTaskDel(TCP_CLIENT1_PRIO);	// åˆ é™¤TCPä»»åŠ¡
+			OS_EXIT_CRITICAL();			// å¼€ä¸­æ–­
 		}
 		OSTimeDlyHMSM(0,0,0,5);
 	}
 }
 
-// client2¿Í»§¶ËÈÎÎñº¯Êý
-static void tcp_client2_thread(void *arg)
-{
-	err_t err,recv_err;
-	struct pbuf *q;
-	u32 data_len = 0;
-	OS_CPU_SR cpu_sr;
-	u16 			 port; // client ¶Ë¿ÚºÅ
-	ip_addr_t  ip;   // client IPµØÖ·
-	u32 link_count2 = 0;
-	static uint16_t client2_count =0;
-	
-	LWIP_UNUSED_ARG(arg);
-	netconn_getaddr(tcp_client2_conn,&ip,&port,0);        //»ñÈ¡Ô¶¶ËIPµØÖ·ºÍ¶Ë¿ÚºÅ	
-	if(TCP_CLIENT_DEBUG) if(TCP_CLIENT_DEBUG) printf("cilent2...1\n");
-	
-	while (1) 
-	{
-		link_count2++;
-		if(link_count2 > 1000)
-		{
-			if(lwipdev.client_websocket_id != 2)
-			{
-				link_count2 = 0;
-				goto CLIENT2_ERROR;
-			}
-		}
-		if((tcp_client2_flag & TCP_CLIENT2_DATA) == TCP_CLIENT2_DATA) //ÓÐÊý¾ÝÒª·¢ËÍ
-		{
-			if(TCP_CLIENT_DEBUG)	printf("cilent2 send end...\n");
-			client2_count++;
-			err = netconn_write(tcp_client2_conn,tcp_client2_sendbuf,(tcp_client2_flag & 0x3fff),NETCONN_COPY); 
-			if(err != ERR_OK)
-			{
-				if(TCP_CLIENT_DEBUG) printf("cilent2 error\r\n");
-			}
-			tcp_client2_flag &= ~TCP_CLIENT2_DATA;
-		}
-		
-		if((recv_err = netconn_recv(tcp_client2_conn,&sg_client2_recvbuf)) == ERR_OK)  	//½ÓÊÕµ½Êý¾Ý
-		{
-				OS_ENTER_CRITICAL(); //¹ØÖÐ¶Ï
-				for(q=sg_client2_recvbuf->p;q!=NULL;q=q->next)  //±éÀúÍêÕû¸öpbufÁ´±í
-				{
-					if(q->len > 0) 
-						http_com_stroage_data2(q->payload,q->len);
-					data_len += q->len;  	
-				}
-				tcp_client2_recvflag = 1; // ÓÐÊý¾Ý½ÓÊÕ
-				OS_EXIT_CRITICAL();  // ¿ªÖÐ¶Ï
-				if(TCP_CLIENT_DEBUG) printf("cilent2 recv:%d...\n",data_len);  //½ÓÊÕµ½µÄÊý¾Ý
-				
-				data_len=0;  				 // ¸´ÖÆÍê³Éºódata_lenÒªÇåÁã¡£	
-				netbuf_delete(sg_client2_recvbuf);
-				sg_client2_recvbuf = NULL;			
-		}
-		else if(recv_err == ERR_CLSD||recv_err==ERR_RST)    //½ÓÊÕµ½¹Ø±Õ»ò¸´Î»Êý¾Ý
-		{
-			CLIENT2_ERROR:
-			netconn_close(tcp_client2_conn);                  //¹Ø±ÕÁ¬½Ó
-			netconn_delete(tcp_client2_conn);                 //É¾³ýÁ¬½Ó
-			lwipdev.tcp_client2 = 0;                          //µÚ client->num ¸öÉè±¸×´Ì¬ÖÃ0 ±íÊ¾¿Í»§¶ËÎ´Á¬½Ó
-			if(lwipdev.client_websocket_id == 2)
-			{
-				lwipdev.client_websocket_id = 0;
-				eth_set_network_reset();
-			}
-			if(TCP_CLIENT_DEBUG) printf("cilent2...2\n");
-			OS_ENTER_CRITICAL();		// ¹ØÖÐ¶Ï
-			OSTaskDel(TCP_CLIENT2_PRIO);	// É¾³ýTCPÈÎÎñ
-			OS_EXIT_CRITICAL();			// ¿ªÖÐ¶Ï
-		}
-		OSTimeDlyHMSM(0,0,0,5);
-	}
-}
-
-// client3¿Í»§¶ËÈÎÎñº¯Êý
-static void tcp_client3_thread(void *arg)
-{
-	err_t err,recv_err;
-	struct pbuf *q;
-	u32 data_len = 0;
-	OS_CPU_SR cpu_sr;
-	u16 			 port; // client ¶Ë¿ÚºÅ
-	ip_addr_t  ip;   // client IPµØÖ·
-	u32 link_count3 = 0;
-	static u16 client3_count = 0;
-	
-	LWIP_UNUSED_ARG(arg);
-	netconn_getaddr(tcp_client3_conn,&ip,&port,0);        //»ñÈ¡Ô¶¶ËIPµØÖ·ºÍ¶Ë¿ÚºÅ	
-	if(TCP_CLIENT_DEBUG) if(TCP_CLIENT_DEBUG) printf("cilent3...1\n");
-	
-	while (1) 
-	{
-		link_count3++;
-		if(link_count3 > 1000)
-		{
-			if(lwipdev.client_websocket_id != 3)
-			{
-				link_count3 = 0;
-				goto CLIENT3_ERROR;
-			}
-		}
-		if((tcp_client3_flag & TCP_CLIENT3_DATA) == TCP_CLIENT3_DATA) //ÓÐÊý¾ÝÒª·¢ËÍ
-		{
-			if(TCP_CLIENT_DEBUG)	printf("cilent3 send end...\n");
-			client3_count++;
-			err = netconn_write(tcp_client3_conn,tcp_client3_sendbuf,(tcp_client3_flag & 0x3fff),NETCONN_COPY); 
-			if(err != ERR_OK)
-			{
-				if(TCP_CLIENT_DEBUG) printf("cilent3 error\r\n");
-			}
-			tcp_client3_flag &= ~TCP_CLIENT3_DATA;
-		}
-		
-		if((recv_err = netconn_recv(tcp_client3_conn,&sg_client3_recvbuf)) == ERR_OK)  	//½ÓÊÕµ½Êý¾Ý
-		{
-				OS_ENTER_CRITICAL(); //¹ØÖÐ¶Ï
-				for(q=sg_client3_recvbuf->p;q!=NULL;q=q->next)  //±éÀúÍêÕû¸öpbufÁ´±í
-				{
-					if(q->len > 0) 
-					{
-						http_com_stroage_data3(q->payload,q->len);
-					}		
-					data_len += q->len;  	
-				}
-				tcp_client3_recvflag = 1; // ÓÐÊý¾Ý½ÓÊÕ
-				OS_EXIT_CRITICAL();  // ¿ªÖÐ¶Ï
-				if(TCP_CLIENT_DEBUG) printf("cilent3 recv:%d...\n",data_len);  //½ÓÊÕµ½µÄÊý¾Ý
-				data_len=0;  				 // ¸´ÖÆÍê³Éºódata_lenÒªÇåÁã¡£	
-				netbuf_delete(sg_client3_recvbuf);
-				sg_client3_recvbuf = NULL;			
-		}
-		else if(recv_err == ERR_CLSD||recv_err==ERR_RST)      //½ÓÊÕµ½¹Ø±Õ»ò¸´Î»Êý¾Ý
-		{
-			CLIENT3_ERROR:
-			netconn_close(tcp_client3_conn);                            //¹Ø±ÕÁ¬½Ó
-			netconn_delete(tcp_client3_conn);                           //É¾³ýÁ¬½Ó
-			lwipdev.tcp_client3 = 0;                          //µÚ client->num ¸öÉè±¸×´Ì¬ÖÃ0 ±íÊ¾¿Í»§¶ËÎ´Á¬½Ó
-			if(lwipdev.client_websocket_id == 3)
-			{
-				lwipdev.client_websocket_id = 0;
-				eth_set_network_reset();
-			}
-			if(TCP_CLIENT_DEBUG) printf("cilent3...2\n");
-			OS_ENTER_CRITICAL();		// ¹ØÖÐ¶Ï
-			OSTaskDel(TCP_CLIENT3_PRIO);	// É¾³ýTCPÈÎÎñ
-			OS_EXIT_CRITICAL();			// ¿ªÖÐ¶Ï
-		}
-		OSTimeDlyHMSM(0,0,0,5);
-	}
-}
-
-//´´½¨TCP¿Í»§¶ËÏß³Ì
-//·µ»ØÖµ:0 TCP¿Í»§¶Ë´´½¨³É¹¦
-//		ÆäËû TCP¿Í»§¶Ë´´½¨Ê§°Ü
+//åˆ›å»ºTCPå®¢æˆ·ç«¯çº¿ç¨‹(å•è¿žæŽ¥æ§½)
+//è¿”å›žå€¼:OS_ERR_NONE åˆ›å»ºæˆåŠŸ; å…¶å®ƒ å¤±è´¥(æˆ–æ§½ä½å·²å ç”¨)
 int8_t tcp_client_init(void *arg)
 {
-	INT8U err;
+	INT8U err      = OS_ERR_NONE;
+	INT8U name_err = OS_ERR_NONE;
 	OS_CPU_SR cpu_sr;
 
-	if(lwipdev.tcp_client1 == 0)
+	/* å•æœåŠ¡å™¨: ä»… 1 ä¸ªè¿žæŽ¥æ§½, å·²å ç”¨åˆ™æ‹’ç»æ–°è¿žæŽ¥(æœåŠ¡å™¨ä¿æŒç›‘å¬) */
+	if(lwipdev.tcp_client1 != 0)
 	{
-		tcp_cilent1_conn = (struct netconn *)arg;
-		OS_ENTER_CRITICAL();	//¹ØÖÐ¶Ï
-		OSTaskCreateExt(	 tcp_cilent1_thread, 																//½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-											(void *)0,																				//´«µÝ²ÎÊýÖ¸Õë 
-											(OS_STK*)&TCP_CLIENT1_TASK_STK[TCP_CLIENT1_STK_SIZE-1], //·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-											(INT8U)TCP_CLIENT1_PRIO, 														//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-											(INT16U)TCP_CLIENT1_PRIO,														//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-											(OS_STK *)&TCP_CLIENT1_TASK_STK[0], 									//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-											(INT32U)TCP_CLIENT1_STK_SIZE, 												//Ö¸¶¨¶ÑÕ»µÄÈÝÁ¿(¼ìÑéÓÃ) 
-											(void *)0,																				//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊý¾ÝÓòµÄÖ¸Õë 
-											(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);	//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
-		OSTaskNameSet(TCP_CLIENT1_PRIO, (INT8U *)(void *)"tcp_cilent1", &err);
-		
-  	OS_EXIT_CRITICAL();		//¿ªÖÐ¶Ï
-		if(err == OS_ERR_NONE)
-		{
-			lwipdev.tcp_client1 = 1; // Á¬½Ó×´Ì¬ÖÃ1(ÒÑÁ¬½Ó)	
-			return OS_ERR_NONE;
-		}			
-		else
-			return err;
+		if(TCP_CLIENT_DEBUG) printf("tcp_client busy, reject new connection\r\n");
+		netconn_close((struct netconn *)arg);
+		netconn_delete((struct netconn *)arg);
+		return -1;
 	}
-	
-	if(lwipdev.tcp_client2 == 0)
+
+	tcp_cilent1_conn = (struct netconn *)arg;
+	OS_ENTER_CRITICAL();	//å…³ä¸­æ–­
+	err = OSTaskCreateExt(	 tcp_cilent1_thread, 																//å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+										(void *)0,																				//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+										(OS_STK*)&TCP_CLIENT1_TASK_STK[TCP_CLIENT1_STK_SIZE-1], //åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+										(INT8U)TCP_CLIENT1_PRIO, 														//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+										(INT16U)TCP_CLIENT1_PRIO,														//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸Žä¼˜å…ˆçº§ç›¸åŒ) 
+										(OS_STK *)&TCP_CLIENT1_TASK_STK[0], 									//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+										(INT32U)TCP_CLIENT1_STK_SIZE, 												//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+										(void *)0,																				//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);	//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
+	OSTaskNameSet(TCP_CLIENT1_PRIO, (INT8U *)(void *)"tcp_cilent1", &name_err);
+  OS_EXIT_CRITICAL();		//å¼€ä¸­æ–­
+
+	if(err == OS_ERR_NONE)
 	{
-		tcp_client2_conn = (struct netconn *)arg;
-		OS_ENTER_CRITICAL();	//¹ØÖÐ¶Ï
-		OSTaskCreateExt(	 tcp_client2_thread, 																				 //½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-											(void *)0,																					       //´«µÝ²ÎÊýÖ¸Õë 
-											(OS_STK*)&TCP_CLIENT2_TASK_STK[TCP_CLIENT2_STK_SIZE-1],//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-											(INT8U)TCP_CLIENT2_PRIO, 													//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-											(INT16U)TCP_CLIENT2_PRIO,													//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-											(OS_STK *)&TCP_CLIENT2_TASK_STK[0], 							//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-											(INT32U)TCP_CLIENT2_STK_SIZE, 										//Ö¸¶¨¶ÑÕ»µÄÈÝÁ¿(¼ìÑéÓÃ) 
-											(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊý¾ÝÓòµÄÖ¸Õë 
-											(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
-		OSTaskNameSet(TCP_CLIENT2_PRIO, (INT8U *)(void *)"tcp_client2", &err);
-		
-	//	res = OSTaskCreate(tcp_client2_thread,(void*)0,(OS_STK*)&TCP_CLIENT2_TASK_STK[TCP_CLIENT2_STK_SIZE-1],TCP_CLIENT2_PRIO); //´´½¨TCP·þÎñÆ÷Ïß³Ì
-		OS_EXIT_CRITICAL();		//¿ªÖÐ¶Ï
-		if(TCP_CLIENT_DEBUG) printf("tcp_client2:%d\n",err);	
-		if(err == OS_ERR_NONE)
-		{
-			lwipdev.tcp_client2 = 1; // Á¬½Ó×´Ì¬ÖÃ1(ÒÑÁ¬½Ó)	
-			return OS_ERR_NONE;
-		}			
-		else
-			return err;
-	}	
-	
-	if(lwipdev.tcp_client3 == 0)
-	{
-		tcp_client3_conn = (struct netconn *)arg;
-		OS_ENTER_CRITICAL();	//¹ØÖÐ¶Ï
-		OSTaskCreateExt(	 tcp_client3_thread, 																				 //½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-											(void *)0,																					       //´«µÝ²ÎÊýÖ¸Õë 
-											(OS_STK*)&TCP_CLIENT3_TASK_STK[TCP_CLIENT3_STK_SIZE-1],//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-											(INT8U)TCP_CLIENT3_PRIO, 													//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-											(INT16U)TCP_CLIENT3_PRIO,													//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-											(OS_STK *)&TCP_CLIENT3_TASK_STK[0], 							//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-											(INT32U)TCP_CLIENT3_STK_SIZE, 										//Ö¸¶¨¶ÑÕ»µÄÈÝÁ¿(¼ìÑéÓÃ) 
-											(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊý¾ÝÓòµÄÖ¸Õë 
-											(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
-		OSTaskNameSet(TCP_CLIENT3_PRIO, (INT8U *)(void *)"tcp_client3", &err);
-		
-		OS_EXIT_CRITICAL();		//¿ªÖÐ¶Ï
-		if(TCP_CLIENT_DEBUG) printf("tcp_client3:%d\n",err);	
-		if(err == OS_ERR_NONE)
-		{
-			lwipdev.tcp_client3 = 1; // Á¬½Ó×´Ì¬ÖÃ1(ÒÑÁ¬½Ó)	
-			return OS_ERR_NONE;
-		}			
-		else
-			return err;
+		lwipdev.tcp_client1 = 1; // è¿žæŽ¥çŠ¶æ€ç½®1(å·²è¿žæŽ¥)	
+		return OS_ERR_NONE;
 	}
+
+	/* ä»»åŠ¡åˆ›å»ºå¤±è´¥: é‡Šæ”¾è¿žæŽ¥, é¿å…è¿žæŽ¥æ— äººå¤„ç†è€Œæ‚¬ç©º */
+	if(TCP_CLIENT_DEBUG) printf("tcp_cilent1 task create err:%d\r\n",err);
+	netconn_close(tcp_cilent1_conn);
+	netconn_delete(tcp_cilent1_conn);
+	tcp_cilent1_conn = NULL;
 	return err;
 }
+
 /************************************************************
 *
 * Function name	: tcp_cilent_send_buff
-* Description	: cilent ·¢ËÍÊý¾Ý
+* Description	: å‘é€æ•°æ®(å•æœåŠ¡å™¨: ç»Ÿä¸€å‘å¾€å”¯ä¸€çš„ client1 è¿žæŽ¥)
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void tcp_cilent_send_buff(uint8_t *buff, uint16_t len,uint8_t websocket)
 {
-	switch(lwipdev.client_websocket_id)
-	{
-		case 1:
-			if(websocket)
-				tcp_cilent1_send_buff(buff,len);
-			else
-			{
-				if(lwipdev.client2_id == 1) 
-				{
-					tcp_client2_send_buff(buff,len);
-					lwipdev.client2_id = 0;
-				}
-				if(lwipdev.client3_id == 1) 
-				{
-					tcp_client3_send_buff(buff,len);
-					lwipdev.client3_id = 0;
-				}
-			}	
-			break;
-			
-		case 2:
-			if(websocket)
-				tcp_client2_send_buff(buff,len);
-			else
-			{
-				if(lwipdev.client1_id == 1) 
-				{
-					tcp_cilent1_send_buff(buff,len);
-					lwipdev.client1_id = 0;
-				}
-				if(lwipdev.client3_id == 1) 
-				{
-					tcp_client3_send_buff(buff,len);
-					lwipdev.client3_id = 0;
-				}
-			}	
-			break;
-						
-		case 3:
-			if(websocket)
-				tcp_client3_send_buff(buff,len);
-			else
-			{
-				if(lwipdev.client1_id == 1) 
-				{
-					tcp_cilent1_send_buff(buff,len);
-					lwipdev.client1_id = 0;
-				}
-				if(lwipdev.client2_id == 1) 
-				{
-					tcp_client2_send_buff(buff,len);
-					lwipdev.client2_id = 0;
-				}
-			}	
-			break;			
-			
-		default:
-			if(!websocket)
-			{
-				if(lwipdev.client1_id == 1) 
-				{
-					tcp_cilent1_send_buff(buff,len);
-					lwipdev.client1_id = 0;
-				}
-				if(lwipdev.client2_id == 1) 
-				{
-					tcp_client2_send_buff(buff,len);
-					lwipdev.client2_id = 0;
-				}
-				if(lwipdev.client3_id == 1) 
-				{
-					tcp_client3_send_buff(buff,len);
-					lwipdev.client3_id = 0;
-				}
-			}
-		break;
-	}
+	LWIP_UNUSED_ARG(websocket);
+	tcp_cilent1_send_buff(buff,len);
 }
 
 /************************************************************
 *
 * Function name	: tcp_cilent1_send_buff
-* Description	: cilent1 ·¢ËÍÊý¾Ý
+* Description	: cilent1 å‘é€æ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -472,7 +198,7 @@ void tcp_cilent1_send_buff(uint8_t *buff, uint16_t len)
 /************************************************************
 *
 * Function name	: tcp_client2_send_buff
-* Description	: client2 ·¢ËÍÊý¾Ý
+* Description	: client2 å‘é€æ•°æ®(å•æœåŠ¡å™¨ä¸‹ä¸å†ä½¿ç”¨)
 * Parameter		: 
 * Return		: 
 *	
@@ -489,7 +215,7 @@ void tcp_client2_send_buff(uint8_t *buff, uint16_t len)
 /************************************************************
 *
 * Function name	: tcp_client3_send_buff
-* Description	: client3 ·¢ËÍÊý¾Ý
+* Description	: client3 å‘é€æ•°æ®(å•æœåŠ¡å™¨ä¸‹ä¸å†ä½¿ç”¨)
 * Parameter		: 
 * Return		: 
 *	
@@ -505,11 +231,11 @@ void tcp_client3_send_buff(uint8_t *buff, uint16_t len)
 
 /************************************************************
 *
-* Function name	: tcp_server_get_link_status
-* Description	: »ñÈ¡TCPÁ¬½Ó×´Ì¬
+* Function name	: tcp_cilent1_get_link_status
+* Description	: èŽ·å–TCPè¿žæŽ¥çŠ¶æ€
 * Parameter		: 
 * Return		: 
-*	Ö»ÓÐÔÚTCPÁ¬½ÓÊ±²Å¿ÉÒÔ·¢ËÍÊý¾Ý
+*	åªæœ‰åœ¨TCPè¿žæŽ¥æ—¶æ‰å¯ä»¥å‘é€æ•°æ®
 ************************************************************/
 uint8_t tcp_cilent1_get_link_status(void)
 {
@@ -518,11 +244,11 @@ uint8_t tcp_cilent1_get_link_status(void)
 
 /************************************************************
 *
-* Function name	: tcp_server_get_link_status
-* Description	: »ñÈ¡TCPÁ¬½Ó×´Ì¬
+* Function name	: tcp_client2_get_link_status
+* Description	: èŽ·å–TCPè¿žæŽ¥çŠ¶æ€
 * Parameter		: 
 * Return		: 
-*	Ö»ÓÐÔÚTCPÁ¬½ÓÊ±²Å¿ÉÒÔ·¢ËÍÊý¾Ý
+*	åªæœ‰åœ¨TCPè¿žæŽ¥æ—¶æ‰å¯ä»¥å‘é€æ•°æ®
 ************************************************************/
 uint8_t tcp_client2_get_link_status(void)
 {
@@ -531,11 +257,11 @@ uint8_t tcp_client2_get_link_status(void)
 
 /************************************************************
 *
-* Function name	: tcp_server_get_link_status
-* Description	: »ñÈ¡TCPÁ¬½Ó×´Ì¬
+* Function name	: tcp_client3_get_link_status
+* Description	: èŽ·å–TCPè¿žæŽ¥çŠ¶æ€
 * Parameter		: 
 * Return		: 
-*	Ö»ÓÐÔÚTCPÁ¬½ÓÊ±²Å¿ÉÒÔ·¢ËÍÊý¾Ý
+*	åªæœ‰åœ¨TCPè¿žæŽ¥æ—¶æ‰å¯ä»¥å‘é€æ•°æ®
 ************************************************************/
 uint8_t tcp_client3_get_link_status(void)
 {
@@ -544,16 +270,17 @@ uint8_t tcp_client3_get_link_status(void)
 
 /************************************************************
 *
-* Function name	: tcp_server_get_link_status
-* Description	: »ñÈ¡TCPÁ¬½Ó×´Ì¬
+* Function name	: tcp_cilent1_get_recv_status
+* Description	: èŽ·å–æŽ¥æ”¶çŠ¶æ€
 * Parameter		: 
 * Return		: 
-*	Ö»ÓÐÔÚTCPÁ¬½ÓÊ±²Å¿ÉÒÔ·¢ËÍÊý¾Ý
+*	
 ************************************************************/
 uint8_t tcp_cilent1_get_recv_status(void)
 {
 	return tcp_cilent1_recvflag;
 }
+
 uint8_t tcp_client2_get_recv_status(void)
 {
 	return tcp_client2_recvflag;
@@ -562,7 +289,7 @@ uint8_t tcp_client2_get_recv_status(void)
 /************************************************************
 *
 * Function name	: tcp_client_stop_function
-* Description	: ¿Í»§¶ËÍ£Ö¹º¯Êý
+* Description	: å®¢æˆ·ç«¯åœæ­¢å‡½æ•°(å•æœåŠ¡å™¨: åªå¤„ç† client1, å¹¶å¯¹ç©ºæŒ‡é’ˆåšä¿æŠ¤)
 * Parameter		: 
 * Return		: 
 *	
@@ -570,29 +297,18 @@ uint8_t tcp_client2_get_recv_status(void)
 void tcp_client_stop_function(void)
 {	
 	OS_CPU_SR cpu_sr;
-	netconn_close(tcp_cilent1_conn);                            //¹Ø±ÕÁ¬½Ó
-	netconn_delete(tcp_cilent1_conn); 	//É¾³ýÁ¬½Ó
-	lwipdev.tcp_client1 = 0;   //µÚ client->num ¸öÉè±¸×´Ì¬ÖÃ0 ±íÊ¾¿Í»§¶ËÎ´Á¬½Ó
+
+	if(tcp_cilent1_conn != NULL)
+	{
+		netconn_close(tcp_cilent1_conn);                            //å…³é—­è¿žæŽ¥
+		netconn_delete(tcp_cilent1_conn);                           //åˆ é™¤è¿žæŽ¥
+		tcp_cilent1_conn = NULL;
+	}
+	lwipdev.tcp_client1 = 0;   //ç¬¬ client->num ä¸ªè®¾å¤‡çŠ¶æ€ç½®0 è¡¨ç¤ºå®¢æˆ·ç«¯æœªè¿žæŽ¥
 	if(lwipdev.client_websocket_id == 1)
 		lwipdev.client_websocket_id = 0;
-	                       
-	netconn_close(tcp_client2_conn);                            //¹Ø±ÕÁ¬½Ó
-	netconn_delete(tcp_client2_conn);                           //É¾³ýÁ¬½Ó
-	lwipdev.tcp_client2 = 0;                          //µÚ client->num ¸öÉè±¸×´Ì¬ÖÃ0 ±íÊ¾¿Í»§¶ËÎ´Á¬½Ó
-	if(lwipdev.client_websocket_id == 2)
-		lwipdev.client_websocket_id = 0;
-	
-	netconn_close(tcp_client3_conn);                            //¹Ø±ÕÁ¬½Ó
-	netconn_delete(tcp_client3_conn);                           //É¾³ýÁ¬½Ó
-	lwipdev.tcp_client3 = 0;                          //µÚ client->num ¸öÉè±¸×´Ì¬ÖÃ0 ±íÊ¾¿Í»§¶ËÎ´Á¬½Ó
-	if(lwipdev.client_websocket_id == 3)
-		lwipdev.client_websocket_id = 0;
-	
-	OS_ENTER_CRITICAL();		// ¹ØÖÐ¶Ï
-	OSTaskDel(TCP_CLIENT1_PRIO);	// É¾³ýTCPÈÎÎñ
-	OSTaskDel(TCP_CLIENT2_PRIO);	// É¾³ýTCPÈÎÎñ
-	OSTaskDel(TCP_CLIENT3_PRIO);	// É¾³ýTCPÈÎÎñ
-	OS_EXIT_CRITICAL();			// ¿ªÖÐ¶Ï
+
+	OS_ENTER_CRITICAL();		// å…³ä¸­æ–­
+	OSTaskDel(TCP_CLIENT1_PRIO);	// åˆ é™¤TCPä»»åŠ¡
+	OS_EXIT_CRITICAL();			// å¼€ä¸­æ–­
 }
-
-

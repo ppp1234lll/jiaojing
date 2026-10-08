@@ -154,8 +154,6 @@ void start_system_init_function(void)
 	save_init_function();	
 	com_recevie_function_init();			// 初始化接收缓冲区
 	http_com_buff_init();
-	http_com_buff_init2();
-	http_com_buff_init3();
 	app_get_storage_param_function();	// 获取本地存储的数据
 	my_modem_init();									// 更新检测
 	my_app_run_param_init();

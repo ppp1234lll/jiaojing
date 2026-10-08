@@ -24,138 +24,138 @@
 
 #include "GPRS.h"
 
-/* ·¢ËÍ×´Ì¬ */
-#define SEND_STATUS_NO		(0) // µ±Ç°Ã»ÓĞ·¢ËÍ
-#define SEND_STATUS_SENGING (1) // µ±Ç°ÕıÔÚ·¢ËÍ
-#define SEND_STATUS_RESULT  (2) // µ±Ç°·¢ËÍÓĞÁË½á¹û
+/* å‘é€çŠ¶æ€ */
+#define SEND_STATUS_NO		(0) // å½“å‰æ²¡æœ‰å‘é€
+#define SEND_STATUS_SENGING (1) // å½“å‰æ­£åœ¨å‘é€
+#define SEND_STATUS_RESULT  (2) // å½“å‰å‘é€æœ‰äº†ç»“æœ
 
-#define SERVER_LINK_TIME  (30000) // ·şÎñÆ÷Á¬½ÓÊ±¼ä  5min = 30000ms/10ms
+#define SERVER_LINK_TIME  (30000) // æœåŠ¡å™¨è¿æ¥æ—¶é—´  5min = 30000ms/10ms
 
 typedef struct
 {
 	struct
 	{
-		send_result_e send_result;   // ·¢ËÍ½á¹û
-		uint32_t 	  heart_time;    // ĞÄÌø¼ÆÊ±
-		uint32_t	  report_time;	 // ÉÏ±¨Ê±¼ä
-		uint16_t 	  send_time;	 // ·¢ËÍ¼ÆÊ±
+		send_result_e send_result;   // å‘é€ç»“æœ
+		uint32_t 	  heart_time;    // å¿ƒè·³è®¡æ—¶
+		uint32_t	  report_time;	 // ä¸ŠæŠ¥æ—¶é—´
+		uint16_t 	  send_time;	 // å‘é€è®¡æ—¶
 		uint8_t  	  send_mode;	 // send mode:0-LWIP 1-GPRS
-		uint8_t  	  repeat;		 // ÖØ¸´´ÎÊı: Õë¶Ô·¢ËÍ
-		uint8_t  	  send_status;   // ·¢ËÍ×´Ì¬: 0-µ±Ç°Ã»ÓĞ·¢ËÍ 1-µ±Ç°ÓĞ·¢ËÍ 2-·¢ËÍÓĞ½á¹û
-		uint8_t		  send_cmd;  	 // ·¢ËÍÄÚÈİ£¬Ö±½ÓÊ¹ÓÃ¶ÔÓ¦ÃüÁî×Ö
+		uint8_t  	  repeat;		 // é‡å¤æ¬¡æ•°: é’ˆå¯¹å‘é€
+		uint8_t  	  send_status;   // å‘é€çŠ¶æ€: 0-å½“å‰æ²¡æœ‰å‘é€ 1-å½“å‰æœ‰å‘é€ 2-å‘é€æœ‰ç»“æœ
+		uint8_t		  send_cmd;  	 // å‘é€å†…å®¹ï¼Œç›´æ¥ä½¿ç”¨å¯¹åº”å‘½ä»¤å­—
 		
-		uint8_t 	  return_cmd; 	 // »Ø¸´±êÖ¾
-		uint8_t 	  return_error;	 // »Ø¸´ÄÚÈİ
+		uint8_t 	  return_cmd; 	 // å›å¤æ ‡å¿—
+		uint8_t 	  return_error;	 // å›å¤å†…å®¹
 		
-		uint16_t 	  fault_code;	 // ¹ÊÕÏÂë
+		uint16_t 	  fault_code;	 // æ•…éšœç 
 	} com;
 	struct
 	{
-		uint8_t save_comparision;	 		// ´æ´¢ÍâÉèÏà¹ØÊı¾İ
-		uint8_t save_other_param; 	 	// ´æ´¢ÆäÓà²ÎÊı
-		uint8_t save_device_param;   	// ´æ´¢Éè±¸²ÎÊı
-		uint8_t save_local_network;  	// ±£´æ±¾µØÍøÂç²ÎÊı
-		uint8_t save_remote_network; 	// ±£´æÔ¶¶ËÍøÂç²ÎÊı
-		uint8_t save_update_addr;    	// ±£´æ¸üĞÂµØÖ·
-		uint8_t com_parameter;			 	// Í¨ĞÅÏà¹Ø²ÎÊı
-		uint8_t save_report_sw;		 		// ´æ´¢ÉÏ±¨¿ª¹Ø²ÎÊı
-    uint8_t save_carema;       		// ÉãÏñÍ·²ÎÊı 20230712
-		uint8_t save_threshold;       // ãĞÖµ
-		uint8_t save_reset;		     		// »Ö¸´³ö³§»¯
+		uint8_t save_comparision;	 		// å­˜å‚¨å¤–è®¾ç›¸å…³æ•°æ®
+		uint8_t save_other_param; 	 	// å­˜å‚¨å…¶ä½™å‚æ•°
+		uint8_t save_device_param;   	// å­˜å‚¨è®¾å¤‡å‚æ•°
+		uint8_t save_local_network;  	// ä¿å­˜æœ¬åœ°ç½‘ç»œå‚æ•°
+		uint8_t save_remote_network; 	// ä¿å­˜è¿œç«¯ç½‘ç»œå‚æ•°
+		uint8_t save_update_addr;    	// ä¿å­˜æ›´æ–°åœ°å€
+		uint8_t com_parameter;			 	// é€šä¿¡ç›¸å…³å‚æ•°
+		uint8_t save_report_sw;		 		// å­˜å‚¨ä¸ŠæŠ¥å¼€å…³å‚æ•°
+    uint8_t save_carema;       		// æ‘„åƒå¤´å‚æ•° 20230712
+		uint8_t save_threshold;       // é˜ˆå€¼
+		uint8_t save_reset;		     		// æ¢å¤å‡ºå‚åŒ–
 		
-		uint8_t erase_local_network; 	// ½«±¾µØÍøÂç²ÎÊı»Ö¸´Ä¬ÈÏÖµ
-		uint8_t erase_local_mac; 			// ½«macµØÖ·»Ö¸´Ä¬ÈÏÖµ
-		uint8_t erase_report_time;	 	// ½«ÉÏ±¨Êµ¼Ê»Ö¸´Ä¬ÈÏÖµ
-		uint8_t erase_camera_ip;	 		// É¾³ıÉãÏñ»úIP
-		uint8_t erase_main_ip;		 		// É¾³ıÖ÷»ú¼ì²âip
-		uint8_t erase_server_ip;     	// ²Á³ı·şÎñÆ÷IP
-		uint8_t erase_ping_time;	 		// »¹Ô­ping¼ä¸ôÊ±¼ä
-		uint8_t erase_tran_mode;     	// »¹Ô­´«ÊäÄ£Ê½
-		uint8_t erase_netdelay_time;	// »¹Ô­ÍøÂçÑÓÊ±Ê±¼ä  20220308
-		uint8_t erase_ipc_login;	  	// »¹Ô­IPCµÇÂ¼ĞÅÏ¢  20220329
+		uint8_t erase_local_network; 	// å°†æœ¬åœ°ç½‘ç»œå‚æ•°æ¢å¤é»˜è®¤å€¼
+		uint8_t erase_local_mac; 			// å°†macåœ°å€æ¢å¤é»˜è®¤å€¼
+		uint8_t erase_report_time;	 	// å°†ä¸ŠæŠ¥å®é™…æ¢å¤é»˜è®¤å€¼
+		uint8_t erase_camera_ip;	 		// åˆ é™¤æ‘„åƒæœºIP
+		uint8_t erase_main_ip;		 		// åˆ é™¤ä¸»æœºæ£€æµ‹ip
+		uint8_t erase_server_ip;     	// æ“¦é™¤æœåŠ¡å™¨IP
+		uint8_t erase_ping_time;	 		// è¿˜åŸpingé—´éš”æ—¶é—´
+		uint8_t erase_tran_mode;     	// è¿˜åŸä¼ è¾“æ¨¡å¼
+		uint8_t erase_netdelay_time;	// è¿˜åŸç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
+		uint8_t erase_ipc_login;	  	// è¿˜åŸIPCç™»å½•ä¿¡æ¯  20220329
 	} save_flag;
 	struct
 	{
-		uint8_t report_normally;	   // Õı³£ÉÏ±¨
-		uint8_t query_configuration; // ²éÑ¯ÅäÖÃÉÏ´«
-		uint8_t heart_pack;			     // ĞÄÌø°ü
-		uint8_t version;			       // °æ±¾ĞÅÏ¢
-		uint8_t config_return;		   // ÅäÖÃ»Ø¸´
-		uint8_t ipc_ip;              // IP²éÑ¯			20220329
-		uint8_t ipc_info;					   // ²ÎÊı²éÑ¯   20220329
-		uint8_t lbs_info;					   // ²ÎÊı²éÑ¯   20220329
+		uint8_t report_normally;	   // æ­£å¸¸ä¸ŠæŠ¥
+		uint8_t query_configuration; // æŸ¥è¯¢é…ç½®ä¸Šä¼ 
+		uint8_t heart_pack;			     // å¿ƒè·³åŒ…
+		uint8_t version;			       // ç‰ˆæœ¬ä¿¡æ¯
+		uint8_t config_return;		   // é…ç½®å›å¤
+		uint8_t ipc_ip;              // IPæŸ¥è¯¢			20220329
+		uint8_t ipc_info;					   // å‚æ•°æŸ¥è¯¢   20220329
+		uint8_t lbs_info;					   // å‚æ•°æŸ¥è¯¢   20220329
 	} com_flag;
 	struct
 	{
-		uint32_t ack_msg;	 	// »Ø¸´±¨ÎÄ 
-		uint8_t http_to_web;	// http×ªwebsocket
-		uint8_t web_status;  // ×ª»»½á¹û
-		uint8_t proactive;   // Ö÷¶¯·¢Æğwebsocket
-		uint8_t client1_id;  // µ±Ç°Í¨ĞÅµÄ¿Í»§¶Ë±àºÅ
+		uint32_t ack_msg;	 	// å›å¤æŠ¥æ–‡ 
+		uint8_t http_to_web;	// httpè½¬websocket
+		uint8_t web_status;  // è½¬æ¢ç»“æœ
+		uint8_t proactive;   // ä¸»åŠ¨å‘èµ·websocket
+		uint8_t client1_id;  // å½“å‰é€šä¿¡çš„å®¢æˆ·ç«¯ç¼–å·
 		uint8_t client2_id;
 		uint8_t client3_id;
 	} http_com_flag;
 	struct
 	{
-		uint8_t caramer_num;      // ÉãÏñ»ú±àºÅ  20220329
-		uint8_t adapter_num;		  // ÊÊÅäÆ÷ - ±àºÅ
-		uint8_t current_protection;	  // µçÁ÷±£»¤
-		uint8_t volt_protection;	  // µçÑ¹±£»¤
+		uint8_t caramer_num;      // æ‘„åƒæœºç¼–å·  20220329
+		uint8_t adapter_num;		  // é€‚é…å™¨ - ç¼–å·
+		uint8_t current_protection;	  // ç”µæµä¿æŠ¤
+		uint8_t volt_protection;	  // ç”µå‹ä¿æŠ¤
 	} sys;
 	struct
 	{
-		uint8_t lwip_reset;         // ÍøÂçÖØÆô±êÖ¾
-		uint8_t adapter_reset;		  // Æ½Ì¨
-		uint8_t relay_reset[8];		    // HTTPÍ¨ĞÅÓÃ
+		uint8_t lwip_reset;         // ç½‘ç»œé‡å¯æ ‡å¿—
+		uint8_t adapter_reset;		  // å¹³å°
+		uint8_t relay_reset[8];		    // HTTPé€šä¿¡ç”¨
 	} sys_flag;
 	struct
 	{
-		char uuid[40];         // Éè±¸UUID
+		char uuid[40];         // è®¾å¤‡UUID
 	} uuid_t;
 }sys_operate_t;
 
 struct switch_control_t {
-	uint8_t adapter1; // ÊÊÅäÆ÷1
-	uint8_t adapter2; // ÊÊÅäÆ÷2
-	uint8_t adapter3; // ÊÊÅäÆ÷3
-	uint8_t adapter4; // ÊÊÅäÆ÷4
-	uint8_t adapter5; // ÊÊÅäÆ÷5
-	uint8_t adapter6; // ÊÊÅäÆ÷6
-	uint8_t adapter7; // ÊÊÅäÆ÷7
-	uint8_t adapter8; // ÊÊÅäÆ÷8
+	uint8_t adapter1; // é€‚é…å™¨1
+	uint8_t adapter2; // é€‚é…å™¨2
+	uint8_t adapter3; // é€‚é…å™¨3
+	uint8_t adapter4; // é€‚é…å™¨4
+	uint8_t adapter5; // é€‚é…å™¨5
+	uint8_t adapter6; // é€‚é…å™¨6
+	uint8_t adapter7; // é€‚é…å™¨7
+	uint8_t adapter8; // é€‚é…å™¨8
 };
 
-/* ²ÎÊı¶¨Òå */
-sys_operate_t 	sg_sysoperate_t ;// ÏµÍ³²Ù×÷²ÎÊı£º°üÀ¨Í¨ĞÅ¡¢´æ´¢¡¢¼ÆÊ± 
-comparision_parameter_t sg_comparisionparam_t = {0}; // ÉãÏñÍ·
-sys_backups_t 	sg_backups_t   	= {0}; 	// ±¸·İĞÅÏ¢ 20231022
-sys_param_t   	sg_sysparam_t   = {0}; 	// ÏµÍ³²ÎÊı£º±¾µØ¡¢Ô¶¶Ë¡¢Éè±¸¡¢ÆäËü£¨µç»°£©²ÎÊı¡¢ÉÏ±¨Ïà¹Ø²ÎÊı
-carema_t   			sg_carema_param_t;   		// onvif ÉãÏñÍ·ĞÅÏ¢
+/* å‚æ•°å®šä¹‰ */
+sys_operate_t 	sg_sysoperate_t ;// ç³»ç»Ÿæ“ä½œå‚æ•°ï¼šåŒ…æ‹¬é€šä¿¡ã€å­˜å‚¨ã€è®¡æ—¶ 
+comparision_parameter_t sg_comparisionparam_t = {0}; // æ‘„åƒå¤´
+sys_backups_t 	sg_backups_t   	= {0}; 	// å¤‡ä»½ä¿¡æ¯ 20231022
+sys_param_t   	sg_sysparam_t   = {0}; 	// ç³»ç»Ÿå‚æ•°ï¼šæœ¬åœ°ã€è¿œç«¯ã€è®¾å¤‡ã€å…¶å®ƒï¼ˆç”µè¯ï¼‰å‚æ•°ã€ä¸ŠæŠ¥ç›¸å…³å‚æ•°
+carema_t   			sg_carema_param_t;   		// onvif æ‘„åƒå¤´ä¿¡æ¯
 
 com_param_t	 		sg_comparam_t	 	= {
 	90000,
 	60000,
 	60000,
 	60000,
-	200,    // ÍøÂçÑÓÊ±Ê±¼ä  20220308
-	0,      // ·çÉÈ
-	172800, // ÖØÆôÊ±¼ä       20240904
-}; 				// Í¨ĞÅ²ÎÊı£ºĞÄÌø¡¢ÉÏ±¨¡¢ping¼ä¸ôÊ±¼ä
-uint8_t				  sg_send_buff[1024]  = {0}; // ·¢ËÍ»º´æÇø
-uint16_t				sg_send_size		  	= 0;	 // ·¢ËÍÊı¾İ³¤¶È
+	200,    // ç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
+	0,      // é£æ‰‡
+	172800, // é‡å¯æ—¶é—´       20240904
+}; 				// é€šä¿¡å‚æ•°ï¼šå¿ƒè·³ã€ä¸ŠæŠ¥ã€pingé—´éš”æ—¶é—´
+uint8_t				  sg_send_buff[1024]  = {0}; // å‘é€ç¼“å­˜åŒº
+uint16_t				sg_send_size		  	= 0;	 // å‘é€æ•°æ®é•¿åº¦
 
-uint8_t				  sg_websocket_send_buff[1024]  = {0}; // ·¢ËÍ»º´æÇø
-uint16_t				sg_websocket_send_size		  	= 0;	 // ·¢ËÍÊı¾İ³¤¶È
-uint8_t				  sg_http_send_buff[4096]  = {0}; // ·¢ËÍ»º´æÇø
-uint16_t				sg_http_send_size		  	= 0;	 // ·¢ËÍÊı¾İ³¤¶È
-rtc_time_t		  sg_rtctime_t		  	= {0}; // rtc²É¼¯¼ä¸ôÊ±¼ä
+uint8_t				  sg_websocket_send_buff[1024]  = {0}; // å‘é€ç¼“å­˜åŒº
+uint16_t				sg_websocket_send_size		  	= 0;	 // å‘é€æ•°æ®é•¿åº¦
+uint8_t				  sg_http_send_buff[4096]  = {0}; // å‘é€ç¼“å­˜åŒº
+uint16_t				sg_http_send_size		  	= 0;	 // å‘é€æ•°æ®é•¿åº¦
+rtc_time_t		  sg_rtctime_t		  	= {0}; // rtcé‡‡é›†é—´éš”æ—¶é—´
 struct switch_control_t sg_swcontrol_t = {0};
-uint32_t fan_current_time =0;  // ·çÉÈµ±Ç°ÔËĞĞÊ±¼ä
+uint32_t fan_current_time =0;  // é£æ‰‡å½“å‰è¿è¡Œæ—¶é—´
 
 /************************************************************
 *
 * Function name	: app_task_function
-* Description	: Ó¦ÓÃ³ÌĞòÖ÷ÈÎÎñ
+* Description	: åº”ç”¨ç¨‹åºä¸»ä»»åŠ¡
 * Parameter		: 
 * Return		: 
 *	
@@ -164,18 +164,16 @@ void app_task_function(void)
 {
 	uint8_t get_time_cnt = 0;
 	
-	/* ¿ªÆôÏµÍ³Ö¸Ê¾µÆ */
+	/* å¼€å¯ç³»ç»ŸæŒ‡ç¤ºç¯ */
 	led_control_function(LD_STATE,LD_FLICKER);
 	start_pack_device_uuid_str(sg_sysoperate_t.uuid_t.uuid);
 	for(;;)
 	{
-//		app_detection_collection_param(); 	// ²É¼¯Êı¾İ¼à²âÈÎÎñ
-		app_task_save_function();   				// ´æ´¢Ïà¹ØÈÎÎñ
-		com_deal_http_info_function();
-		com_deal_http_info_function2();
-		com_deal_http_info_function3();
-		com_deal_main_function(); 					// ´¦Àí½ÓÊÕÊı¾İ
-		app_com_send_function();						// Í¨ĞÅ·¢ËÍ
+//		app_detection_collection_param(); 	// é‡‡é›†æ•°æ®ç›‘æµ‹ä»»åŠ¡
+		app_task_save_function();   				// å­˜å‚¨ç›¸å…³ä»»åŠ¡
+		com_deal_http_info_function();		// å•æœåŠ¡å™¨: ä»… 1 è·¯ HTTP/WebSocket å¤„ç†
+		com_deal_main_function(); 					// å¤„ç†æ¥æ”¶æ•°æ®
+		app_com_send_function();						// é€šä¿¡å‘é€
 		app_server_link_status_function();
 		app_open_exec_task_function();
 		app_sys_operate_relay();
@@ -183,19 +181,19 @@ void app_task_function(void)
 		if(get_time_cnt>100)
 		{
 			get_time_cnt = 0;
-			RTC_Get_Time(&sg_rtctime_t);		/* Ê±¼ä»ñÈ¡ */
+			RTC_Get_Time(&sg_rtctime_t);		/* æ—¶é—´è·å– */
 			my_modem_detcet_update_status_function();
 			sg_sysparam_t.mem = mem_perused(SRAMIN);
 		}
 		IWDG_Feed();	
-		OSTimeDlyHMSM(0,0,0,10);  			// ÑÓÊ±10ms
+		OSTimeDlyHMSM(0,0,0,10);  			// å»¶æ—¶10ms
 	}
 }
 
 /************************************************************
 *
 * Function name	: app_set_switch_control_function
-* Description	: ÉèÖÃ¿ª¹Ø×´Ì¬
+* Description	: è®¾ç½®å¼€å…³çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -218,21 +216,21 @@ void app_set_switch_control_function(uint8_t mode, uint8_t cmd)
 /************************************************************
 *
 * Function name	: app_detection_collection_param
-* Description	: ¼ì²â²É¼¯Êı¾İ: ÊĞµçµçÑ¹¡¢ÊĞµçµçÁ÷¡¢ÊÊÅäÆ÷1-3 ¡¢ ·ÀÀ×Ä£¿é ¡¢ ÏäÃÅ¡¢ ÏäÌå×ËÌ¬
+* Description	: æ£€æµ‹é‡‡é›†æ•°æ®: å¸‚ç”µç”µå‹ã€å¸‚ç”µç”µæµã€é€‚é…å™¨1-3 ã€ é˜²é›·æ¨¡å— ã€ ç®±é—¨ã€ ç®±ä½“å§¿æ€
 * Parameter		: 
 * Return		: 
-*	status_error -> 0:¸ßÑ¹  1:µÍÑ¹  2:µçÁ÷  3:×ËÌ¬  4:ÏäÃÅ 5:¶Ïµç  6:ÊÊÅäÆ÷  7:SPD
-8:SIM   9:µç³Ø  10:Íø¿Ú  11:½şË®
+*	status_error -> 0:é«˜å‹  1:ä½å‹  2:ç”µæµ  3:å§¿æ€  4:ç®±é—¨ 5:æ–­ç”µ  6:é€‚é…å™¨  7:SPD
+8:SIM   9:ç”µæ±   10:ç½‘å£  11:æµ¸æ°´
 ************************************************************/
 void app_detection_collection_param(void)
 {
-	static uint32_t status_error	= 0;   // ¹ÊÕÏÉÏ±¨×´Ì¬
-	static uint32_t status_normal	= 0;   // Õı³£ÉÏ±¨×´Ì¬£º
+	static uint32_t status_error	= 0;   // æ•…éšœä¸ŠæŠ¥çŠ¶æ€
+	static uint32_t status_normal	= 0;   // æ­£å¸¸ä¸ŠæŠ¥çŠ¶æ€ï¼š
 	
-	/* ÊÊÅäÆ÷¡¢¶ÏµçÉÏ±¨ */
-	if(det_get_220v_in_function() == 0) // 12V¶Ïµç
+	/* é€‚é…å™¨ã€æ–­ç”µä¸ŠæŠ¥ */
+	if(det_get_220v_in_function() == 0) // 12Væ–­ç”µ
 	{
-		if(det_get_vin220v_handler(0) < 50)  // ÊĞµçµçÑ¹ < 50V£¬ËµÃ÷¶Ïµç
+		if(det_get_vin220v_handler(0) < 50)  // å¸‚ç”µç”µå‹ < 50Vï¼Œè¯´æ˜æ–­ç”µ
 		{
 			if( (status_error & 0x20) == 0) 
 			{
@@ -242,12 +240,12 @@ void app_detection_collection_param(void)
 				app_report_information_immediately();
 				if((sg_sysparam_t.report.report_allowed & FLAG_AC_STATUS) == FLAG_AC_STATUS)
 				{
-					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_AC_STATUS,1);// ¶Ïµç
+					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_AC_STATUS,1);// æ–­ç”µ
 					tcp_cilent_send_buff(sg_websocket_send_buff,sg_websocket_send_size,1);	
 				}
 			}				
 		}
-		else 					 // ÊĞµçµçÑ¹ > 50V£¬ËµÃ÷ÊÊÅäÆ÷¹ÊÕÏ
+		else 					 // å¸‚ç”µç”µå‹ > 50Vï¼Œè¯´æ˜é€‚é…å™¨æ•…éšœ
 		{
 			if((status_error & 0x40) == 0) 
 			{
@@ -259,13 +257,13 @@ void app_detection_collection_param(void)
 			}
 		}
 	}		
-	else   // 12VÓĞµç£¬220V´æÔÚ 
+	else   // 12Væœ‰ç”µï¼Œ220Vå­˜åœ¨ 
 	{
 		if(((status_normal & 0x20) == 0) || ((status_normal&0x40) == 0))
 		{
-			if((status_error&0x20) || (status_error&0x40))// ÊÊÅäÆ÷¹ÊÕÏ¡¢220¶Ïµç
+			if((status_error&0x20) || (status_error&0x40))// é€‚é…å™¨æ•…éšœã€220æ–­ç”µ
 			{
-				/* ÊÊÅäÆ÷ÖØĞÂÉÏµç - ÖØÆôÉè±¸*/
+				/* é€‚é…å™¨é‡æ–°ä¸Šç”µ - é‡å¯è®¾å¤‡*/
 				lfs_unmount(&g_lfs_t);
 				OSTimeDlyHMSM(0,0,0,100);
 				System_SoftReset();
@@ -278,11 +276,11 @@ void app_detection_collection_param(void)
 			status_error &=~ 0x40;
 			if(DIRECT_REP_DEBUG) printf("report_immediately.....2 \n");
 			app_report_information_immediately();
-			app_power_open_protection_function();  // ´ò¿ª¼ÌµçÆ÷
+			app_power_open_protection_function();  // æ‰“å¼€ç»§ç”µå™¨
 		}		
 	}
 
-	/* ÔËÎ¬Íø¿Ú */
+	/* è¿ç»´ç½‘å£ */
 	if(eth_get_network_cable_status() == 0) 
 	{
 		if((status_error & 0x0400) == 0) 
@@ -304,89 +302,89 @@ void app_detection_collection_param(void)
 		}	
 	}		
 	
-	/* ¼ì²âÖ÷ÍøÓëÉãÏñÍ·ÊÇ·ñ·¢ËÍ×´Ì¬±ä»¯ */
+	/* æ£€æµ‹ä¸»ç½‘ä¸æ‘„åƒå¤´æ˜¯å¦å‘é€çŠ¶æ€å˜åŒ– */
 	if(det_main_network_and_camera_network() == 1) 
 	{
 		if(DIRECT_REP_DEBUG) printf("report_network.....3 \n");
 		app_report_information_immediately();
 	}
 		
-	// ¸ßÑ¹±¨¾¯
-	if( sg_sysparam_t.threshold.volt_max == 0 )  // ãĞÖµÎª0£¬²»×÷´¦Àí
+	// é«˜å‹æŠ¥è­¦
+	if( sg_sysparam_t.threshold.volt_max == 0 )  // é˜ˆå€¼ä¸º0ï¼Œä¸ä½œå¤„ç†
 	{	}
 	else
 	{
 		if(det_get_vin220v_handler(0) >= sg_sysparam_t.threshold.volt_max) 
 		{	
-			if((status_error & 0x01) == 0)  // ¹ÊÕÏÉÏ±¨±êÖ¾Î»ÊÇ0
+			if((status_error & 0x01) == 0)  // æ•…éšœä¸ŠæŠ¥æ ‡å¿—ä½æ˜¯0
 			{
 				OSTimeDlyHMSM(0,0,0,100);
-				status_error |= 0x01;        // ±êÖ¾Î»ÖÃ1£¬±íÊ¾ÒÑÉÏ±¨
-				status_normal &=~ 0x01;      // Õı³£ÉÏ±¨±êÖ¾Î»Çå0		
+				status_error |= 0x01;        // æ ‡å¿—ä½ç½®1ï¼Œè¡¨ç¤ºå·²ä¸ŠæŠ¥
+				status_normal &=~ 0x01;      // æ­£å¸¸ä¸ŠæŠ¥æ ‡å¿—ä½æ¸…0		
 				sg_sysoperate_t.sys.volt_protection = 2;
 				if(DIRECT_REP_DEBUG) printf("report_volt_max.....4 \n");
 				app_report_information_immediately();	
-				sg_sysparam_t.threshold.overvoltageTimes++; // ¹ıÑ¹´ÎÊı
+				sg_sysparam_t.threshold.overvoltageTimes++; // è¿‡å‹æ¬¡æ•°
 				if((sg_sysparam_t.report.report_allowed & FLAG_POWER) == FLAG_POWER)
 				{
-					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_POWER,1);// µçÑ¹¸ß
+					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_POWER,1);// ç”µå‹é«˜
 					tcp_cilent_send_buff(sg_websocket_send_buff,sg_websocket_send_size,1);	
 				}
 			}
 		}
-		else if(det_get_vin220v_handler(0) >= 50) // ÊĞµçÓĞµçÇé¿öÏÂ
+		else if(det_get_vin220v_handler(0) >= 50) // å¸‚ç”µæœ‰ç”µæƒ…å†µä¸‹
 		{
-			if((status_normal & 0x01) == 0)  // Õı³£ÉÏ±¨±êÖ¾Î»ÊÇ0
+			if((status_normal & 0x01) == 0)  // æ­£å¸¸ä¸ŠæŠ¥æ ‡å¿—ä½æ˜¯0
 			{
 				OSTimeDlyHMSM(0,0,0,100);
-				status_normal |= 0x01;  // ±êÖ¾Î»ÖÃ1£¬±íÊ¾ÒÑÉÏ±¨
-				status_error &=~ 0x01; // ¹ÊÕÏÉÏ±¨±êÖ¾Î»Çå0
+				status_normal |= 0x01;  // æ ‡å¿—ä½ç½®1ï¼Œè¡¨ç¤ºå·²ä¸ŠæŠ¥
+				status_error &=~ 0x01; // æ•…éšœä¸ŠæŠ¥æ ‡å¿—ä½æ¸…0
 				sg_sysoperate_t.sys.volt_protection = 0;
 				if(DIRECT_REP_DEBUG) printf("report_volt_max.....5 \n");
 				app_report_information_immediately();
-				app_power_open_protection_function();  // ´ò¿ª¼ÌµçÆ÷
+				app_power_open_protection_function();  // æ‰“å¼€ç»§ç”µå™¨
 			}
 		}	
 	}
 
-	// µÍÑ¹±¨¾¯
-	if( sg_sysparam_t.threshold.volt_min == 0 )  // ãĞÖµÎª0£¬²»×÷´¦Àí
+	// ä½å‹æŠ¥è­¦
+	if( sg_sysparam_t.threshold.volt_min == 0 )  // é˜ˆå€¼ä¸º0ï¼Œä¸ä½œå¤„ç†
 	{	}
 	else
 	{
 		if((det_get_vin220v_handler(0) <= sg_sysparam_t.threshold.volt_min) && \
 			  det_get_vin220v_handler(0) >= 20)
 		{	
-			if((status_error & 0x02) == 0)  // ¹ÊÕÏÉÏ±¨±êÖ¾Î»ÊÇ0
+			if((status_error & 0x02) == 0)  // æ•…éšœä¸ŠæŠ¥æ ‡å¿—ä½æ˜¯0
 			{
 				OSTimeDlyHMSM(0,0,0,100);
-				status_error |= 0x02;        // ±êÖ¾Î»ÖÃ1£¬±íÊ¾ÒÑÉÏ±¨
-				status_normal &=~ 0x02;      // Õı³£ÉÏ±¨±êÖ¾Î»Çå0		
+				status_error |= 0x02;        // æ ‡å¿—ä½ç½®1ï¼Œè¡¨ç¤ºå·²ä¸ŠæŠ¥
+				status_normal &=~ 0x02;      // æ­£å¸¸ä¸ŠæŠ¥æ ‡å¿—ä½æ¸…0		
 				if(DIRECT_REP_DEBUG) printf("report_volt_min.....12 \n");
-				sg_sysparam_t.threshold.undervoltageTimes++; // Ç·Ñ¹´ÎÊı
+				sg_sysparam_t.threshold.undervoltageTimes++; // æ¬ å‹æ¬¡æ•°
 				if((sg_sysparam_t.report.report_allowed & FLAG_POWER) == FLAG_POWER)
 				{
-					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_POWER,0);// µçÑ¹µÍ
+					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_POWER,0);// ç”µå‹ä½
 					tcp_cilent_send_buff(sg_websocket_send_buff,sg_websocket_send_size,1);		
 				}
 			}
 		}
-		else if(det_get_vin220v_handler(0) >= sg_sysparam_t.threshold.volt_min) // ÊĞµçÓĞµçÇé¿öÏÂ
+		else if(det_get_vin220v_handler(0) >= sg_sysparam_t.threshold.volt_min) // å¸‚ç”µæœ‰ç”µæƒ…å†µä¸‹
 		{
-			if((status_normal & 0x02) == 0)  // Õı³£ÉÏ±¨±êÖ¾Î»ÊÇ0
+			if((status_normal & 0x02) == 0)  // æ­£å¸¸ä¸ŠæŠ¥æ ‡å¿—ä½æ˜¯0
 			{
 				OSTimeDlyHMSM(0,0,0,100);
-				status_normal |= 0x02;  // ±êÖ¾Î»ÖÃ1£¬±íÊ¾ÒÑÉÏ±¨
-				status_error &=~ 0x02; // ¹ÊÕÏÉÏ±¨±êÖ¾Î»Çå0
+				status_normal |= 0x02;  // æ ‡å¿—ä½ç½®1ï¼Œè¡¨ç¤ºå·²ä¸ŠæŠ¥
+				status_error &=~ 0x02; // æ•…éšœä¸ŠæŠ¥æ ‡å¿—ä½æ¸…0
 				sg_sysoperate_t.sys.volt_protection = 0;
 				if(DIRECT_REP_DEBUG) printf("report_volt_min.....13 \n");
-				app_power_open_protection_function();  // ´ò¿ª¼ÌµçÆ÷
+				app_power_open_protection_function();  // æ‰“å¼€ç»§ç”µå™¨
 			}
 		}	
 	}
 	
-	/* ¼ì²âÊĞµçµçÁ÷Ê¹ÓÃÇé¿ö */
-	if( sg_sysparam_t.threshold.current == 0 )  // ãĞÖµÎª0£¬²»×÷´¦Àí
+	/* æ£€æµ‹å¸‚ç”µç”µæµä½¿ç”¨æƒ…å†µ */
+	if( sg_sysparam_t.threshold.current == 0 )  // é˜ˆå€¼ä¸º0ï¼Œä¸ä½œå¤„ç†
 	{	}
 	else
 	{
@@ -401,7 +399,7 @@ void app_detection_collection_param(void)
 				app_report_information_immediately();
 				if((sg_sysparam_t.report.report_allowed & FLAG_POWER) == FLAG_POWER)
 				{
-					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_POWER,2);// µçÁ÷¸ß
+					http_websocket_pack_data((char*)sg_websocket_send_buff,&sg_websocket_send_size,FLAG_POWER,2);// ç”µæµé«˜
 					tcp_cilent_send_buff(sg_websocket_send_buff,sg_websocket_send_size,1);	
 				}
 			}
@@ -419,7 +417,7 @@ void app_detection_collection_param(void)
 		}
 	}
 	
-	/* ÏäÌå×ËÌ¬ */
+	/* ç®±ä½“å§¿æ€ */
 	if( det_get_cabinet_posture() >= sg_sysparam_t.threshold.angle) 
 	{
 		if( (status_error & 0x08) == 0) 
@@ -446,7 +444,7 @@ void app_detection_collection_param(void)
 		}
 	}
 
-	/* ÏäÃÅ	*/
+	/* ç®±é—¨	*/
 	if( det_get_open_door() == 1) 
 	{
 		if((status_error & 0x10) == 0) 
@@ -473,7 +471,7 @@ void app_detection_collection_param(void)
 		}
 	}
 
-	/* ·ÀÀ×Ä£¿é */
+	/* é˜²é›·æ¨¡å— */
 #ifdef SPD_ENABLE
 	if( det_get_spd_status() == 2 ) 
 	{
@@ -507,7 +505,7 @@ void app_detection_collection_param(void)
 	}	
 #endif
 	
-	/* ½şË®¼ì²âÄ£¿é */
+	/* æµ¸æ°´æ£€æµ‹æ¨¡å— */
 #ifdef WATER_ENABLE
 	if(det_get_water_status() == 2)
 	{
@@ -654,10 +652,10 @@ void app_detection_collection_param(void)
 /************************************************************
 *
 * Function name	: app_set_com_send_flag_function
-* Description	: ÉèÖÃ·¢ËÍº¯Êı
+* Description	: è®¾ç½®å‘é€å‡½æ•°
 * Parameter		: 
 * Return		: 
-*	ĞŞ¸Ä£ºÔö¼ÓÉãÏñ»úIDºÅ  20220329	
+*	ä¿®æ”¹ï¼šå¢åŠ æ‘„åƒæœºIDå·  20220329	
 ************************************************************/
 void app_set_com_send_flag_function(uint8_t cmd, uint8_t data)
 {
@@ -673,14 +671,14 @@ void app_set_com_send_flag_function(uint8_t cmd, uint8_t data)
 			sg_sysoperate_t.com_flag.version = 1;
 			break;
 	
-		case CR_QUERY_IPC_IP:          // ²éÑ¯IPC IPµØÖ· 20220329
+		case CR_QUERY_IPC_IP:          // æŸ¥è¯¢IPC IPåœ°å€ 20220329
 			sg_sysoperate_t.com_flag.ipc_ip = 1;
 			break;
-		case CR_QUERY_IPC_INFO:          // ²éÑ¯IPCĞÅÏ¢ 20220329
+		case CR_QUERY_IPC_INFO:          // æŸ¥è¯¢IPCä¿¡æ¯ 20220329
 			app_set_camera_id_num_function(data);
 			sg_sysoperate_t.com_flag.ipc_info = 1;
 			break;
-		case CR_QUERY_LBS_INFO:          // ²éÑ¯LBSĞÅÏ¢
+		case CR_QUERY_LBS_INFO:          // æŸ¥è¯¢LBSä¿¡æ¯
 			sg_sysoperate_t.com_flag.lbs_info = 1;
 			break;
 	}
@@ -689,7 +687,7 @@ void app_set_com_send_flag_function(uint8_t cmd, uint8_t data)
 /************************************************************
 *
 * Function name	: app_set_reply_parameters_function
-* Description	: ÉèÖÃ»Ø¸´²ÎÊı
+* Description	: è®¾ç½®å›å¤å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -704,7 +702,7 @@ void app_set_reply_parameters_function(uint8_t cmd, uint8_t error)
 /************************************************************
 *
 * Function name	: app_report_information_immediately
-* Description	: Á¢¼´ÉÏ±¨ĞÅÏ¢ - Ö÷ÒªÕë¶ÔÓÚ³öÏÖÒì³£Êı¾İÊ±µÄÉÏ±¨
+* Description	: ç«‹å³ä¸ŠæŠ¥ä¿¡æ¯ - ä¸»è¦é’ˆå¯¹äºå‡ºç°å¼‚å¸¸æ•°æ®æ—¶çš„ä¸ŠæŠ¥
 * Parameter		: 
 * Return		: 
 *	
@@ -713,83 +711,83 @@ void app_report_information_immediately(void)
 {
 	if ( eth_get_tcp_status() != 2 && gsm_get_network_connect_status_function() == 0)
 	{
-		/* ÍøÂçÒì³££¬´æ´¢±¾´ÎÊı¾İµ½±¾µØ */
+		/* ç½‘ç»œå¼‚å¸¸ï¼Œå­˜å‚¨æœ¬æ¬¡æ•°æ®åˆ°æœ¬åœ° */
 		sg_sysoperate_t.com_flag.report_normally = 1;
 		return;
 	}
-	/* ·¢ËÍÕı³£ÉÏ±¨Êı¾İ */
+	/* å‘é€æ­£å¸¸ä¸ŠæŠ¥æ•°æ® */
 	memset(sg_send_buff,0,sizeof(sg_send_buff));
 	com_report_normally_function(sg_send_buff,&sg_send_size,CR_QUERY_INFO);
-	/* ÉèÖÃ·¢ËÍ²ÎÊı */
+	/* è®¾ç½®å‘é€å‚æ•° */
 	sg_sysoperate_t.com.send_cmd = CR_QUERY_INFO;
-	sg_sysoperate_t.com.repeat   = 0; 		// ÖØÆôÒ»´ÎÕı³£ÉÏ±¨¼ÆÊ±   
+	sg_sysoperate_t.com.repeat   = 0; 		// é‡å¯ä¸€æ¬¡æ­£å¸¸ä¸ŠæŠ¥è®¡æ—¶   
 	
-	/* Êı¾İ·¢ËÍ */
+	/* æ•°æ®å‘é€ */
 	if(sg_sysoperate_t.com.send_cmd != 0)
 	{
 		app_send_data_task_function();	
 		sg_sysoperate_t.com.send_status = SEND_STATUS_SENGING;
-		return ;								 // Èç¹û¼ì²âµ½ĞèÒªÖØ¸´·¢ËÍ£¬Ôò²»½øĞĞÏÂÒ»´Î·¢ËÍ
+		return ;								 // å¦‚æœæ£€æµ‹åˆ°éœ€è¦é‡å¤å‘é€ï¼Œåˆ™ä¸è¿›è¡Œä¸‹ä¸€æ¬¡å‘é€
 	}
 }
 
 /************************************************************
 *
 * Function name	: app_deal_com_flag_function
-* Description	: ÓÃÀ´´¦ÀíÍ¨ĞÅ·¢ËÍ±êÖ¾
+* Description	: ç”¨æ¥å¤„ç†é€šä¿¡å‘é€æ ‡å¿—
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_deal_com_flag_function(void)
 {
-	/* Êı¾İ·¢ËÍ */
+	/* æ•°æ®å‘é€ */
 	if(sg_sysoperate_t.com.send_cmd != 0)
 	{
 		app_send_data_task_function();
-		sg_sysoperate_t.com.send_status = SEND_STATUS_SENGING;		/* ×ª»»ÎªÕıÔÚ·¢ËÍ */
-		return ;								 // Èç¹û¼ì²âµ½ĞèÒªÖØ¸´·¢ËÍ£¬Ôò²»½øĞĞÏÂÒ»´Î·¢ËÍ
+		sg_sysoperate_t.com.send_status = SEND_STATUS_SENGING;		/* è½¬æ¢ä¸ºæ­£åœ¨å‘é€ */
+		return ;								 // å¦‚æœæ£€æµ‹åˆ°éœ€è¦é‡å¤å‘é€ï¼Œåˆ™ä¸è¿›è¡Œä¸‹ä¸€æ¬¡å‘é€
 	}
 	
-	if(sg_sysoperate_t.com_flag.heart_pack == 1)	/* ¼ì²âĞÄÌø·¢ËÍ */
+	if(sg_sysoperate_t.com_flag.heart_pack == 1)	/* æ£€æµ‹å¿ƒè·³å‘é€ */
 	{
 		sg_sysoperate_t.com_flag.heart_pack = 0;
-		com_heart_pack_function(sg_send_buff,&sg_send_size);		/* ·¢ËÍĞÄÌø */
-		sg_sysoperate_t.com.send_cmd    = COM_HEART_UPDATA;		/* ÉèÖÃ·¢ËÍ²ÎÊı */
-		sg_sysoperate_t.com.heart_time  = 0; 	 // ÖØÆôÒ»´ÎĞÄÌø¼ÆÊ±
+		com_heart_pack_function(sg_send_buff,&sg_send_size);		/* å‘é€å¿ƒè·³ */
+		sg_sysoperate_t.com.send_cmd    = COM_HEART_UPDATA;		/* è®¾ç½®å‘é€å‚æ•° */
+		sg_sysoperate_t.com.heart_time  = 0; 	 // é‡å¯ä¸€æ¬¡å¿ƒè·³è®¡æ—¶
 	}
 	
-	/* Á¢¼´ÉÏ±¨Éè±¸×´Ì¬ */
+	/* ç«‹å³ä¸ŠæŠ¥è®¾å¤‡çŠ¶æ€ */
 	if(sg_sysoperate_t.com_flag.report_normally == 1)
 	{
 		sg_sysoperate_t.com_flag.report_normally = 0;
 		memset(sg_send_buff,0,sizeof(sg_send_buff));
-		com_report_normally_function(sg_send_buff,&sg_send_size,CR_QUERY_INFO);		/* ·¢ËÍÕı³£ÉÏ±¨Êı¾İ */
-		/* ÉèÖÃ·¢ËÍ²ÎÊı */
+		com_report_normally_function(sg_send_buff,&sg_send_size,CR_QUERY_INFO);		/* å‘é€æ­£å¸¸ä¸ŠæŠ¥æ•°æ® */
+		/* è®¾ç½®å‘é€å‚æ•° */
 		sg_sysoperate_t.com.send_cmd = CR_QUERY_INFO;
-		sg_sysoperate_t.com.repeat   = 0; 		// ÖØÆôÒ»´ÎÕı³£ÉÏ±¨¼ÆÊ±   
+		sg_sysoperate_t.com.repeat   = 0; 		// é‡å¯ä¸€æ¬¡æ­£å¸¸ä¸ŠæŠ¥è®¡æ—¶   
 	}
 	
-	/* Ö±½Ó·¢ËÍ£¬²»ĞèÒª¼ì²â»Ø´« */
-	/* ²éÑ¯ÅäÖÃµ±Ç°²ÎÊıÉèÖÃ */
+	/* ç›´æ¥å‘é€ï¼Œä¸éœ€è¦æ£€æµ‹å›ä¼  */
+	/* æŸ¥è¯¢é…ç½®å½“å‰å‚æ•°è®¾ç½® */
 	if(sg_sysoperate_t.com_flag.query_configuration == 1)
 	{
 		sg_sysoperate_t.com_flag.query_configuration = 0;
-		/* ·¢ËÍ²éÑ¯ÅäÖÃ */
+		/* å‘é€æŸ¥è¯¢é…ç½® */
 		memset(sg_send_buff,0,sizeof(sg_send_buff));
 		com_query_configuration_function(sg_send_buff,&sg_send_size);
 		app_send_data_task_function();
 	}
 	
-	/* ÉÏ±¨Èí¼ş°æ±¾ĞÅÏ¢ */
+	/* ä¸ŠæŠ¥è½¯ä»¶ç‰ˆæœ¬ä¿¡æ¯ */
 	if(sg_sysoperate_t.com_flag.version == 1)
 	{
 		sg_sysoperate_t.com_flag.version = 0;
-		/* ·¢ËÍÕı³£ÉÏ±¨Êı¾İ */
+		/* å‘é€æ­£å¸¸ä¸ŠæŠ¥æ•°æ® */
 		com_version_information(sg_send_buff,&sg_send_size);
 		app_send_data_task_function();
 	}
-	/* »Ø´«ĞÅºÅ */
+	/* å›ä¼ ä¿¡å· */
 	if(sg_sysoperate_t.com_flag.config_return == 1)
 	{
 		sg_sysoperate_t.com_flag.config_return = 0;
@@ -801,7 +799,7 @@ void app_deal_com_flag_function(void)
 /************************************************************
 *
 * Function name	: app_get_com_send_status_function
-* Description	: »ñÈ¡µ±Ç°Í¨ĞÅ×´Ì¬
+* Description	: è·å–å½“å‰é€šä¿¡çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -814,7 +812,7 @@ uint8_t app_get_com_send_status_function(void)
 /************************************************************
 *
 * Function name	: app_deal_com_send_wait_function
-* Description	: ·¢ËÍµÈ´ı´¦ÀíÈÎÎñ
+* Description	: å‘é€ç­‰å¾…å¤„ç†ä»»åŠ¡
 * Parameter		: 
 * Return		: 
 *	
@@ -823,70 +821,70 @@ void app_deal_com_send_wait_function(void)
 {
 	switch(sg_sysoperate_t.com.send_result)
 	{
-		case SR_TIMEOUT:											// ·¢ËÍ³¬Ê±							
-			/* ±¾´Î·¢ËÍ³¬Ê± */
+		case SR_TIMEOUT:											// å‘é€è¶…æ—¶							
+			/* æœ¬æ¬¡å‘é€è¶…æ—¶ */
 			sg_sysoperate_t.com.repeat++;
 			if(sg_sysoperate_t.com.repeat >= COM_SEND_MAX_NUM)
 			{
-				/* ·¢ËÍÏìÓ¦³¬Ê± */
+				/* å‘é€å“åº”è¶…æ—¶ */
 				sg_sysoperate_t.com.repeat = 0;
-				/* ·¢ËÍ³¬Ê±£¬·şÎñÆ÷ÎŞÏìÓ¦»òÕßÍøÂçÒÑ¶Ï¿ª */
-				eth_set_tcp_connect_reset();						// ÖØÆôTCPÁ¬½Ó
-				gsm_set_network_reset_function();					// ÖØÆôGRPSÁ¬½Ó
+				/* å‘é€è¶…æ—¶ï¼ŒæœåŠ¡å™¨æ— å“åº”æˆ–è€…ç½‘ç»œå·²æ–­å¼€ */
+				eth_set_tcp_connect_reset();						// é‡å¯TCPè¿æ¥
+				gsm_set_network_reset_function();					// é‡å¯GRPSè¿æ¥
 				
-				/* Êı¾İÇå¿Õ */
-				sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 	// ½øĞĞÏÂÒ»´Î·¢ËÍ
+				/* æ•°æ®æ¸…ç©º */
+				sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 	// è¿›è¡Œä¸‹ä¸€æ¬¡å‘é€
 				sg_sysoperate_t.com.send_cmd = 0;
-				sg_sysoperate_t.com.heart_time  = 0; 				// ÖØÆôÒ»´ÎĞÄÌø¼ÆÊ±
-				sg_sysoperate_t.com.repeat   = 0; 					// ÖØÆôÒ»´ÎÕı³£ÉÏ±¨¼ÆÊ±   
+				sg_sysoperate_t.com.heart_time  = 0; 				// é‡å¯ä¸€æ¬¡å¿ƒè·³è®¡æ—¶
+				sg_sysoperate_t.com.repeat   = 0; 					// é‡å¯ä¸€æ¬¡æ­£å¸¸ä¸ŠæŠ¥è®¡æ—¶   
 			}
 			else
 			{
 				sg_sysoperate_t.com.send_status = SEND_STATUS_NO;
 			}
 			break;
-		case SR_OK:													// ·¢ËÍ³É¹¦
-			/* ·¢ËÍ³É¹¦ */
-			sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 		// ½øĞĞÏÂÒ»´Î·¢ËÍ
+		case SR_OK:													// å‘é€æˆåŠŸ
+			/* å‘é€æˆåŠŸ */
+			sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 		// è¿›è¡Œä¸‹ä¸€æ¬¡å‘é€
 			sg_sysoperate_t.com.send_cmd = 0;
-			/* Çå¿ÕÊı¾İ */
+			/* æ¸…ç©ºæ•°æ® */
 			memset(sg_send_buff,0,sizeof(sg_send_buff));
 			sg_send_size = 0;
 			break;
-		case SR_ERROR:												// ÏìÓ¦´íÎó
-		case SR_SEND_ERROR:											// ·¢ËÍ´íÎó
+		case SR_ERROR:												// å“åº”é”™è¯¯
+		case SR_SEND_ERROR:											// å‘é€é”™è¯¯
 			sg_sysoperate_t.com.repeat++;
 			if(sg_sysoperate_t.com.repeat >= COM_SEND_MAX_NUM)
 			{
-				/* ·¢ËÍ´ÎÊıµ½´ïÉÏÏŞ */
+				/* å‘é€æ¬¡æ•°åˆ°è¾¾ä¸Šé™ */
 				sg_sysoperate_t.com.repeat = 0;
-				sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 	// ½øĞĞÏÂÒ»´Î·¢ËÍ
+				sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 	// è¿›è¡Œä¸‹ä¸€æ¬¡å‘é€
 				sg_sysoperate_t.com.send_cmd = 0;
-				/* Çå¿ÕÊı¾İ */
+				/* æ¸…ç©ºæ•°æ® */
 				memset(sg_send_buff,0,sizeof(sg_send_buff));
 				sg_send_size = 0;
 			}
 			else
 			{
-				sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 	// ½øĞĞÏÂÒ»´Î·¢ËÍ
+				sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 	// è¿›è¡Œä¸‹ä¸€æ¬¡å‘é€
 			}
 			break;
 		default:
 			sg_sysoperate_t.com.send_cmd = 0;
-			sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 		// ½øĞĞÏÂÒ»´Î·¢ËÍ
-			/* Çå¿ÕÊı¾İ */
+			sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 		// è¿›è¡Œä¸‹ä¸€æ¬¡å‘é€
+			/* æ¸…ç©ºæ•°æ® */
 			memset(sg_send_buff,0,sizeof(sg_send_buff));
 			sg_send_size = 0;
 			break;
 	}	
-	/* ½á¹ûÇå¿Õ */
+	/* ç»“æœæ¸…ç©º */
 	sg_sysoperate_t.com.send_result = SR_WAIT;
 }
 
 /************************************************************
 *
 * Function name	: app_com_send_function
-* Description	: Í¨ĞÅ·¢ËÍº¯Êı
+* Description	: é€šä¿¡å‘é€å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -894,22 +892,22 @@ void app_deal_com_send_wait_function(void)
 void app_com_send_function(void)
 {
 	static uint8_t netlink_error = 0;
-	/* ¼ì²âÎŞÏßÍøÂç×´Ì¬ */
+	/* æ£€æµ‹æ— çº¿ç½‘ç»œçŠ¶æ€ */
 	if(gsm_get_network_connect_status_function() == 0 )
 		return ;
 
 	if(sg_sysoperate_t.com.send_mode == 1)
 	{
-		if(gsm_get_network_connect_status_function() == 0)	/* ÍøÂç´íÎó£¬×¼±¸ÖØĞÂÁ¬½Ó£¬Çå³ı±¾´Î·¢ËÍ²ÎÊı */
+		if(gsm_get_network_connect_status_function() == 0)	/* ç½‘ç»œé”™è¯¯ï¼Œå‡†å¤‡é‡æ–°è¿æ¥ï¼Œæ¸…é™¤æœ¬æ¬¡å‘é€å‚æ•° */
 		{
 			memset(&sg_sysoperate_t.com_flag,0,sizeof(sg_sysoperate_t.com_flag));
 			sg_sysoperate_t.com.send_cmd = 0;
-			gsm_set_network_reset_function(); // ÖØÆôGPRS
+			gsm_set_network_reset_function(); // é‡å¯GPRS
 		}
 	}
 	else if(sg_sysoperate_t.com.send_mode == 3)
 	{
-//		if(eth_get_tcp_status() != 2)	/* ÍøÂç´íÎó£¬×¼±¸ÖØĞÂÁ¬½Ó£¬Çå³ı±¾´Î·¢ËÍ²ÎÊı */
+//		if(eth_get_tcp_status() != 2)	/* ç½‘ç»œé”™è¯¯ï¼Œå‡†å¤‡é‡æ–°è¿æ¥ï¼Œæ¸…é™¤æœ¬æ¬¡å‘é€å‚æ•° */
 //		{
 //			if((netlink_error&0x01) == 0)
 //			{
@@ -920,24 +918,24 @@ void app_com_send_function(void)
 //		else
 //			netlink_error &=~0x01;
 
-		if(gsm_get_network_connect_status_function() == 0)	/* ÍøÂç´íÎó£¬×¼±¸ÖØĞÂÁ¬½Ó£¬Çå³ı±¾´Î·¢ËÍ²ÎÊı */
+		if(gsm_get_network_connect_status_function() == 0)	/* ç½‘ç»œé”™è¯¯ï¼Œå‡†å¤‡é‡æ–°è¿æ¥ï¼Œæ¸…é™¤æœ¬æ¬¡å‘é€å‚æ•° */
 		{
 			if((netlink_error&0x02) == 0)
 			{
 				netlink_error |= 0x02;
-				gsm_set_network_reset_function(); // ÖØÆôGPRS	
+				gsm_set_network_reset_function(); // é‡å¯GPRS	
 			}
 		}
 		else
 			netlink_error &=~0x02;
 	}
 	
-	/* ¼ì²âÊÇ·ñÄÜ·¢ËÍÊı¾İ */
+	/* æ£€æµ‹æ˜¯å¦èƒ½å‘é€æ•°æ® */
 	if(sg_sysoperate_t.com.send_status == SEND_STATUS_NO)
 	{
 		app_deal_com_flag_function();
 	}
-	/* ¼ì²âµ½·¢ËÍÓĞ½á¹ûÁË */
+	/* æ£€æµ‹åˆ°å‘é€æœ‰ç»“æœäº† */
 	else if(sg_sysoperate_t.com.send_status == SEND_STATUS_RESULT)
 	{
 		app_deal_com_send_wait_function();
@@ -947,7 +945,7 @@ void app_com_send_function(void)
 /************************************************************
 *
 * Function name	: app_set_send_result_function
-* Description	: ÉèÖÃ·¢ËÍ½á¹û
+* Description	: è®¾ç½®å‘é€ç»“æœ
 * Parameter		: 
 * Return		: 
 *	
@@ -961,32 +959,32 @@ void app_set_send_result_function(send_result_e data)
 /************************************************************
 *
 * Function name	: app_com_time_function
-* Description	: Í¨ĞÅ¼ÆÊ±º¯Êı
+* Description	: é€šä¿¡è®¡æ—¶å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_com_time_function(void)
 {
-	/* ĞÄÌø¼ÆÊ± */
+	/* å¿ƒè·³è®¡æ—¶ */
 	sg_sysoperate_t.com.heart_time++;
 	if(sg_sysoperate_t.com.heart_time > sg_comparam_t.heart)
 	{
 		sg_sysoperate_t.com.heart_time = 0;
-		/* ·¢ËÍÒ»´ÎĞÄÌø */
+		/* å‘é€ä¸€æ¬¡å¿ƒè·³ */
 		sg_sysoperate_t.com_flag.heart_pack = 1;
 	}
 	
-	/* Õı³£ÉÏ±¨ */
+	/* æ­£å¸¸ä¸ŠæŠ¥ */
 	sg_sysoperate_t.com.report_time++;
 	if(sg_sysoperate_t.com.report_time > (sg_comparam_t.report))
 	{
 		sg_sysoperate_t.com.report_time = 0;
-		/* ½øĞĞÒ»´ÎÉÏ±¨ */
+		/* è¿›è¡Œä¸€æ¬¡ä¸ŠæŠ¥ */
 		sg_sysoperate_t.com_flag.report_normally = 1;
 	}
 	
-	/* ·¢ËÍ¼ÆÊ± */
+	/* å‘é€è®¡æ—¶ */
 	if(sg_sysoperate_t.com.send_status == 1)
 	{
 		sg_sysoperate_t.com.send_time++;
@@ -1007,7 +1005,7 @@ void app_com_time_function(void)
 /************************************************************
 *
 * Function name	: app_set_peripheral_switch
-* Description	: ÍâÉè¿ª¹Ø¿ØÖÆ
+* Description	: å¤–è®¾å¼€å…³æ§åˆ¶
 * Parameter		: 
 * Return		: 
 *	
@@ -1019,13 +1017,13 @@ void app_set_peripheral_switch(uint8_t cmd, uint8_t data)
 		case CONTROL_FAN:
 			if (data == 1)
 			{
-				fan_control(FAN_1,FAN_ON); // ¿ª·çÉÈ1
-				fan_control(FAN_2,FAN_ON); // ¿ª·çÉÈ2
+				fan_control(FAN_1,FAN_ON); // å¼€é£æ‰‡1
+				fan_control(FAN_2,FAN_ON); // å¼€é£æ‰‡2
 			}
 			else if(data == 2)
 			{
-				fan_control(FAN_1,FAN_OFF); // ¿ª·çÉÈ1
-				fan_control(FAN_2,FAN_OFF); // ¿ª·çÉÈ2
+				fan_control(FAN_1,FAN_OFF); // å¼€é£æ‰‡1
+				fan_control(FAN_2,FAN_OFF); // å¼€é£æ‰‡2
 			}
 			break;
 		
@@ -1038,7 +1036,7 @@ void app_set_peripheral_switch(uint8_t cmd, uint8_t data)
 /************************************************************
 *
 * Function name	: app_opeare_relay_function
-* Description	: ²Ù×÷¼ÌµçÆ÷
+* Description	: æ“ä½œç»§ç”µå™¨
 * Parameter		: 
 * Return		: 
 *	
@@ -1057,7 +1055,7 @@ int app_opeare_relay_function(uint8_t num, uint8_t relay,uint8_t status)
 /************************************************************
 *
 * Function name	: app_set_sys_opeare_function
-* Description	: ÉèÖÃ²Ù×÷ÈÎÎñ - Á¢¼´»Ø·¢
+* Description	: è®¾ç½®æ“ä½œä»»åŠ¡ - ç«‹å³å›å‘
 * Parameter		: 
 * Return		: 
 *	
@@ -1076,7 +1074,7 @@ void app_set_sys_opeare_function(uint8_t cmd, uint8_t data)
 				{
 					sg_sysoperate_t.sys_flag.adapter_reset = 1;
 					sg_sysoperate_t.sys.adapter_num = data;
-//					app_set_switch_control_function(data,1);   // ÖØÆô
+//					app_set_switch_control_function(data,1);   // é‡å¯
 					app_set_reply_parameters_function(CR_SINGLE_CAMERA_CONTROL,0x01);
 				}
 				else
@@ -1092,11 +1090,11 @@ void app_set_sys_opeare_function(uint8_t cmd, uint8_t data)
 
 		case CR_POWER_RESETART:
 			sg_sysoperate_t.com.return_error = 1;
-			/* Êı¾İ»Ø´« */
+			/* æ•°æ®å›ä¼  */
 			com_ack_function(sg_send_buff,&sg_send_size,sg_sysoperate_t.com.return_cmd,sg_sysoperate_t.com.return_error);
 			cnt = 0;
 REPEAT1:
-			/* Á¢¼´·¢ËÍ */
+			/* ç«‹å³å‘é€ */
 			app_send_data_task_function();	
 			if(ret < 0)
 			{
@@ -1110,16 +1108,16 @@ REPEAT1:
 				
 			lfs_unmount(&g_lfs_t);
 			OSTimeDlyHMSM(0,0,0,100); 
-			/* ÖØÆôÉè±¸ */
+			/* é‡å¯è®¾å¤‡ */
 			System_SoftReset();
 			break;
 		case CR_LWIP_NETWORK_RESET:	
 			sg_sysoperate_t.com.return_error = 1;
-			/* Êı¾İ»Ø´« */
+			/* æ•°æ®å›ä¼  */
 			com_ack_function(sg_send_buff,&sg_send_size,sg_sysoperate_t.com.return_cmd,sg_sysoperate_t.com.return_error);
 			cnt = 0;
 REPEAT2:
-			app_send_data_task_function();	/* Á¢¼´·¢ËÍ */
+			app_send_data_task_function();	/* ç«‹å³å‘é€ */
 			if(ret < 0)
 			{
 				cnt++;
@@ -1134,11 +1132,11 @@ REPEAT2:
 			break;
 		case CR_GPRS_NETWORK_RESET:
 			sg_sysoperate_t.com.return_error = 1;
-			/* Êı¾İ»Ø´« */
+			/* æ•°æ®å›ä¼  */
 			com_ack_function(sg_send_buff,&sg_send_size,sg_sysoperate_t.com.return_cmd,sg_sysoperate_t.com.return_error);
 			cnt = 0;
 REPEAT3:
-			/* Á¢¼´·¢ËÍ */
+			/* ç«‹å³å‘é€ */
 			app_send_data_task_function();	
 			if(ret < 0)
 			{
@@ -1150,16 +1148,16 @@ REPEAT3:
 				}
 			}			
 			OSTimeDlyHMSM(0,0,0,100); 
-			/* ÖØÆôGPRS */
+			/* é‡å¯GPRS */
 			gsm_set_module_reset_function();
 			break;
 			case CR_GPRS_NETWORK_V_RESET:
 			sg_sysoperate_t.com.return_error = 1;
-			/* Êı¾İ»Ø´« */
+			/* æ•°æ®å›ä¼  */
 			com_ack_function(sg_send_buff,&sg_send_size,sg_sysoperate_t.com.return_cmd,sg_sysoperate_t.com.return_error);
 			cnt = 0;
 REPEAT4:
-			/* Á¢¼´·¢ËÍ */
+			/* ç«‹å³å‘é€ */
 			app_send_data_task_function();	
 			if(ret < 0)
 			{
@@ -1171,7 +1169,7 @@ REPEAT4:
 				}
 			}			
 			OSTimeDlyHMSM(0,0,0,100); 
-			/* ÖØÆôGPRS */
+			/* é‡å¯GPRS */
 			gprs_v_reset_function();
 			gsm_set_module_reset_function();
 			break;
@@ -1182,7 +1180,7 @@ REPEAT4:
 /************************************************************
 *
 * Function name	: app_sys_operate_timer_function
-* Description	: ²Ù×÷ÃüÁîµÄÊ±¼ä´¦Àíº¯Êı
+* Description	: æ“ä½œå‘½ä»¤çš„æ—¶é—´å¤„ç†å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1191,10 +1189,10 @@ void app_sys_operate_timer_function(void)
 {
 	static uint16_t time = 0;
 		
-	/* ÖØÆôÖ¸¶¨ÊÊÅäÆ÷ */
+	/* é‡å¯æŒ‡å®šé€‚é…å™¨ */
 	if(sg_sysoperate_t.sys_flag.adapter_reset == 1)
 	{
-		/* ¹Ø±ÕÖ¸µÄÊÊÅäÆ÷ */
+		/* å…³é—­æŒ‡çš„é€‚é…å™¨ */
 		if(sg_sysoperate_t.sys.adapter_num <= 8)
 		{
 			switch(sg_sysoperate_t.sys.adapter_num)
@@ -1210,7 +1208,7 @@ void app_sys_operate_timer_function(void)
 				default:	break;
 			}
 			sg_sysoperate_t.sys_flag.adapter_reset = 2;
-			time = 15*1000; // 15sÖØÆô
+			time = 15*1000; // 15sé‡å¯
 		}
 		else
 		{
@@ -1243,7 +1241,7 @@ void app_sys_operate_timer_function(void)
 /************************************************************
 *
 * Function name	: app_sys_operate_relay
-* Description	: ¼ÌµçÆ÷ÖØÆô
+* Description	: ç»§ç”µå™¨é‡å¯
 * Parameter		: 
 * Return		: 
 *	
@@ -1273,13 +1271,13 @@ void app_sys_operate_relay(void)
 }
 
 /***********************************************************************************
-					²ÎÊıµÄÅäÖÃÓë»ñÈ¡
+					å‚æ•°çš„é…ç½®ä¸è·å–
 ***********************************************************************************/
 
 /************************************************************
 *
 * Function name	: app_get_storage_param_function
-* Description	: ÓÃÓÚ»ñÈ¡´æ´¢µÄ²ÎÊıµÄº¯Êı
+* Description	: ç”¨äºè·å–å­˜å‚¨çš„å‚æ•°çš„å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1297,7 +1295,7 @@ void app_get_storage_param_function(void)
 	update_read_addr();
 	
 	save_read_backups_function(&sg_backups_t); // 20231022
-	// ÅĞ¶ÏÉè±¸ÖØÆôÊ±¼ä£¬·ÀÖ¹Ê±¼ä¶ÁÈ¡Îª0
+	// åˆ¤æ–­è®¾å¤‡é‡å¯æ—¶é—´ï¼Œé˜²æ­¢æ—¶é—´è¯»å–ä¸º0
 	if(sg_comparam_t.reload < 86400)
 		sg_comparam_t.reload = 86400;
 	else if(sg_comparam_t.reload > 604800)
@@ -1307,7 +1305,7 @@ void app_get_storage_param_function(void)
 /************************************************************
 *
 * Function name	: app_task_save_function
-* Description	: ÓÃÓÚ´æ´¢±¾»úµÄÉèÖÃ²ÎÊı
+* Description	: ç”¨äºå­˜å‚¨æœ¬æœºçš„è®¾ç½®å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1318,14 +1316,14 @@ void app_task_save_function(void)
 	if(sg_sysoperate_t.save_flag.save_device_param == 1)
 	{
 		sg_sysoperate_t.save_flag.save_device_param = 0;
-		save_storage_device_parameter_function(&sg_sysparam_t.device);	/* ´æ´¢Éè±¸²ÎÊıĞÅÏ¢ */
+		save_storage_device_parameter_function(&sg_sysparam_t.device);	/* å­˜å‚¨è®¾å¤‡å‚æ•°ä¿¡æ¯ */
 		if(SAVE_DEBUG)  printf("save_storage_device_parameter_function\r\n");
 	}	
 	
 	if(sg_sysoperate_t.save_flag.save_local_network == 1)
 	{
 		sg_sysoperate_t.save_flag.save_local_network = 0;
-		save_stroage_local_network(&sg_sysparam_t.local);	/* ´æ´¢±¾µØÍøÂç²ÎÊıĞÅÏ¢ */
+		save_stroage_local_network(&sg_sysparam_t.local);	/* å­˜å‚¨æœ¬åœ°ç½‘ç»œå‚æ•°ä¿¡æ¯ */
 		if(SAVE_DEBUG)  printf("save_stroage_local_network\r\n");
 	}
 	
@@ -1336,27 +1334,27 @@ void app_task_save_function(void)
 		if(SAVE_DEBUG)  printf("save_stroage_remote_ip_function\r\n");
 		
 		OSTimeDlyHMSM(0,0,0,100);
-		set_reboot_time_function(1000); // ÅäÖÃ·şÎñÆ÷ºóÏµÍ³ÖØÆô£¬·ÀÖ¹Éè±¸Î´´«µ½ĞÂÆ½Ì¨
+		set_reboot_time_function(1000); // é…ç½®æœåŠ¡å™¨åç³»ç»Ÿé‡å¯ï¼Œé˜²æ­¢è®¾å¤‡æœªä¼ åˆ°æ–°å¹³å°
 	}
 	
 	if(sg_sysoperate_t.save_flag.save_comparision == 1)
 	{
 		sg_sysoperate_t.save_flag.save_comparision = 0;
-		save_stroage_comparision_parameter(&sg_comparisionparam_t);	/* ´æ´¢ÍâÉèÏà¹Ø²ÎÊı£ºÉãÏñÍ·µÈ */
+		save_stroage_comparision_parameter(&sg_comparisionparam_t);	/* å­˜å‚¨å¤–è®¾ç›¸å…³å‚æ•°ï¼šæ‘„åƒå¤´ç­‰ */
 		if(SAVE_DEBUG)  printf("save_stroage_comparision_parameter\r\n");
 	}
 	
 	if(sg_sysoperate_t.save_flag.save_carema == 1)
 	{
 		sg_sysoperate_t.save_flag.save_carema = 0;
-		save_stroage_carema_parameter(&sg_carema_param_t);	/* ´æ´¢ÉãÏñÍ·²ÎÊı */
+		save_stroage_carema_parameter(&sg_carema_param_t);	/* å­˜å‚¨æ‘„åƒå¤´å‚æ•° */
 		if(SAVE_DEBUG)  printf("save_stroage_carema_parameter\r\n");
 	}
 	
 	if(sg_sysoperate_t.save_flag.com_parameter == 1)
 	{
 		sg_sysoperate_t.save_flag.com_parameter = 0;
-		save_stroage_com_param_function(&sg_comparam_t);		/* ´æ´¢Í¨ĞÅÏà¹Ø²ÎÊı */
+		save_stroage_com_param_function(&sg_comparam_t);		/* å­˜å‚¨é€šä¿¡ç›¸å…³å‚æ•° */
 		if(SAVE_DEBUG)  printf("save_stroage_com_param_function\r\n");
 	}
 	
@@ -1370,7 +1368,7 @@ void app_task_save_function(void)
 	{
 		if(SAVE_DEBUG)  printf("update_save_addr\r\n");
 		sg_sysoperate_t.save_flag.save_update_addr = 0;
-		update_save_addr();		/* ´æ´¢¸üĞÂµØÖ·ĞÅÏ¢ */
+		update_save_addr();		/* å­˜å‚¨æ›´æ–°åœ°å€ä¿¡æ¯ */
 	}
 	if(sg_sysoperate_t.save_flag.save_threshold == 1)
 	{
@@ -1379,7 +1377,7 @@ void app_task_save_function(void)
 		if(SAVE_DEBUG)  printf("save_stroage_carema_parameter\r\n");
 	}
 
-	/* »Ö¸´³ö³§»¯£º²úÆ·ĞòÁĞºÅ²»±ä */
+	/* æ¢å¤å‡ºå‚åŒ–ï¼šäº§å“åºåˆ—å·ä¸å˜ */
 	if(sg_sysoperate_t.save_flag.save_reset == 1)
 	{
 		sg_sysoperate_t.save_flag.save_reset = 0;
@@ -1387,61 +1385,61 @@ void app_task_save_function(void)
 		save_clear_file_function(0);
 		app_get_storage_param_function();
 		
-		eth_set_network_reset(); 			 // ÖØÆôÍøÂç
-		gsm_set_module_reset_function(); 	// ÖØÆôGPRS
+		eth_set_network_reset(); 			 // é‡å¯ç½‘ç»œ
+		gsm_set_module_reset_function(); 	// é‡å¯GPRS
 	}
 	
-	/* »¹Ô­²Ù×÷ */
-	/** »¹Ô­±¾µØÍøÂçĞÅÏ¢ - ĞèÒªÖØÆô±¾µØÍøÂç **/
+	/* è¿˜åŸæ“ä½œ */
+	/** è¿˜åŸæœ¬åœ°ç½‘ç»œä¿¡æ¯ - éœ€è¦é‡å¯æœ¬åœ°ç½‘ç»œ **/
 	if(sg_sysoperate_t.save_flag.erase_local_network == 1)
 	{
 		sg_sysoperate_t.save_flag.erase_local_network = 0;
 
-		/* ±¾»úIP */
+		/* æœ¬æœºIP */
 		sg_sysparam_t.local.ip[0] = DEFALUT_LOCAL_IP0;
 		sg_sysparam_t.local.ip[1] = DEFALUT_LOCAL_IP1;
 		sg_sysparam_t.local.ip[2] = DEFALUT_LOCAL_IP2;
 		sg_sysparam_t.local.ip[3] = DEFALUT_LOCAL_IP3;
 		
-		/* ±¾»ú×ÓÍøÑÚÂë */
+		/* æœ¬æœºå­ç½‘æ©ç  */
 		sg_sysparam_t.local.netmask[0]=DEFALUT_NETMASK0;	
 		sg_sysparam_t.local.netmask[1]=DEFALUT_NETMASK1;
 		sg_sysparam_t.local.netmask[2]=DEFALUT_NETMASK2;
 		sg_sysparam_t.local.netmask[3]=DEFALUT_NETMASK3;
-		/* ±¾»úÄ¬ÈÏÍø¹Ø */
+		/* æœ¬æœºé»˜è®¤ç½‘å…³ */
 		sg_sysparam_t.local.gateway[0]=DEFALUT_GATEWAY0;	
 		sg_sysparam_t.local.gateway[1]=DEFALUT_GATEWAY1;
 		sg_sysparam_t.local.gateway[2]=DEFALUT_GATEWAY2;
 		sg_sysparam_t.local.gateway[3]=DEFALUT_GATEWAY3;	
 			
-		/* »ñÈ¡Ä¬ÈÏÊı¾İ */
+		/* è·å–é»˜è®¤æ•°æ® */
 		save_stroage_local_network(&sg_sysparam_t.local);
 		if(SAVE_DEBUG)  printf("erase_local_network\r\n");	
-		eth_set_network_reset(); 			// ÖØÆôÍøÂç
+		eth_set_network_reset(); 			// é‡å¯ç½‘ç»œ
 	}
-	/** »¹Ô­macµØÖ· - ĞèÒªÖØÆô±¾µØÍøÂç **/
+	/** è¿˜åŸmacåœ°å€ - éœ€è¦é‡å¯æœ¬åœ°ç½‘ç»œ **/
 	if(sg_sysoperate_t.save_flag.erase_local_mac == 1)
 	{
 		sg_sysoperate_t.save_flag.erase_local_mac = 0;
 		data = *(vu32*)(0X1FFF7A10);
-		/* ±¾»úIP */
-		sg_sysparam_t.local.mac[0]=2;//¸ßÈı×Ö½Ú(IEEE³ÆÖ®Îª×éÖ¯Î¨Ò»ID,OUI)µØÖ·¹Ì¶¨Îª:2.0.0
+		/* æœ¬æœºIP */
+		sg_sysparam_t.local.mac[0]=2;//é«˜ä¸‰å­—èŠ‚(IEEEç§°ä¹‹ä¸ºç»„ç»‡å”¯ä¸€ID,OUI)åœ°å€å›ºå®šä¸º:2.0.0
 		sg_sysparam_t.local.mac[1]=0;
 		sg_sysparam_t.local.mac[2]=0;
-		sg_sysparam_t.local.mac[3]=(data>>16)&0XFF;//µÍÈı×Ö½ÚÓÃSTM32µÄÎ¨Ò»ID
+		sg_sysparam_t.local.mac[3]=(data>>16)&0XFF;//ä½ä¸‰å­—èŠ‚ç”¨STM32çš„å”¯ä¸€ID
 		sg_sysparam_t.local.mac[4]=(data>>8)&0XFF;
 		sg_sysparam_t.local.mac[5]=data&0XFF; 	
 		
 		STMFLASH_Write_SAVE(DEVICE_FLASH_STORE,DEVICE_MAC_ADDR,(uint32_t *)&sg_sysparam_t.local.mac,2);
 //	  STMFLASH_Write(DEVICE_MAC_ADDR,(uint32_t *)&sg_sysparam_t.local.mac,2);
-		/* »ñÈ¡Ä¬ÈÏÊı¾İ */
+		/* è·å–é»˜è®¤æ•°æ® */
 		save_stroage_local_network(&sg_sysparam_t.local);
 		if(SAVE_DEBUG)  printf("erase_local_mac\r\n");	
-		eth_set_network_reset(); 			// ÖØÆôÍøÂç
+		eth_set_network_reset(); 			// é‡å¯ç½‘ç»œ
 	}
 
 	
-	/** »¹Ô­ÉÏ±¨Ê±¼ä **/
+	/** è¿˜åŸä¸ŠæŠ¥æ—¶é—´ **/
 	if(sg_sysoperate_t.save_flag.erase_report_time == 1)
 	{
 		sg_sysoperate_t.save_flag.erase_report_time = 0;
@@ -1450,7 +1448,7 @@ void app_task_save_function(void)
 		save_stroage_com_param_function(&sg_comparam_t);
 	}
 	
-	/** »¹Ô­PING¼ä¸ôÊ±¼ä **/
+	/** è¿˜åŸPINGé—´éš”æ—¶é—´ **/
 	if(sg_sysoperate_t.save_flag.erase_ping_time == 1) {
 		sg_sysoperate_t.save_flag.erase_ping_time = 0;
 		
@@ -1460,7 +1458,7 @@ void app_task_save_function(void)
 		save_stroage_com_param_function(&sg_comparam_t);
 	}
 	
-	/** »¹Ô­ÍøÂçÑÓÊ±Ê±¼ä  20220308**/
+	/** è¿˜åŸç½‘ç»œå»¶æ—¶æ—¶é—´  20220308**/
 	if(sg_sysoperate_t.save_flag.erase_netdelay_time == 1)
 	{
 		sg_sysoperate_t.save_flag.erase_netdelay_time = 0;
@@ -1469,7 +1467,7 @@ void app_task_save_function(void)
 		save_stroage_com_param_function(&sg_comparam_t);
 	}
 	
-	/** »¹Ô­´«ÊäÄ£Ê½ **/
+	/** è¿˜åŸä¼ è¾“æ¨¡å¼ **/
 	if(sg_sysoperate_t.save_flag.erase_tran_mode == 1) {
 		sg_sysoperate_t.save_flag.erase_tran_mode = 0;
 		if(SAVE_DEBUG)  printf("erase_tran_mode\r\n");
@@ -1477,19 +1475,19 @@ void app_task_save_function(void)
 		save_stroage_local_network(&sg_sysparam_t.local);
 	}
 	
-	/** Çå³ı·şÎñÆ÷ - »¹Ô­Ä¬ÈÏ **/
+	/** æ¸…é™¤æœåŠ¡å™¨ - è¿˜åŸé»˜è®¤ **/
 	if(sg_sysoperate_t.save_flag.erase_server_ip == 1) {
 		sg_sysoperate_t.save_flag.erase_server_ip = 0;
 		if(SAVE_DEBUG)  printf("erase_server_ip\r\n");
 		save_read_default_remote_ip(&sg_sysparam_t.remote);
 		save_stroage_remote_ip_function(&sg_sysparam_t.remote);
 		
-		/* ÖØÆôÁ¬½Ó */
+		/* é‡å¯è¿æ¥ */
 		eth_set_tcp_connect_reset();
 		gsm_set_network_reset_function();
 	}
 	
-	/** Çå³ıÉãÏñÍ·ip **/
+	/** æ¸…é™¤æ‘„åƒå¤´ip **/
 	if(sg_sysoperate_t.save_flag.erase_camera_ip == 1)
 	{
 		sg_sysoperate_t.save_flag.erase_camera_ip = 0;
@@ -1497,7 +1495,7 @@ void app_task_save_function(void)
 		if(SAVE_DEBUG)  printf("erase_camera_ip\r\n");
 		save_stroage_comparision_parameter(&sg_comparisionparam_t);
 	}
-	/** Çå³ıÉãÏñÍ·µÄÓÃ»§Ãû¡¢ÃÜÂë  20220329**/
+	/** æ¸…é™¤æ‘„åƒå¤´çš„ç”¨æˆ·åã€å¯†ç   20220329**/
 	if(sg_sysoperate_t.save_flag.erase_ipc_login == 1)
 	{
 		sg_sysoperate_t.save_flag.erase_ipc_login = 0;
@@ -1505,7 +1503,7 @@ void app_task_save_function(void)
 		memset(sg_carema_param_t.pwd,0,sizeof(sg_carema_param_t.pwd));
 		save_stroage_carema_parameter(&sg_carema_param_t);
 	}
-	/** Çå³ıÖ÷»úIP **/
+	/** æ¸…é™¤ä¸»æœºIP **/
 	if(sg_sysoperate_t.save_flag.erase_main_ip == 1)
 	{
 		sg_sysoperate_t.save_flag.erase_main_ip = 0;
@@ -1520,7 +1518,7 @@ void app_task_save_function(void)
 /************************************************************
 *
 * Function name	: app_set_save_infor_function
-* Description	: ÉèÖÃ´æ´¢±êÖ¾Î»
+* Description	: è®¾ç½®å­˜å‚¨æ ‡å¿—ä½
 * Parameter		: 
 * Return		: 
 *	
@@ -1567,7 +1565,7 @@ void app_set_save_infor_function(uint8_t mode)
 /************************************************************
 *
 * Function name	: app_set_erase_infor_function
-* Description	: ÉèÖÃĞèÒªÇå³ıµÄĞÅÏ¢
+* Description	: è®¾ç½®éœ€è¦æ¸…é™¤çš„ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -1582,7 +1580,7 @@ void app_set_erase_infor_function(uint8_t mode)
 		case CONFIGURE_PING_INTERVAL:
 			sg_sysoperate_t.save_flag.erase_ping_time = 1;
 			break;
-		case CONFIGURE_NETWORK_DELAY:          // ÍøÂçÑÓÊ±Ê±¼ä		  20220308
+		case CONFIGURE_NETWORK_DELAY:          // ç½‘ç»œå»¶æ—¶æ—¶é—´		  20220308
 			sg_sysoperate_t.save_flag.erase_netdelay_time = 1;
 			break;
 		case CONFIGURE_SERVER_IP:
@@ -1600,7 +1598,7 @@ void app_set_erase_infor_function(uint8_t mode)
 		case CONFIGURE_MAIN_NETWORK_IP:
 			sg_sysoperate_t.save_flag.erase_main_ip = 1;
 			break;
-		case CONFIGURE_IPC_LOGIN_INFO:       // ÓÃ»§Ãû¡¢ÃÜÂë  20220329
+		case CONFIGURE_IPC_LOGIN_INFO:       // ç”¨æˆ·åã€å¯†ç   20220329
 			sg_sysoperate_t.save_flag.erase_ipc_login = 1;
 			break;
 		default:
@@ -1611,7 +1609,7 @@ void app_set_erase_infor_function(uint8_t mode)
 /************************************************************
 *
 * Function name	: app_get_local_network_function
-* Description	: »ñÈ¡±¾»úÍøÂçĞÅÏ¢
+* Description	: è·å–æœ¬æœºç½‘ç»œä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -1624,7 +1622,7 @@ void *app_get_local_network_function(void)
 /************************************************************
 *
 * Function name	: app_set_local_network_function
-* Description	: ÉèÖÃ±¾µØÍøÂç²ÎÊı
+* Description	: è®¾ç½®æœ¬åœ°ç½‘ç»œå‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1634,20 +1632,20 @@ void app_set_local_network_function(struct local_ip_t param)
 	uint8_t mac[6] = {0};
 	uint8_t main_ip[4] = {0};
 	
-	memcpy(mac,sg_sysparam_t.local.mac,6); 			// ±¸·İ
-	memcpy(main_ip,sg_sysparam_t.local.ping_ip,4); 	// ±¸·İ
+	memcpy(mac,sg_sysparam_t.local.mac,6); 			// å¤‡ä»½
+	memcpy(main_ip,sg_sysparam_t.local.ping_ip,4); 	// å¤‡ä»½
 	memset((uint8_t*)&sg_sysparam_t.local,0,sizeof(struct local_ip_t));
 	memcpy((uint8_t*)&sg_sysparam_t.local,&param,sizeof(struct local_ip_t));
-	memcpy(sg_sysparam_t.local.mac,mac,6); 			// »¹Ô­
-	memcpy(sg_sysparam_t.local.ping_ip,main_ip,4); 	// »¹Ô­
-	/* ±£´æ */
+	memcpy(sg_sysparam_t.local.mac,mac,6); 			// è¿˜åŸ
+	memcpy(sg_sysparam_t.local.ping_ip,main_ip,4); 	// è¿˜åŸ
+	/* ä¿å­˜ */
 	app_set_save_infor_function(SAVE_LOCAL_NETWORK);
 }
 
 /************************************************************
 *
 * Function name	: app_set_local_network_function_two
-* Description	: ´æ´¢²¿·ÖÍøÂç²ÎÊı
+* Description	: å­˜å‚¨éƒ¨åˆ†ç½‘ç»œå‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1671,13 +1669,13 @@ void app_set_local_network_function_two(struct local_ip_t param)
 	sprintf(sg_sysparam_t.local.ip_str,"%d.%d.%d.%d",sg_sysparam_t.local.ip[0],sg_sysparam_t.local.ip[1],
 																			sg_sysparam_t.local.ip[2],sg_sysparam_t.local.ip[3]);
 	
-	app_set_save_infor_function(SAVE_LOCAL_NETWORK);	/* ±£´æ */
+	app_set_save_infor_function(SAVE_LOCAL_NETWORK);	/* ä¿å­˜ */
 }
 
 /************************************************************
 *
 * Function name	: app_set_transfer_mode_function
-* Description	: ´æ´¢´«ÊäÄ£Ê½ĞÅÏ¢
+* Description	: å­˜å‚¨ä¼ è¾“æ¨¡å¼ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -1698,14 +1696,14 @@ void app_set_transfer_mode_function(uint8_t mode)
 			sg_sysparam_t.local.server_mode = 4;
 			break;
 	}
-	/* ±£´æ */
+	/* ä¿å­˜ */
 	app_set_save_infor_function(SAVE_LOCAL_NETWORK);
 }
 /************************************************************
 *
 * Function name	: app_set_carema_search_mode_function
-* Description	: ÉèÖÃÉãÏñ»úËÑË÷Ğ­Òé
-* Parameter		: config_mode:ÅäÖÃ·½Ê½ web/Æ½Ì¨
+* Description	: è®¾ç½®æ‘„åƒæœºæœç´¢åè®®
+* Parameter		: config_mode:é…ç½®æ–¹å¼ web/å¹³å°
 * Return		: 
 *	   20230810
 ************************************************************/
@@ -1717,7 +1715,7 @@ void app_set_carema_search_mode_function(uint8_t mode,uint8_t config_mode)
 /************************************************************
 *
 * Function name	: app_get_remote_network_function
-* Description	: »ñÈ¡Ô¶¶ËÍøÂçĞÅÏ¢
+* Description	: è·å–è¿œç«¯ç½‘ç»œä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -1729,7 +1727,7 @@ void *app_get_remote_network_function(void)
 /************************************************************
 *
 * Function name	: app_get_backups_function
-* Description	: »ñÈ¡±¸·İĞÅÏ¢
+* Description	: è·å–å¤‡ä»½ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	  20231022
@@ -1741,7 +1739,7 @@ void *app_get_backups_function(void)
 /************************************************************
 *
 * Function name	: app_set_remote_network_function
-* Description	: ´æ´¢Ô¶¶ËÍøÂçĞÅÏ¢
+* Description	: å­˜å‚¨è¿œç«¯ç½‘ç»œä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -1750,14 +1748,14 @@ void app_set_remote_network_function(struct remote_ip param)
 {
 
 	memcpy(&sg_sysparam_t.remote,&param,sizeof(struct remote_ip));
-	/* ´æ´¢ */
+	/* å­˜å‚¨ */
 	app_set_save_infor_function(SAVE_REMOTE_IP);
 }
 
 /************************************************************
 *
 * Function name	: app_set_cilent_network_function
-* Description	: ´æ´¢Ô¶¶ËÍøÂçĞÅÏ¢
+* Description	: å­˜å‚¨è¿œç«¯ç½‘ç»œä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	
@@ -1772,7 +1770,7 @@ void app_set_cilent_network_function(struct remote_ip param)
 /************************************************************
 *
 * Function name	: app_set_reset_function
-* Description	: »Ö¸´³ö³§»¯
+* Description	: æ¢å¤å‡ºå‚åŒ–
 * Parameter		: 
 * Return		: 
 *	
@@ -1785,7 +1783,7 @@ void app_set_reset_function(void)
 /************************************************************
 *
 * Function name	: app_set_mac_reset_function
-* Description	: macµØÖ·³õÊ¼»¯
+* Description	: macåœ°å€åˆå§‹åŒ–
 * Parameter		: 
 * Return		: 
 *	
@@ -1798,16 +1796,16 @@ void app_set_mac_reset_function(void)
 /************************************************************
 *
 * Function name	: app_get_camera_function
-* Description	: »ñÈ¡Ïà»úIPĞÅÏ¢
+* Description	: è·å–ç›¸æœºIPä¿¡æ¯
 * Parameter		: 
-*	@ip			: ipÊı¾İ
-*	@num		: ÉãÏñ»úºÅÊı
+*	@ip			: ipæ•°æ®
+*	@num		: æ‘„åƒæœºå·æ•°
 * Return		: 
 *	
 ************************************************************/
 int8_t app_get_camera_function(uint8_t *ip, uint8_t num)
 {	
-	/* ÑéÖ¤ÊÇ·ñÓĞipµØÖ· */
+	/* éªŒè¯æ˜¯å¦æœ‰ipåœ°å€ */
 	if( sg_comparisionparam_t.ip[num][0] == 0 && \
 			sg_comparisionparam_t.ip[num][1] == 0 && \
 			sg_comparisionparam_t.ip[num][2] == 0 && \
@@ -1825,7 +1823,7 @@ int8_t app_get_camera_function(uint8_t *ip, uint8_t num)
 /************************************************************
 *
 * Function name	: app_set_camera_function
-* Description	: ÉèÖÃÉãÏñ»úipµØÖ·
+* Description	: è®¾ç½®æ‘„åƒæœºipåœ°å€
 * Parameter		: 
 * Return		: 
 *	
@@ -1835,13 +1833,13 @@ void app_set_camera_function(uint8_t *ip)
 	memset(sg_comparisionparam_t.ip,0,sizeof(sg_comparisionparam_t.ip));
 	memcpy(sg_comparisionparam_t.ip,ip,sizeof(sg_comparisionparam_t.ip));
 	
-	/* ´æ´¢ */
+	/* å­˜å‚¨ */
 	app_set_save_infor_function(SAVE_COMPARISION);
 }
 /************************************************************
 *
 * Function name	: app_set_camera_login_function
-* Description	: ÉèÖÃÖ¸¶¨ÉãÏñ»úµÄÓÃ»§Ãû¡¢ÃÜÂë
+* Description	: è®¾ç½®æŒ‡å®šæ‘„åƒæœºçš„ç”¨æˆ·åã€å¯†ç 
 * Parameter		: 
 * Return		: 
 *								20220329
@@ -1853,22 +1851,22 @@ void app_set_camera_login_function(char *name_buf,char *pwd_buf,int port,uint8_t
 	sprintf(sg_carema_param_t.name[num],"%s",name_buf);
 	sprintf(sg_carema_param_t.pwd[num],"%s",pwd_buf);
 	sg_carema_param_t.port[num] = port;
-	app_set_save_infor_function(SAVE_CAREMA);	/* ´æ´¢ */
+	app_set_save_infor_function(SAVE_CAREMA);	/* å­˜å‚¨ */
 }
 
 /************************************************************
 *
 * Function name	: app_get_camera_function
-* Description	: »ñÈ¡Ö¸¶¨ÉãÏñ»úÓÃ»§Ãû¡¢ÃÜÂë
+* Description	: è·å–æŒ‡å®šæ‘„åƒæœºç”¨æˆ·åã€å¯†ç 
 * Parameter		: 
 *	@ip			: 
-*	@num		: ÉãÏñ»úºÅÊı
+*	@num		: æ‘„åƒæœºå·æ•°
 * Return		: 
 *	             20220329
 ************************************************************/
 int8_t app_get_camera_login_function(char *name_buf,char *pwd_buf,uint8_t num)
 {	
-	/* ÑéÖ¤ĞÅÏ¢ÊÇ·ñÎª¿Õ */
+	/* éªŒè¯ä¿¡æ¯æ˜¯å¦ä¸ºç©º */
 	if( strlen(sg_carema_param_t.name[num]) == 0 &&strlen(sg_carema_param_t.pwd[num]) == 0)
 	{
 		return -1;
@@ -1884,7 +1882,7 @@ int8_t app_get_camera_login_function(char *name_buf,char *pwd_buf,uint8_t num)
 /************************************************************
 *
 * Function name	: app_get_camera_port_function
-* Description	: »ñÈ¡Ö¸¶¨ÉãÏñ»ú¶Ë¿ÚºÅ
+* Description	: è·å–æŒ‡å®šæ‘„åƒæœºç«¯å£å·
 * Parameter		: 
 * Return		: 
 *	             20220329
@@ -1896,7 +1894,7 @@ int app_get_camera_port_function(uint8_t num)
 /************************************************************
 *
 * Function name	: app_get_camera_num_function
-* Description	: »ñÈ¡Ö¸¶¨ÉãÏñ»ú±àºÅ
+* Description	: è·å–æŒ‡å®šæ‘„åƒæœºç¼–å·
 * Parameter		: 
 * Return		: 
 *	             20220329
@@ -1909,12 +1907,12 @@ int8_t app_get_camera_num_function(void)
 /************************************************************
 *
 * Function name	: app_set_camera_id_num_function
-* Description	: ÉèÖÃÉãÏñ»úµÄ±àºÅ
+* Description	: è®¾ç½®æ‘„åƒæœºçš„ç¼–å·
 * Parameter		: 
 * Return		: 
 *	             20220329
 ************************************************************/
-void app_set_camera_id_num_function(uint8_t data)  // ÉèÖÃÉãÏñ»úµÄ±àºÅ
+void app_set_camera_id_num_function(uint8_t data)  // è®¾ç½®æ‘„åƒæœºçš„ç¼–å·
 {	
 	sg_sysoperate_t.sys.caramer_num = data;
 }
@@ -1922,7 +1920,7 @@ void app_set_camera_id_num_function(uint8_t data)  // ÉèÖÃÉãÏñ»úµÄ±àºÅ
 /************************************************************
 *
 * Function name	: app_set_camera_num_function
-* Description	: ÉèÖÃÉãÏñ»úip - Ö¸¶¨ÉãÏñ»ú
+* Description	: è®¾ç½®æ‘„åƒæœºip - æŒ‡å®šæ‘„åƒæœº
 * Parameter		: 
 * Return		: 
 *	
@@ -1934,14 +1932,14 @@ void app_set_camera_num_function(uint8_t *ip, uint8_t num)
 	sg_comparisionparam_t.ip[num][2] = ip[2];
 	sg_comparisionparam_t.ip[num][3] = ip[3];
 	
-	/* ´æ´¢ */
+	/* å­˜å‚¨ */
 	app_set_save_infor_function(SAVE_COMPARISION);
 }
 
 /************************************************************
 *
 * Function name	: app_match_local_camera_ip
-* Description	: Æ¥Åä±¾µØIP
+* Description	: åŒ¹é…æœ¬åœ°IP
 * Parameter		: 
 * Return		: 
 *	
@@ -1966,7 +1964,7 @@ int8_t app_match_local_camera_ip(uint8_t *ip)
 /************************************************************
 *
 * Function name	: app_set_fan_humi_param_function
-* Description	: ÉèÖÃ·çÉÈÊª¶ÈÆô¶¯²ÎÊı
+* Description	: è®¾ç½®é£æ‰‡æ¹¿åº¦å¯åŠ¨å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1975,13 +1973,13 @@ void app_set_fan_humi_param_function(uint8_t *data)
 {
 	sg_sysparam_t.threshold.humi_high = data[0];
 	sg_sysparam_t.threshold.humi_low = data[1];
-	app_set_save_infor_function(SAVE_THRESHOLD);	/* ´æ´¢ */
+	app_set_save_infor_function(SAVE_THRESHOLD);	/* å­˜å‚¨ */
 }
 
 /************************************************************
 *
 * Function name	: app_set_fan_param_function
-* Description	: ÅäÖÃ·çÉÈÎÂ¶È²ÎÊı
+* Description	: é…ç½®é£æ‰‡æ¸©åº¦å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -1990,13 +1988,13 @@ void app_set_fan_param_function(int8_t *data)
 {
 	sg_sysparam_t.threshold.temp_high = data[0];
 	sg_sysparam_t.threshold.temp_low = data[1];
-	app_set_save_infor_function(SAVE_THRESHOLD);	/* ´æ´¢ */
+	app_set_save_infor_function(SAVE_THRESHOLD);	/* å­˜å‚¨ */
 }
 
 /************************************************************
 *
 * Function name	: app_set_threshold_param_function
-* Description	: ÅäÖÃãĞÖµ
+* Description	: é…ç½®é˜ˆå€¼
 * Parameter		: 
 * Return		: 
 *	
@@ -2006,14 +2004,14 @@ void app_set_vol_current_param(uint16_t *data)
 	sg_sysparam_t.threshold.volt_max = data[0];
 	sg_sysparam_t.threshold.volt_min = data[1];
 	sg_sysparam_t.threshold.current  = data[2];
-	/* ±£´æ */
-	app_set_save_infor_function(SAVE_THRESHOLD);	/* ´æ´¢ */
+	/* ä¿å­˜ */
+	app_set_save_infor_function(SAVE_THRESHOLD);	/* å­˜å‚¨ */
 }
 
 /************************************************************
 *
 * Function name	: app_get_device_param_function
-* Description	: »ñÈ¡Éè±¸²ÎÊı
+* Description	: è·å–è®¾å¤‡å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -2026,7 +2024,7 @@ void *app_get_device_param_function(void)
 /************************************************************
 *
 * Function name	: app_match_password_function
-* Description	: ÃÜÂë±È½Ïº¯Êı
+* Description	: å¯†ç æ¯”è¾ƒå‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -2042,9 +2040,9 @@ int8_t app_match_password_function(char *password)
 /************************************************************
 *
 * Function name	: app_match_set_code_function
-* Description	: È·ÈÏÊÇ·ñĞèÒªĞèÒªĞŞ¸ÄÄ¬ÈÏÃÜÂë
+* Description	: ç¡®è®¤æ˜¯å¦éœ€è¦éœ€è¦ä¿®æ”¹é»˜è®¤å¯†ç 
 * Parameter		: 
-* Return		: 1-ĞèÒªĞŞ¸Ä
+* Return		: 1-éœ€è¦ä¿®æ”¹
 *	
 ************************************************************/
 int8_t app_match_set_code_function(void)
@@ -2055,7 +2053,7 @@ int8_t app_match_set_code_function(void)
 /************************************************************
 *
 * Function name	: app_set_device_param_function
-* Description	: ÉèÖÃÉè±¸²ÎÊı
+* Description	: è®¾ç½®è®¾å¤‡å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -2068,14 +2066,14 @@ void app_set_device_param_function(struct device_param param)
 //	STMFLASH_Write(DEVICE_ID_ADDR,(uint32_t*)param.id.c,4);
 //	STMFLASH_Write(DEVICE_ID_ADDR,(uint32_t*)param.id.c,1);	
 	STMFLASH_Write_SAVE(DEVICE_FLASH_STORE,DEVICE_ID_ADDR,(uint32_t*)param.id.c,1);
-	/* ±£´æ */
+	/* ä¿å­˜ */
 	app_set_save_infor_function(SAVE_DEVICE_PARAM);
 }
 
 /************************************************************
 *
 * Function name	: app_set_code_function
-* Description	: ÉèÖÃÃÜÂë
+* Description	: è®¾ç½®å¯†ç 
 * Parameter		: 
 * Return		: 
 *	
@@ -2085,14 +2083,14 @@ void app_set_code_function(struct device_param param)
 	sg_sysparam_t.device.default_password = 0;
 	memcpy(sg_sysparam_t.device.password,param.password,sizeof(param.password));
 	
-	/* ±£´æ */
+	/* ä¿å­˜ */
 	app_set_save_infor_function(SAVE_DEVICE_PARAM);
 }
 
 /************************************************************
 *
 * Function name	: app_get_com_heart_time
-* Description	: »ñÈ¡ĞÄÌø²ÎÊı
+* Description	: è·å–å¿ƒè·³å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -2105,14 +2103,14 @@ uint16_t app_get_com_heart_time(void)
 /************************************************************
 *
 * Function name	: app_set_next_report_time
-* Description	: ÉèÖÃÉÏ±¨¼ä¸ôÊ±¼ä
+* Description	: è®¾ç½®ä¸ŠæŠ¥é—´éš”æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_set_next_report_time(uint16_t time)
 {
-	/* ½«Ê±¼äµ¥Î»×ª»»Îªms */
+	/* å°†æ—¶é—´å•ä½è½¬æ¢ä¸ºms */
 	sg_comparam_t.report = time*1000;
 		
 	app_set_save_infor_function(SAVE_COM_PARAMETER);
@@ -2121,10 +2119,10 @@ void app_set_next_report_time(uint16_t time)
 /************************************************************
 *
 * Function name	: app_set_next_report_time_other
-* Description	: ÉèÖÃÉÏ±¨¼ä¸ôÊ±¼ä-¿ÉÑ¡Ôñ
+* Description	: è®¾ç½®ä¸ŠæŠ¥é—´éš”æ—¶é—´-å¯é€‰æ‹©
 * Parameter		: 
-*	@time		: ÉÏ±¨Ê±¼ä
-*	@sel		: ÉèÖÃ±àºÅ
+*	@time		: ä¸ŠæŠ¥æ—¶é—´
+*	@sel		: è®¾ç½®ç¼–å·
 * Return		: 
 *	
 ************************************************************/
@@ -2139,14 +2137,14 @@ void app_set_next_report_time_other(uint16_t time,uint8_t sel)
 /************************************************************
 *
 * Function name	: app_set_next_ping_time
-* Description	: ÉèÖÃÏÂÒ»´ÎpingµÄÊ±¼ä
+* Description	: è®¾ç½®ä¸‹ä¸€æ¬¡pingçš„æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_set_next_ping_time(uint16_t time, uint8_t time_dev)
 {
-	/* ½«Ê±¼äµ¥Î»×ª»»Îªms */
+	/* å°†æ—¶é—´å•ä½è½¬æ¢ä¸ºms */
 	sg_comparam_t.ping = time*1000;
 	sg_comparam_t.dev_ping = time_dev*1000;
 	
@@ -2155,14 +2153,14 @@ void app_set_next_ping_time(uint16_t time, uint8_t time_dev)
 /************************************************************
 *
 * Function name	: app_set_network_delay_time
-* Description	: // ÉèÖÃÍøÂçÑÓÊ±Ê±¼ä  20220308
+* Description	: // è®¾ç½®ç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_set_network_delay_time(uint8_t time_dev)
 {
-	/* ½«Ê±¼äµ¥Î»×ª»»Îªms */
+	/* å°†æ—¶é—´å•ä½è½¬æ¢ä¸ºms */
 	sg_comparam_t.network_time = time_dev;
 	app_set_save_infor_function(SAVE_COM_PARAMETER);
 }
@@ -2170,7 +2168,7 @@ void app_set_network_delay_time(uint8_t time_dev)
 /************************************************************
 *
 * Function name	: app_get_current_time
-* Description	: »ñÈ¡µ±Ç°Ê±¼ä
+* Description	: è·å–å½“å‰æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2188,7 +2186,7 @@ void app_get_current_time(char *time)
 /************************************************************
 *
 * Function name	: app_get_current_times
-* Description	: »ñÈ¡µ±Ç°Ê±¼ä
+* Description	: è·å–å½“å‰æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2201,9 +2199,9 @@ void *app_get_current_times(void)
 /************************************************************
 *
 * Function name	: app_get_report_current_time
-* Description	: »ñÈ¡µ±Ç°ÉÏ±¨µÄÊµÊ±Ê±¼ä
+* Description	: è·å–å½“å‰ä¸ŠæŠ¥çš„å®æ—¶æ—¶é—´
 * Parameter		: 
-*	@mode		: 0£ºÃë 1£ººÁÃë
+*	@mode		: 0ï¼šç§’ 1ï¼šæ¯«ç§’
 * Return		: 
 *	
 ************************************************************/
@@ -2245,7 +2243,7 @@ uint8_t* app_get_report_current_time(uint8_t mode)
 /************************************************************
 *
 * Function name	: app_set_current_time
-* Description	: ÉèÖÃÊ±¼ä
+* Description	: è®¾ç½®æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2261,7 +2259,7 @@ void app_set_current_time(int *time,uint8_t conv)
 	time_t.min   = time[4];
 	time_t.sec   = time[5];
 	
-	if(conv) // ÊÇ·ñĞèÒª×ª»»
+	if(conv) // æ˜¯å¦éœ€è¦è½¬æ¢
 	{
 		rtc_time_t conv_time;
 		local_to_utc_time(&conv_time,8,time_t);
@@ -2274,7 +2272,7 @@ void app_set_current_time(int *time,uint8_t conv)
 /************************************************************
 *
 * Function name	: app_get_next_ping_time
-* Description	: »ñÈ¡pingµÄ¼ä¸ôÊ±¼ä
+* Description	: è·å–pingçš„é—´éš”æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2287,7 +2285,7 @@ uint32_t app_get_next_ping_time(void)
 /************************************************************
 *
 * Function name	: app_get_next_dev_ping_time
-* Description	: »ñÈ¡ÏÂÒ»¸öÉè±¸µÄpingÊ±¼ä
+* Description	: è·å–ä¸‹ä¸€ä¸ªè®¾å¤‡çš„pingæ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2300,7 +2298,7 @@ uint32_t app_get_next_dev_ping_time(void)
 /************************************************************
 *
 * Function name	: app_get_report_time
-* Description	: »ñÈ¡Í¨ĞÅÉÏ±¨¼ä¸ôÊ±¼ä
+* Description	: è·å–é€šä¿¡ä¸ŠæŠ¥é—´éš”æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2312,7 +2310,7 @@ uint32_t app_get_report_time(void)
 /************************************************************
 *
 * Function name	: app_get_report_time
-* Description	: »ñÈ¡Í¨ĞÅÉÏ±¨¼ä¸ôÊ±¼ä
+* Description	: è·å–é€šä¿¡ä¸ŠæŠ¥é—´éš”æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2324,7 +2322,7 @@ uint8_t app_get_network_delay_time(void)
 /************************************************************
 *
 * Function name	: app_get_device_reload_time
-* Description	: »ñÈ¡ÖØÆôÊ±¼ä
+* Description	: è·å–é‡å¯æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	  20240903
@@ -2336,7 +2334,7 @@ uint32_t app_get_device_reload_time(void)
 /************************************************************
 *
 * Function name	: app_get_main_network_ping_ip_addr
-* Description	: »ñÈ¡Ö÷ÍøÂçpingµØÖ·
+* Description	: è·å–ä¸»ç½‘ç»œpingåœ°å€
 * Parameter		: 
 * Return		: 
 *	
@@ -2352,7 +2350,7 @@ void app_get_main_network_ping_ip_addr(uint8_t* ip)
 /************************************************************
 *
 * Function name	: app_get_main_network_sub_ping_ip_addr
-* Description	: »ñÈ¡Ö÷Íøpingip - 2
+* Description	: è·å–ä¸»ç½‘pingip - 2
 * Parameter		: 
 * Return		: 
 *	
@@ -2368,7 +2366,7 @@ void app_get_main_network_sub_ping_ip_addr(uint8_t* ip)
 /************************************************************
 *
 * Function name	: app_set_main_network_ping_ip
-* Description	: ÉèÖÃÖ÷Íø¼ì²âIP
+* Description	: è®¾ç½®ä¸»ç½‘æ£€æµ‹IP
 * Parameter		: 
 * Return		: 
 *	
@@ -2385,16 +2383,16 @@ void app_set_main_network_ping_ip(uint8_t *ip)
 	sg_sysparam_t.local.ping_sub_ip[2] = ip[6];
 	sg_sysparam_t.local.ping_sub_ip[3] = ip[7];
 	
-	/* ±£´æ */
+	/* ä¿å­˜ */
 	app_set_save_infor_function(SAVE_LOCAL_NETWORK);
 }
 
 /************************************************************
 *
 * Function name	: app_set_com_interface_selection_function
-* Description	: Í¨ĞÅ½Ó¿ÚÑ¡Ôñº¯Êı
+* Description	: é€šä¿¡æ¥å£é€‰æ‹©å‡½æ•°
 * Parameter		: 
-*	@mode		: 0:ÓĞÏß 1:ÍâÍø
+*	@mode		: 0:æœ‰çº¿ 1:å¤–ç½‘
 * Return		: 
 *	
 ************************************************************/
@@ -2406,7 +2404,7 @@ void app_set_com_interface_selection_function(uint8_t mode)
 /************************************************************
 *
 * Function name	: app_send_once_heart_infor
-* Description	: Á¢¿Ì½øĞĞÒ»´ÎĞÄÌø·¢Éú
+* Description	: ç«‹åˆ»è¿›è¡Œä¸€æ¬¡å¿ƒè·³å‘ç”Ÿ
 * Parameter		: 
 * Return		: 
 *	
@@ -2419,7 +2417,7 @@ void app_send_once_heart_infor(void)
 /************************************************************
 *
 * Function name	: app_get_com_time_infor
-* Description	: »ñÈ¡Í¨ĞÅ¼ä¸ôÊ±¼ä
+* Description	: è·å–é€šä¿¡é—´éš”æ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2432,7 +2430,7 @@ void *app_get_com_time_infor(void)
 /************************************************************
 *
 * Function name	: app_get_comparision_param
-* Description	: »ñÈ¡¶Ô±È²ÎÊı£º¼ÓÈÈ¡¢·çÉÈ¡¢Ê±¼ä¡¢ÉãÏñÍ·
+* Description	: è·å–å¯¹æ¯”å‚æ•°ï¼šåŠ çƒ­ã€é£æ‰‡ã€æ—¶é—´ã€æ‘„åƒå¤´
 * Parameter		: 
 * Return		: 
 *	
@@ -2446,7 +2444,7 @@ void *app_get_comparision_param(void)
 /************************************************************
 *
 * Function name	: app_get_network_mode
-* Description	: »ñÈ¡ÍøÂçÄ£Ê½
+* Description	: è·å–ç½‘ç»œæ¨¡å¼
 * Parameter		: 
 * Return		: 
 *	
@@ -2464,7 +2462,7 @@ uint8_t app_get_network_mode(void)
 /************************************************************
 *
 * Function name	: app_get_carema_search_mode
-* Description	: »ñÈ¡ÉãÏñ»úËÑË÷Ğ­Òé
+* Description	: è·å–æ‘„åƒæœºæœç´¢åè®®
 * Parameter		: 
 * Return		: 
 *	   20230810
@@ -2477,7 +2475,7 @@ uint8_t app_get_carema_search_mode(void)
 /************************************************************
 *
 * Function name	: app_set_com_time_param_function
-* Description	: ÉèÖÃÍ¨ĞÅÏà¹ØÊ±¼ä²ÎÊı:ping¡¢ÉÏ±¨
+* Description	: è®¾ç½®é€šä¿¡ç›¸å…³æ—¶é—´å‚æ•°:pingã€ä¸ŠæŠ¥
 * Parameter		: 
 * Return		: 
 *	
@@ -2488,24 +2486,24 @@ void app_set_com_time_param_function(uint32_t *time,uint8_t mode)
 	{
 		sg_comparam_t.dev_ping = time[1]*1000;
 		sg_comparam_t.ping     = time[0]*1000;
-		sg_comparam_t.reload     = time[3]*3600;    // ÖØÆôÊ±¼ä       20240904
+		sg_comparam_t.reload     = time[3]*3600;    // é‡å¯æ—¶é—´       20240904
 	} 
 	else 	if(mode == 1) 
 	{
 		sg_comparam_t.report  = time[0]*1000;
 	}
-	else 	if(mode == 2)   // ÍøÂçÑÓÊ±Ê±¼ä  20220308
+	else 	if(mode == 2)   // ç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
 	{
 		sg_comparam_t.network_time  = time[0];
 	}
-	/* ±£´æ */
+	/* ä¿å­˜ */
 	app_set_save_infor_function(SAVE_COM_PARAMETER);
 }
 
 /************************************************************
 *
 * Function name	: app_get_report_switch_status
-* Description	: »ñÈ¡ÉÏ±¨¿ª¹Ø×´Ì¬
+* Description	: è·å–ä¸ŠæŠ¥å¼€å…³çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	  20230722 FLAG_WATER_ERROR|FLAG_WATER_NOEMAL|FLAG_SPD|FLAG_ANGLE|FLAG_TEMP_HIGH|FLAG_TEMP_LOW|\
@@ -2530,7 +2528,7 @@ void app_get_report_switch_status(uint8_t *sw)
 /************************************************************
 *
 * Function name	: app_set_report_switch_status
-* Description	: ÉèÖÃÉÏ±¨¿ª¹Ø×´Ì¬
+* Description	: è®¾ç½®ä¸ŠæŠ¥å¼€å…³çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	  20230722 
@@ -2612,22 +2610,22 @@ void app_set_report_switch_status(uint8_t sw,REPORT_FLAG sel)
 				sg_sysparam_t.report.report_allowed &=~FLAG_FAN;
 			break;
 	}
-	/* ´æ´¢ */
+	/* å­˜å‚¨ */
 	app_set_save_infor_function(SAVE_REPORT_SW);
 }
 
 
-const char cg_network_no[] = {0xe6,0x97,0xa0,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5,0x00};									// Î´Á¬½Ó
-const char cg_network_lan[] = {0xe6,0x9c,0x89,0xe7,0xba,0xbf,0xe5,0xb7,0xb2,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5,0x00};	// ÓĞÏßÒÑÁ¬½Ó
-const char cg_netwokr_gprs[] = {0xe6,0x97,0xa0,0xe7,0xba,0xbf,0xe5,0xb7,0xb2 ,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5,0x00};	// ÎŞÏßÒÑÁ¬½Ó
-const char cg_network_all[] = {0xe5,0x90,0x8c,0xe6,0x97,0xb6,0xe5,0x9c,0xa8,0xe7,0xba,0xbf,0x00};	 // Í¬Ê±ÔÚÏß
-const char cg_network_accept[] = {0xe7,0x9b,0x91,0xe5,0x90,0xac,0xe6,0xa8,0xa1,0xe5,0xbc,0x8f};	// ¼àÌıÄ£Ê½
-const char cg_netwokr_clientok[] = {0xe5,0xae,0xa2,0xe6,0x88,0xb7,0xe7,0xab,0xaf,0xe5,0xb7,0xb2,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5};	// ¿Í»§¶ËÒÑÁ¬½Ó
+const char cg_network_no[] = {0xe6,0x97,0xa0,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5,0x00};									// æœªè¿æ¥
+const char cg_network_lan[] = {0xe6,0x9c,0x89,0xe7,0xba,0xbf,0xe5,0xb7,0xb2,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5,0x00};	// æœ‰çº¿å·²è¿æ¥
+const char cg_netwokr_gprs[] = {0xe6,0x97,0xa0,0xe7,0xba,0xbf,0xe5,0xb7,0xb2 ,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5,0x00};	// æ— çº¿å·²è¿æ¥
+const char cg_network_all[] = {0xe5,0x90,0x8c,0xe6,0x97,0xb6,0xe5,0x9c,0xa8,0xe7,0xba,0xbf,0x00};	 // åŒæ—¶åœ¨çº¿
+const char cg_network_accept[] = {0xe7,0x9b,0x91,0xe5,0x90,0xac,0xe6,0xa8,0xa1,0xe5,0xbc,0x8f};	// ç›‘å¬æ¨¡å¼
+const char cg_netwokr_clientok[] = {0xe5,0xae,0xa2,0xe6,0x88,0xb7,0xe7,0xab,0xaf,0xe5,0xb7,0xb2,0xe8,0xbf,0x9e,0xe6,0x8e,0xa5};	// å®¢æˆ·ç«¯å·²è¿æ¥
 
 /************************************************************
 *
 * Function name	: app_get_network_connect_status
-* Description	: »ñÈ¡ÍøÂçÁ¬½Ó×´Ì¬
+* Description	: è·å–ç½‘ç»œè¿æ¥çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -2651,7 +2649,7 @@ void app_get_network_connect_status(char *buff)
 /************************************************************
 *
 * Function name	: app_get_device_name
-* Description	: »ñÈ¡Éè±¸Ãû³Æ
+* Description	: è·å–è®¾å¤‡åç§°
 * Parameter		: 
 * Return		: 
 *	
@@ -2676,7 +2674,7 @@ void app_detect_function(void)
 /************************************************************
 *
 * Function name	: app_get_vlot_protec_status
-* Description	: »ñÈ¡µçÑ¹±£»¤×´Ì¬
+* Description	: è·å–ç”µå‹ä¿æŠ¤çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -2689,7 +2687,7 @@ uint8_t app_get_vlot_protec_status(void)
 /************************************************************
 *
 * Function name	: app_get_current_status
-* Description	: »ñÈ¡µçÁ÷×´Ì¬
+* Description	: è·å–ç”µæµçŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -2702,7 +2700,7 @@ uint8_t app_get_current_status(void)
 /************************************************************
 *
 * Function name	: app_set_threshold_param_function
-* Description	: ÉèÖÃãĞÖµ
+* Description	: è®¾ç½®é˜ˆå€¼
 * Parameter		: 
 * Return		: 
 *	   20230720
@@ -2722,7 +2720,7 @@ void app_set_threshold_param_function(struct threshold_params param)
 /************************************************************
 *
 * Function name	: app_get_threshold_param_function
-* Description	: »ñÈ¡ãĞÖµ
+* Description	: è·å–é˜ˆå€¼
 * Parameter		: 
 * Return		: 
 *	   20230720
@@ -2735,7 +2733,7 @@ void *app_get_threshold_param_function(void)
 /************************************************************
 *
 * Function name	: app_get_fault_code_function
-* Description	: »ñÈ¡¹ÊÕÏÂë
+* Description	: è·å–æ•…éšœç 
 * Parameter		: 
 * Return		: 
 *	   20230720
@@ -2748,7 +2746,7 @@ uint16_t app_get_fault_code_function(void)
 /************************************************************
 *
 * Function name	: app_get_backups_param_function
-* Description	: »ñÈ¡±¸·İÊı¾İ
+* Description	: è·å–å¤‡ä»½æ•°æ®
 * Parameter		: 
 * Return		: 
 *	   20231022
@@ -2760,7 +2758,7 @@ void *app_get_backups_param_function(void)
 /************************************************************
 *
 * Function name	: app_server_link_status_function
-* Description	: ·şÎñÆ÷Á¬½ÓÊ±¼äÅĞ¶Ï
+* Description	: æœåŠ¡å™¨è¿æ¥æ—¶é—´åˆ¤æ–­
 * Parameter		: 
 * Return		: 
 *	   20231022
@@ -2773,13 +2771,13 @@ void app_server_link_status_function(void)
 	if(server_time_count >= SERVER_LINK_TIME)
 	{
 		server_time_count = 0;
-		if(sg_backups_t.config_flag == 1)  // ÅäÖÃ¹ı·şÎñÆ÷
+		if(sg_backups_t.config_flag == 1)  // é…ç½®è¿‡æœåŠ¡å™¨
 		{
 			sg_backups_t.config_flag = 0;
 			save_stroage_backups_function(&sg_backups_t);
 			if((eth_get_tcp_status() != 2 ) && ( gsm_get_network_connect_status_function() != 1 ))
 			{
-				sg_sysoperate_t.save_flag.erase_server_ip = 1; // ²Á³ı·şÎñÆ÷ÅäÖÃ
+				sg_sysoperate_t.save_flag.erase_server_ip = 1; // æ“¦é™¤æœåŠ¡å™¨é…ç½®
 			}
 		}
 	}
@@ -2788,7 +2786,7 @@ void app_server_link_status_function(void)
 /************************************************************
 *
 * Function name	: app_save_backups_remote_param_function
-* Description	: ±¸·İ·şÎñÆ÷ĞÅÏ¢
+* Description	: å¤‡ä»½æœåŠ¡å™¨ä¿¡æ¯
 * Parameter		: 
 * Return		: 
 *	   20231022
@@ -2800,20 +2798,20 @@ void app_save_backups_remote_param_function(void)
 	sg_backups_t.remote.outside_port = sg_sysparam_t.remote.outside_port;
 	sg_backups_t.config_flag = 1;
 	
-	save_stroage_backups_function(&sg_backups_t); // ´æ´¢±¸·İĞÅÏ¢
+	save_stroage_backups_function(&sg_backups_t); // å­˜å‚¨å¤‡ä»½ä¿¡æ¯
 }
 
 /************************************************************
 *
 * Function name	: app_power_fail_protection_function
-* Description	: µôµç±£»¤
+* Description	: æ‰ç”µä¿æŠ¤
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_power_fail_protection_function(void)
 {
-	/* ¿ª¹ØÈ«²¿¹Ø±Õ */
+	/* å¼€å…³å…¨éƒ¨å…³é—­ */
 	if(relay_get_status_function(RELAY_1) == RELAY_ON) 
 		relay_control(RELAY_1,RELAY_OFF);
 	
@@ -2841,41 +2839,41 @@ void app_power_fail_protection_function(void)
 /************************************************************
 *
 * Function name	: app_power_open_protection_function
-* Description	: ´ò¿ª¼ÌµçÆ÷
+* Description	: æ‰“å¼€ç»§ç”µå™¨
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_power_open_protection_function(void)
 {
-	/* ¿ª¹ØÈ«²¿´ò¿ª */
-	relay_control(RELAY_1,RELAY_ON); // ¿ª¼ÌµçÆ÷
-	OSTimeDlyHMSM(0,0,1,0);  			// ÑÓÊ±10ms
-	relay_control(RELAY_2,RELAY_ON); // ¿ª¼ÌµçÆ÷
-	OSTimeDlyHMSM(0,0,1,0);  			// ÑÓÊ±10ms
-	relay_control(RELAY_3,RELAY_ON); // ¿ª¼ÌµçÆ÷
-	OSTimeDlyHMSM(0,0,1,0);  			// ÑÓÊ±10ms
-	relay_control(RELAY_4,RELAY_ON); // ¿ª¼ÌµçÆ÷
-	OSTimeDlyHMSM(0,0,1,0);  			// ÑÓÊ±10ms
-	relay_control(RELAY_5,RELAY_ON); // ¿ª¼ÌµçÆ÷
-	OSTimeDlyHMSM(0,0,1,0);  			// ÑÓÊ±10ms
-	relay_control(RELAY_6,RELAY_ON); // ¿ª¼ÌµçÆ÷
-	OSTimeDlyHMSM(0,0,1,0);  			// ÑÓÊ±10ms
-	relay_control(RELAY_7,RELAY_ON); // ¿ª¼ÌµçÆ÷
-	OSTimeDlyHMSM(0,0,1,0);  			// ÑÓÊ±10ms
-	relay_control(RELAY_8,RELAY_ON); // ¿ª¼ÌµçÆ÷
+	/* å¼€å…³å…¨éƒ¨æ‰“å¼€ */
+	relay_control(RELAY_1,RELAY_ON); // å¼€ç»§ç”µå™¨
+	OSTimeDlyHMSM(0,0,1,0);  			// å»¶æ—¶10ms
+	relay_control(RELAY_2,RELAY_ON); // å¼€ç»§ç”µå™¨
+	OSTimeDlyHMSM(0,0,1,0);  			// å»¶æ—¶10ms
+	relay_control(RELAY_3,RELAY_ON); // å¼€ç»§ç”µå™¨
+	OSTimeDlyHMSM(0,0,1,0);  			// å»¶æ—¶10ms
+	relay_control(RELAY_4,RELAY_ON); // å¼€ç»§ç”µå™¨
+	OSTimeDlyHMSM(0,0,1,0);  			// å»¶æ—¶10ms
+	relay_control(RELAY_5,RELAY_ON); // å¼€ç»§ç”µå™¨
+	OSTimeDlyHMSM(0,0,1,0);  			// å»¶æ—¶10ms
+	relay_control(RELAY_6,RELAY_ON); // å¼€ç»§ç”µå™¨
+	OSTimeDlyHMSM(0,0,1,0);  			// å»¶æ—¶10ms
+	relay_control(RELAY_7,RELAY_ON); // å¼€ç»§ç”µå™¨
+	OSTimeDlyHMSM(0,0,1,0);  			// å»¶æ—¶10ms
+	relay_control(RELAY_8,RELAY_ON); // å¼€ç»§ç”µå™¨
 }
 /************************************************************
 *
 * Function name	: app_open_exec_task_function
-* Description	: ¿ª¹Ø×´Ì¬Ö´ĞĞº¯Êı
+* Description	: å¼€å…³çŠ¶æ€æ‰§è¡Œå‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_open_exec_task_function(void)
 {
-	/* ¼ì²âÉè±¸ÊÇ·ñĞèÒªÉ¢ÈÈ */
+	/* æ£€æµ‹è®¾å¤‡æ˜¯å¦éœ€è¦æ•£çƒ­ */
 	if( det_get_inside_temp() < (sg_sysparam_t.threshold.temp_high-10))
 	{
 		fan_control(FAN_1,FAN_OFF);
@@ -2891,7 +2889,7 @@ void app_open_exec_task_function(void)
 /************************************************************
 *
 * Function name	: app_send_data_task_function
-* Description	: ·¢ËÍÊı¾İ
+* Description	: å‘é€æ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -2904,7 +2902,7 @@ void app_send_data_task_function(void)
 /************************************************************
 *
 * Function name	: app_set_http_com_status_function
-* Description	: ÉèÖÃµ±Ç°http×´Ì¬
+* Description	: è®¾ç½®å½“å‰httpçŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -2918,7 +2916,7 @@ void app_set_http_websocket_status_function(uint8_t status)
 /************************************************************
 *
 * Function name	: app_get_device_uuid
-* Description	: »ñÈ¡UUID
+* Description	: è·å–UUID
 * Parameter		: 
 * Return		: 
 *	
@@ -2930,7 +2928,7 @@ void *app_get_device_uuid(void)
 /************************************************************
 *
 * Function name	: app_fan_timer_function
-* Description	: ·çÉÈ¼ÇÊ±Ïà¹Øº¯Êı
+* Description	: é£æ‰‡è®°æ—¶ç›¸å…³å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -2944,7 +2942,7 @@ void app_fan_timer_function(void)
 		sg_comparam_t.fan_time++;
 		fan_count++;
 	}
-	if(fan_count >= 600) // 10minÖĞ±£´æÒ»´Î
+	if(fan_count >= 600) // 10minä¸­ä¿å­˜ä¸€æ¬¡
 	{
 		fan_count = 0;
 		app_set_save_infor_function(SAVE_COM_PARAMETER);
@@ -2954,7 +2952,7 @@ void app_fan_timer_function(void)
 /************************************************************
 *
 * Function name	: app_get_fan_time
-* Description	: »ñÈ¡·çÉÈÔËĞĞÊ±¼ä
+* Description	: è·å–é£æ‰‡è¿è¡Œæ—¶é—´
 * Parameter		: 
 * Return		: 
 *	
@@ -2970,7 +2968,7 @@ uint32_t app_get_fan_time(uint8_t id)
 /************************************************************
 *
 * Function name	: my_app_run_param_init
-* Description	: ³ÌĞòÔËĞĞ²ÎÊı
+* Description	: ç¨‹åºè¿è¡Œå‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -2979,7 +2977,7 @@ void my_app_run_param_init(void)
 {
 	run_result_t  sg_run_param = {0};
 	save_read_run_param(&sg_run_param);
-	sg_run_param.JumpResult = 1; // Ìø×ª³É¹¦
+	sg_run_param.JumpResult = 1; // è·³è½¬æˆåŠŸ
 	save_write_run_param(sg_run_param);
 }
 

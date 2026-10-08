@@ -403,16 +403,6 @@
               <FileType>1</FileType>
               <FilePath>..\APP\USER\src\http_com.c</FilePath>
             </File>
-            <File>
-              <FileName>http_com2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\APP\USER\src\http_com2.c</FilePath>
-            </File>
-            <File>
-              <FileName>http_com3.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\APP\USER\src\http_com3.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
