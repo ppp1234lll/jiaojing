@@ -464,11 +464,6 @@
           <GroupName>APP/TOOL</GroupName>
           <Files>
             <File>
-              <FileName>cJSON.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\APP\TOOL\src\cJSON.c</FilePath>
-            </File>
-            <File>
               <FileName>crc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\APP\TOOL\src\crc.c</FilePath>

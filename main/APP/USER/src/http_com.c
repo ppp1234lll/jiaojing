@@ -7,7 +7,6 @@
 #include "malloc.h"
 #include "save.h"
 #include "lwip_comm.h"
-#include "cJSON.h"
 #include "my_json.h"
 #include "appconfig.h"
 #include "includes.h"
@@ -472,23 +471,16 @@ void http_com_ack_function(char *data, uint16_t *len, char *json_str,uint16_t js
 ************************************************************/
 void http_json_ack_status(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char *json_data = NULL;
-	cJSON *json        = NULL;
+	my_json_t js;
 
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
+	my_json_init(&js, buf, 4000);		/* buf = http_data_send_function 中 mymalloc(4000) 的 ack_json_buf */
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+	my_json_object_end(&js);
 
-	if(json != NULL )
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -501,33 +493,27 @@ void http_json_ack_status(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_waterout(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
+	my_json_t js;
 	uint8_t stauts = 0;
+
 	if(HTTP_COM_DEBUG) printf("http_json_ack_waterout \n");
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	
+
 	if(det_get_water_status() == 1)
 		stauts = 2;
 	else if(det_get_water_status() == 2)
 		stauts = 1;
-	
-	if(json != NULL && data != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		cJSON_AddItemToObject(json,"data",data);		
-		cJSON_AddNumberToObject(data,"Value",stauts);
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}	
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	cJSON_Delete(json);
-	cJSON_Delete(data);
-	myfree(SRAMIN,json_data);
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+	my_json_object_begin(&js, "data");
+	my_json_add_int(&js, "Value", stauts);
+	my_json_object_end(&js);
+	my_json_object_end(&js);
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 
@@ -541,57 +527,44 @@ void http_json_ack_waterout(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_devicedescription(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
-	cJSON *value       = NULL;
 	struct device_param 	*device  = app_get_device_param_function();
 	struct local_ip_t   	*local   = app_get_local_network_function();
 	char temp[20] = {0};
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	
-	if(json != NULL && data != NULL && value != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddStringToObject(value,"deviceName",""); 				// 设备名称
-		cJSON_AddStringToObject(value,"deviceDescription",""); 	// 设备描述
-		cJSON_AddStringToObject(value,"deviceLocation",""); 		// 设备位置
-		cJSON_AddStringToObject(value,"model",HARD_NO_STR);  		// 设备型号
-		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d",device->id.i);
-		cJSON_AddStringToObject(value,"serialNumber",temp); 		// 设备序列号
-		cJSON_AddStringToObject(value,"subSerialNumber",""); 		// 子序列号
-		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x:%02x:%02x:%02x:%02x:%02x",
-											local->mac[0],local->mac[1],local->mac[2],
-											local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(value,"macAddress",temp); 				// MAC地址
-		cJSON_AddStringToObject(value,"ARCID",""); 							// ARC编号
-		cJSON_AddStringToObject(value,"boardModel",""); 				// 板卡型号
-		cJSON_AddStringToObject(value,"mainboardModel",""); 		// 主板型号
-		cJSON_AddStringToObject(value,"chipPlatform","GD32F107"); // 芯片平台
-		cJSON_AddStringToObject(value,"deviceType","MCU"); 			// 设备类型
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}	
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(json);
-	cJSON_Delete(data);
-	cJSON_Delete(value);
-	myfree(SRAMIN,json_data);
+	my_json_t js;
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_add_str(&js, "deviceName", "");					// 设备名称
+	my_json_add_str(&js, "deviceDescription", "");			// 设备描述
+	my_json_add_str(&js, "deviceLocation", "");				// 设备位置
+	my_json_add_str(&js, "model", HARD_NO_STR);				// 设备型号
+
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d",device->id.i);
+	my_json_add_str(&js, "serialNumber", temp);				// 设备序列号
+	my_json_add_str(&js, "subSerialNumber", "");			// 子序列号
+
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x:%02x:%02x:%02x:%02x:%02x",
+										local->mac[0],local->mac[1],local->mac[2],
+										local->mac[3],local->mac[4],local->mac[5]);
+	my_json_add_str(&js, "macAddress", temp);				// MAC地址
+	my_json_add_str(&js, "ARCID", "");						// ARC编号
+	my_json_add_str(&js, "boardModel", "");					// 板卡型号
+	my_json_add_str(&js, "mainboardModel", "");				// 主板型号
+	my_json_add_str(&js, "chipPlatform", "GD32F107");		// 芯片平台
+	my_json_add_str(&js, "deviceType", "MCU");				// 设备类型
+	my_json_object_end(&js);								// Value
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -604,38 +577,25 @@ void http_json_ack_devicedescription(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_deviceservicedescription(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
-	cJSON *value       = NULL;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	
-	if(json != NULL && data != NULL && value != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddStringToObject(value,"systemContact","fengniao"); 				// 生产商
-		cJSON_AddStringToObject(value,"companyName","fengniao"); 	// 生产公司简称
-		cJSON_AddStringToObject(value,"copyright",""); 			// 版权信息
-		cJSON_AddStringToObject(value,"supportUrl","undefined");  		// 服务门户网站
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(json);
-	cJSON_Delete(data);
-	cJSON_Delete(value);
-	myfree(SRAMIN,json_data);
+	my_json_t js;
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_add_str(&js, "systemContact", "fengniao");		// 生产商
+	my_json_add_str(&js, "companyName", "fengniao");		// 生产公司简称
+	my_json_add_str(&js, "copyright", "");					// 版权信息
+	my_json_add_str(&js, "supportUrl", "undefined");		// 服务门户网站
+	my_json_object_end(&js);								// Value
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 
@@ -649,44 +609,31 @@ void http_json_ack_deviceservicedescription(char* buf,uint16_t *size,uint8_t sta
 ************************************************************/
 void http_json_ack_deviceversion(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
-	cJSON *value       = NULL;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	
-	if(json != NULL && data != NULL && value != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddStringToObject(value,"firmwareVersion",SOFT_NO_STR); 				// 主控版本号
-		cJSON_AddStringToObject(value,"firmwareReleasedDate",SOFT_NO_DAT); 	// 主控版本日期
-		cJSON_AddStringToObject(value,"firmwareVersionInfo",""); 					// 主控版本描述信息
-		cJSON_AddStringToObject(value,"softwareVersion",SOFT_NO_STR);  		// 软件版本信息
-		cJSON_AddStringToObject(value,"playbackLibraryVersion","");  		// 播放库版本
-		cJSON_AddStringToObject(value,"kernelVersion","");  		// 内核版本
-		cJSON_AddStringToObject(value,"DSPVersion","");  			// DSP版本
-		cJSON_AddStringToObject(value,"BSPVersion","");  			// BSP版本
-		cJSON_AddStringToObject(value,"FPGAVersion","");  		// FPGA版本
-		cJSON_AddStringToObject(value,"hardwareVersion","V1.2");  		// 硬件版本
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	*size = strlen((char*)json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(json);
-	cJSON_Delete(data);
-	cJSON_Delete(value);
-	myfree(SRAMIN,json_data);
+	my_json_t js;
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_add_str(&js, "firmwareVersion", SOFT_NO_STR);			// 主控版本号
+	my_json_add_str(&js, "firmwareReleasedDate", SOFT_NO_DAT);		// 主控版本日期
+	my_json_add_str(&js, "firmwareVersionInfo", "");				// 主控版本描述信息
+	my_json_add_str(&js, "softwareVersion", SOFT_NO_STR);			// 软件版本信息
+	my_json_add_str(&js, "playbackLibraryVersion", "");				// 播放库版本
+	my_json_add_str(&js, "kernelVersion", "");						// 内核版本
+	my_json_add_str(&js, "DSPVersion", "");							// DSP版本
+	my_json_add_str(&js, "BSPVersion", "");							// BSP版本
+	my_json_add_str(&js, "FPGAVersion", "");						// FPGA版本
+	my_json_add_str(&js, "hardwareVersion", "V1.2");				// 硬件版本
+	my_json_object_end(&js);										// Value
+	my_json_object_end(&js);										// data
+	my_json_object_end(&js);										// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -699,43 +646,31 @@ void http_json_ack_deviceversion(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_angle(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
-	cJSON *value       = NULL;
 	uint16_t angle_data = det_get_cabinet_posture();
 	struct threshold_params *threshol = app_get_threshold_param_function();
-	char tiltStatus[10] = {0}; 
-		
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	
-	if(json != NULL && data != NULL && value != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddNumberToObject(value,"inclination",angle_data); 	// 倾斜角度
-		
-		if(angle_data < threshol->angle)
-			sprintf(tiltStatus,"%s","normal");
-		else
-			sprintf(tiltStatus,"%s","abnormal");
-		cJSON_AddStringToObject(value,"tiltStatus",tiltStatus); 	// 倾斜状态
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(json);
-	cJSON_Delete(data);
-	cJSON_Delete(value);
-	myfree(SRAMIN,json_data);
+	char tiltStatus[10] = {0};
+	my_json_t js;
+
+	if(angle_data < threshol->angle)
+		sprintf(tiltStatus,"%s","normal");
+	else
+		sprintf(tiltStatus,"%s","abnormal");
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_add_int(&js, "inclination", angle_data);		// 倾斜角度
+	my_json_add_str(&js, "tiltStatus", tiltStatus);			// 倾斜状态
+	my_json_object_end(&js);								// Value
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -748,31 +683,20 @@ void http_json_ack_angle(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_tempature(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
+	my_json_t js;
 
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	
-	if(json != NULL && data != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddNumberToObject(data,"Value",det_get_inside_temp()); 	// 温度
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(json);
-	cJSON_Delete(data);
-	myfree(SRAMIN,json_data);
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_add_double(&js, "Value", det_get_inside_temp());	// 温度
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -785,32 +709,20 @@ void http_json_ack_tempature(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_humidity(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
+	my_json_t js;
 
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	
-	if(json != NULL && data != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddNumberToObject(data,"Value",det_get_inside_humi()); 	// 湿度
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(json);
-	cJSON_Delete(data);
-	myfree(SRAMIN,json_data);
+	my_json_object_begin(&js, "data");
+	my_json_add_double(&js, "Value", det_get_inside_humi());	// 湿度
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -823,60 +735,39 @@ void http_json_ack_humidity(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_fanstatus(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *data      = NULL;
-	cJSON *value     = NULL;
-	cJSON* cjson_list= NULL;
-	cJSON *fanStatus1= NULL;
-
+	my_json_t js;
 	uint8_t fan_1 = fan_get_status_function(FAN_1);
 
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_array_begin(&js, "fanStatusList");
+	my_json_object_begin(&js, NULL);						/* 数组元素对象 */
+	my_json_add_int(&js, "ID", FAN_1+1);
+	if(fan_1 == 1)
 	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddItemToObject(value, "fanStatusList", cjson_list);
-		
-    /* 添加一个数组类型的JSON数据(添加一个链表节点) */
-		fanStatus1 = cJSON_CreateObject();
-		if(fanStatus1 != NULL)
-		{
-			cJSON_AddItemToArray(cjson_list, fanStatus1);
-			cJSON_AddNumberToObject(fanStatus1, "ID",FAN_1+1);
-			if(fan_1 == 1)
-			{
-				cJSON_AddNumberToObject(fanStatus1, "speed",3600);
-				cJSON_AddStringToObject(fanStatus1, "fanStatus","normal");				
-			}
-			else
-			{
-				cJSON_AddNumberToObject(fanStatus1, "speed",0);
-				cJSON_AddStringToObject(fanStatus1, "fanStatus","notPower");				
-			}				
-			cJSON_AddNumberToObject(fanStatus1, "curRunningTime", app_get_fan_time(0));
-			cJSON_AddNumberToObject(fanStatus1, "totalRunningTime",app_get_fan_time(1));	
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+		my_json_add_int(&js, "speed", 3600);
+		my_json_add_str(&js, "fanStatus", "normal");
 	}
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(fanStatus1);	
-	cJSON_Delete(cjson_list);	
-	cJSON_Delete(value);	
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	else
+	{
+		my_json_add_int(&js, "speed", 0);
+		my_json_add_str(&js, "fanStatus", "notPower");
+	}
+	my_json_add_int(&js, "curRunningTime", app_get_fan_time(0));
+	my_json_add_int(&js, "totalRunningTime", app_get_fan_time(1));
+	my_json_object_end(&js);								/* 数组元素对象结束 */
+	my_json_array_end(&js);									/* fanStatusList */
+	my_json_object_end(&js);								/* Value */
+	my_json_object_end(&js);								/* data */
+	my_json_object_end(&js);								/* root */
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -889,56 +780,31 @@ void http_json_ack_fanstatus(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_doorstatus(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
-	cJSON *value       = NULL;
-	cJSON* cjson_list  = NULL;
-	cJSON *doorstatus   = NULL;
+	my_json_t js;
 	uint8_t door = det_get_open_door();
-		
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddItemToObject(value, "doorStatusList", cjson_list);
-		
-    /* 添加一个数组类型的JSON数据(添加一个链表节点) */
-		doorstatus = cJSON_CreateObject();
-		if(doorstatus != NULL )
-		{
-			cJSON_AddItemToArray(cjson_list, doorstatus);
-			cJSON_AddNumberToObject(doorstatus, "doorID",1);
-			if(door == 1)
-			{
-				cJSON_AddStringToObject(doorstatus, "doorStatus","opened");				
-			}
-			else
-			{
-				cJSON_AddStringToObject(doorstatus, "doorStatus","closed");				
-			}	
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(doorstatus);
-	cJSON_Delete(cjson_list);
-	cJSON_Delete(value);
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_array_begin(&js, "doorStatusList");
+	my_json_object_begin(&js, NULL);						/* 数组元素对象 */
+	my_json_add_int(&js, "doorID", 1);
+	if(door == 1)
+		my_json_add_str(&js, "doorStatus", "opened");
+	else
+		my_json_add_str(&js, "doorStatus", "closed");
+	my_json_object_end(&js);								/* 数组元素对象结束 */
+	my_json_array_end(&js);									/* doorStatusList */
+	my_json_object_end(&js);								// Value
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -951,124 +817,86 @@ void http_json_ack_doorstatus(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_networkaddress(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // 数据
-	cJSON *value       = NULL;  // 参数
-	cJSON* cjson_list  = NULL;  // 列表
-	cJSON *ipaddress1_param  = NULL; // 网络 1信息
-	cJSON *ipaddresscfg  = NULL; 		// 网络地址	
-	cJSON *iplink  = NULL; 					// 连接信息
-	cJSON *ipAddress  = NULL; 			// ip地址
-	cJSON *subnetMask  = NULL; 			// 子网掩码	
-	cJSON *defaultGateway  = NULL; 	// 默认网关	
-	cJSON *primaryDNS  = NULL; 			// 首选DNS	
-	cJSON *secondaryDNS  = NULL; 		// 备用DNS
-	
 	struct local_ip_t  *local = app_get_local_network_function();
-	char temp[20] = {0};	
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddItemToObject(value, "ipAddressCfgList", cjson_list);
-		
-    /* 添加一个数组类型的JSON数据(添加一个链表节点) */
-		ipaddress1_param = cJSON_CreateObject();
-		if(ipaddress1_param != NULL )
-		{
-			cJSON_AddItemToArray(cjson_list, ipaddress1_param);
-			cJSON_AddNumberToObject(ipaddress1_param, "id",1);  // 网口索引
-			ipaddresscfg = cJSON_CreateObject();
-			iplink = cJSON_CreateObject();
-			if(ipaddresscfg != NULL && iplink != NULL)
-			{			
-				cJSON_AddItemToObject(ipaddress1_param,"ipAddressCfg",ipaddresscfg);	
-				cJSON_AddItemToObject(ipaddress1_param,"link",iplink);	
-				cJSON_AddStringToObject(ipaddresscfg,"ipVersion","ipv4"); // ip地址类型
-				cJSON_AddStringToObject(ipaddresscfg,"ipv4addressingMethod","static");// ipv4地址获取方法			
-				cJSON_AddStringToObject(ipaddresscfg,"ipv6addressMethod","undefined");// ipv4地址获取方法
-				ipAddress = cJSON_CreateObject();
-				subnetMask = cJSON_CreateObject();
-				defaultGateway = cJSON_CreateObject();			
-				primaryDNS = cJSON_CreateObject();	
-				secondaryDNS = cJSON_CreateObject();	
-				if(ipAddress != NULL && subnetMask != NULL && defaultGateway != NULL && primaryDNS != NULL && secondaryDNS != NULL)
-				{
-					cJSON_AddItemToObject(ipaddresscfg,"ipAddress",ipAddress);	
-					cJSON_AddItemToObject(ipaddresscfg,"subnetMask",subnetMask);	
-					cJSON_AddItemToObject(ipaddresscfg,"defaultGateway",defaultGateway);	
-					cJSON_AddItemToObject(ipaddresscfg,"primaryDNS",primaryDNS);	
-					cJSON_AddItemToObject(ipaddresscfg,"secondaryDNS",secondaryDNS);	
-					// IP地址
-					memset(temp,0,sizeof(temp));
-					sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-					cJSON_AddStringToObject(ipAddress,"ipv4Address",temp);			
-					cJSON_AddStringToObject(ipAddress,"ipv6Address","undefined");			
-					// 子网掩码
-					memset(temp,0,sizeof(temp));
-					sprintf(temp,"%d.%d.%d.%d",local->netmask[0],local->netmask[1],local->netmask[2],local->netmask[3]);
-					cJSON_AddStringToObject(subnetMask,"ipv4Address",temp);			
-					cJSON_AddStringToObject(subnetMask,"ipv6Address","undefined");							
-					/* 网关 */
-					memset(temp,0,sizeof(temp));
-					sprintf(temp,"%d.%d.%d.%d",local->gateway[0],local->gateway[1],local->gateway[2],local->gateway[3]);
-					cJSON_AddStringToObject(defaultGateway,"ipv4Address",temp);			
-					cJSON_AddStringToObject(defaultGateway,"ipv6Address","undefined");					
-					/* 首选DNS */
-					memset(temp,0,sizeof(temp));
-					sprintf(temp,"%d.%d.%d.%d",local->dns[0],local->dns[1],local->dns[2],local->dns[3]);
-					cJSON_AddStringToObject(primaryDNS,"ipv4Address",temp);			
-					cJSON_AddStringToObject(primaryDNS,"ipv6Address","undefined");
-					/* 备用DNS */
-					cJSON_AddStringToObject(secondaryDNS,"ipv4Address","undefined");			
-					cJSON_AddStringToObject(secondaryDNS,"ipv6Address","undefined");				
-				}
-				/* 添加一个值为 False 的布尔类型的JSON数据(添加一个链表节点) */
-				cJSON_AddFalseToObject(ipaddresscfg, "dnsEnable");		
-				memset(temp,0,sizeof(temp));
-				sprintf(temp,"%02x:%02x:%02x:%02x:%02x:%02x",
-													local->mac[0],local->mac[1],local->mac[2],
-													local->mac[3],local->mac[4],local->mac[5]);
-				cJSON_AddStringToObject(iplink,"macAddress",temp);	
-				cJSON_AddTrueToObject(iplink, "autoNegotiation");	 // 自动协商使能					
-				cJSON_AddNumberToObject(iplink,"linkSpeed",LAN8720_Get_Speed());	 // 连接速率	
-				if(LAN8720_Get_Duplex() == 1)
-					cJSON_AddStringToObject(iplink,"linkDuplex","half");	
-				else if(LAN8720_Get_Duplex() == 2)
-					cJSON_AddStringToObject(iplink,"linkDuplex","full");	
-				cJSON_AddNumberToObject(iplink,"mtu",TCP_MSS);								
-			}	
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
+	char temp[20] = {0};
+	my_json_t js;
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	cJSON_Delete(ipAddress);
-	cJSON_Delete(subnetMask);
-	cJSON_Delete(defaultGateway);
-	cJSON_Delete(primaryDNS);
-	cJSON_Delete(secondaryDNS);
-	cJSON_Delete(iplink);
-	cJSON_Delete(ipaddresscfg);
-	cJSON_Delete(ipaddress1_param);
-	cJSON_Delete(cjson_list);
-	cJSON_Delete(value);
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_array_begin(&js, "ipAddressCfgList");
+
+	my_json_object_begin(&js, NULL);						/* 数组元素对象 */
+	my_json_add_int(&js, "id", 1);							// 网口索引
+
+	my_json_object_begin(&js, "ipAddressCfg");
+	my_json_add_str(&js, "ipVersion", "ipv4");				// ip地址类型
+	my_json_add_str(&js, "ipv4addressingMethod", "static");	// ipv4地址获取方法
+	my_json_add_str(&js, "ipv6addressMethod", "undefined");
+
+	my_json_object_begin(&js, "ipAddress");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipv4Address", temp);
+	my_json_add_str(&js, "ipv6Address", "undefined");
+	my_json_object_end(&js);
+
+	my_json_object_begin(&js, "subnetMask");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->netmask[0],local->netmask[1],local->netmask[2],local->netmask[3]);
+	my_json_add_str(&js, "ipv4Address", temp);
+	my_json_add_str(&js, "ipv6Address", "undefined");
+	my_json_object_end(&js);
+
+	my_json_object_begin(&js, "defaultGateway");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->gateway[0],local->gateway[1],local->gateway[2],local->gateway[3]);
+	my_json_add_str(&js, "ipv4Address", temp);
+	my_json_add_str(&js, "ipv6Address", "undefined");
+	my_json_object_end(&js);
+
+	my_json_object_begin(&js, "primaryDNS");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->dns[0],local->dns[1],local->dns[2],local->dns[3]);
+	my_json_add_str(&js, "ipv4Address", temp);
+	my_json_add_str(&js, "ipv6Address", "undefined");
+	my_json_object_end(&js);
+
+	my_json_object_begin(&js, "secondaryDNS");
+	my_json_add_str(&js, "ipv4Address", "undefined");
+	my_json_add_str(&js, "ipv6Address", "undefined");
+	my_json_object_end(&js);
+
+	my_json_add_bool(&js, "dnsEnable", 0);				// 原 cJSON_AddFalseToObject
+	my_json_object_end(&js);							// ipAddressCfg
+
+	my_json_object_begin(&js, "link");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x:%02x:%02x:%02x:%02x:%02x",
+										local->mac[0],local->mac[1],local->mac[2],
+										local->mac[3],local->mac[4],local->mac[5]);
+	my_json_add_str(&js, "macAddress", temp);
+	my_json_add_bool(&js, "autoNegotiation", 1);		// 原 cJSON_AddTrueToObject
+	my_json_add_int(&js, "linkSpeed", LAN8720_Get_Speed());	// 连接速率
+	if(LAN8720_Get_Duplex() == 1)
+		my_json_add_str(&js, "linkDuplex", "half");
+	else if(LAN8720_Get_Duplex() == 2)
+		my_json_add_str(&js, "linkDuplex", "full");
+	my_json_add_int(&js, "mtu", TCP_MSS);
+	my_json_object_end(&js);							// link
+
+	my_json_object_end(&js);							// 数组元素对象
+	my_json_array_end(&js);								// ipAddressCfgList
+	my_json_object_end(&js);							// Value
+	my_json_object_end(&js);							// data
+	my_json_object_end(&js);							// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -1081,112 +909,90 @@ void http_json_ack_networkaddress(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_devicerealtimepowerparam(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data 	 = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // 数据
-	cJSON *value       = NULL;  // 参数
-	cJSON* cjson_list  = NULL;  // 列表
-	cJSON *power_param[8] = {NULL}; // 电口1
-	
 	data_collection_t *det_param = det_get_collect_data();
 	struct threshold_params *shold_param = app_get_threshold_param_function();
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
+	my_json_t js;
+	uint8_t i;
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_array_begin(&js, "powerList");
+
+	for(i=0;i<8;i++)
 	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddItemToObject(value,"powerList",cjson_list);
-		
-    /* 添加一个数组类型的JSON数据(添加一个链表节点) */
-		for(uint8_t i=0;i<8;i++)
+		my_json_object_begin(&js, NULL);					/* 数组元素对象 */
+		my_json_add_int(&js, "powerID", i+1);				// 索引
+
+		if(relay_get_status_function((RELAY_DEV)i) == 0)	// 继电器关闭
+			my_json_add_str(&js, "powerStatus", "abnormal");
+		else if(relay_get_status_function((RELAY_DEV)i) == 1)
+			my_json_add_str(&js, "powerStatus", "normal");
+
+		if(det_param->vin220v < 50)							// 市电电压 < 50V,说明断电
+			my_json_add_str(&js, "status", "notPower");
+		else if(det_param->vin220v > 200)
+			my_json_add_str(&js, "status", "normal");
+		else
+			my_json_add_str(&js, "status", "abnormal");
+
+		my_json_add_str(&js, "powerType", "AC");
+
+		my_json_add_int(&js, "ratedPower", 1000);								// 额定功率
+		my_json_add_double(&js, "totalPower", det_param->power[i]);				// 总功率
+		my_json_add_double(&js, "powerConsumption", det_param->electricity[i]);	// 总耗电量
+
+		if(relay_get_status_function((RELAY_DEV)i) == 0)	// 继电器关闭
+			my_json_add_int(&js, "voltage", 0);				// 电压
+		else if(relay_get_status_function((RELAY_DEV)i) == 1)
+			my_json_add_double(&js, "voltage", det_param->vin220v);	// 电压
+
+		my_json_add_double(&js, "electricCurrent", det_param->current[i]/1000.000f);	// 电流
+
+		my_json_add_str(&js, "reclosingStatus", "closed");			// 重合闸状态
+		my_json_add_str(&js, "electricLeakageStatus", "notSupport");	// 漏电状态
+
+		if(shold_param->current !=0)
 		{
-			power_param[i] = cJSON_CreateObject();
-			if(power_param[i] != NULL )
-			{		
-				cJSON_AddItemToArray(cjson_list,power_param[i]);
-				cJSON_AddNumberToObject(power_param[i],"powerID",i+1);  // 索引
-				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // 继电器关闭
-					cJSON_AddStringToObject(power_param[i],"powerStatus","abnormal");	
-				else if(relay_get_status_function((RELAY_DEV)i) == 1)
-					cJSON_AddStringToObject(power_param[i],"powerStatus","normal");			
-	
-				if(det_param->vin220v < 50)  // 市电电压 < 50V，说明断电
-					cJSON_AddStringToObject(power_param[i],"status","notPower");	
-				else if(det_param->vin220v > 200) 
-					cJSON_AddStringToObject(power_param[i],"status","normal");	
-				else
-					cJSON_AddStringToObject(power_param[i],"status","abnormal");	
-
-				cJSON_AddStringToObject(power_param[i],"powerType","AC");	
-
-				cJSON_AddNumberToObject(power_param[i],"ratedPower",1000); // 额定功率
-				
-				cJSON_AddNumberToObject(power_param[i],"totalPower",det_param->power[i]); // 总功率
-				
-				cJSON_AddNumberToObject(power_param[i],"powerConsumption",det_param->electricity[i]); // 总耗电量
-				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // 继电器关闭
-					cJSON_AddNumberToObject(power_param[i],"voltage",0); // 电压
-				else if(relay_get_status_function((RELAY_DEV)i) == 1)
-					cJSON_AddNumberToObject(power_param[i],"voltage",det_param->vin220v); // 电压
-				
-				cJSON_AddNumberToObject(power_param[i],"electricCurrent",det_param->current[i]/1000.000f); // 电流
-				
-				cJSON_AddStringToObject(power_param[i],"reclosingStatus","closed");	// 重合闸状态
-				cJSON_AddStringToObject(power_param[i],"electricLeakageStatus","notSupport");	// 漏电状态
-				
-				if(shold_param->current !=0)
-				{
-					if(det_param->current[i] < shold_param->current)// 电流状态	
-						cJSON_AddStringToObject(power_param[i],"electricCurrentStatus","normal");	
-					else if(det_param->current[i] > shold_param->current)
-						cJSON_AddStringToObject(power_param[i],"electricCurrentStatus","high");		
-				}
-				else
-					cJSON_AddStringToObject(power_param[i],"electricCurrentStatus","normal");	
-				if(shold_param->volt_max !=0 && shold_param->volt_min !=0)
-				{
-					if((det_param->vin220v < shold_param->volt_min)&& (det_param->vin220v > 30))// 电压状态	
-						cJSON_AddStringToObject(power_param[i],"voltageStatus","low");	
-					else if((det_param->vin220v < shold_param->volt_max)&& (det_param->vin220v > shold_param->volt_min))
-						cJSON_AddStringToObject(power_param[i],"voltageStatus","normal");	
-					else if(det_param->vin220v > shold_param->volt_max)
-						cJSON_AddStringToObject(power_param[i],"voltageStatus","high");	
-				}
-				else
-					cJSON_AddStringToObject(power_param[i],"voltageStatus","normal");	
-				cJSON_AddNumberToObject(power_param[i],"undercurrentTimes",0);	//  
-				cJSON_AddNumberToObject(power_param[i],"overcurrentTimes",shold_param->overcurrentTimes);			// 过流次数				
-				cJSON_AddNumberToObject(power_param[i],"electricLeakageTimes",0);	// 漏电次数
-				cJSON_AddNumberToObject(power_param[i],"undervoltageTimes",shold_param->undervoltageTimes);			// 欠压次数				
-				cJSON_AddNumberToObject(power_param[i],"overvoltageTimes",shold_param->overvoltageTimes);			// 过压次数				
-			}
+			if(det_param->current[i] < shold_param->current)	// 电流状态
+				my_json_add_str(&js, "electricCurrentStatus", "normal");
+			else if(det_param->current[i] > shold_param->current)
+				my_json_add_str(&js, "electricCurrentStatus", "high");
 		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+		else
+			my_json_add_str(&js, "electricCurrentStatus", "normal");
+
+		if(shold_param->volt_max !=0 && shold_param->volt_min !=0)
+		{
+			if((det_param->vin220v < shold_param->volt_min)&& (det_param->vin220v > 30))	// 电压状态
+				my_json_add_str(&js, "voltageStatus", "low");
+			else if((det_param->vin220v < shold_param->volt_max)&& (det_param->vin220v > shold_param->volt_min))
+				my_json_add_str(&js, "voltageStatus", "normal");
+			else if(det_param->vin220v > shold_param->volt_max)
+				my_json_add_str(&js, "voltageStatus", "high");
+		}
+		else
+			my_json_add_str(&js, "voltageStatus", "normal");
+
+		my_json_add_int(&js, "undercurrentTimes", 0);
+		my_json_add_int(&js, "overcurrentTimes", shold_param->overcurrentTimes);		// 过流次数
+		my_json_add_int(&js, "electricLeakageTimes", 0);								// 漏电次数
+		my_json_add_int(&js, "undervoltageTimes", shold_param->undervoltageTimes);		// 欠压次数
+		my_json_add_int(&js, "overvoltageTimes", shold_param->overvoltageTimes);		// 过压次数
+		my_json_object_end(&js);							/* 数组元素对象结束 */
 	}
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	for(uint8_t i=0;i<8;i++)
-	{
-		cJSON_Delete(power_param[i]);
-	}
-	cJSON_Delete(cjson_list);
-	cJSON_Delete(value);
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	my_json_array_end(&js);									// powerList
+	my_json_object_end(&js);								// Value
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 
 //	uint16_t  jsonlen= 0;
 //	
@@ -1233,41 +1039,32 @@ void http_json_ack_devicerealtimepowerparam(char* buf,uint16_t *size,uint8_t sta
 ************************************************************/
 void http_json_ack_domins(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char *json_data = NULL;
-	cJSON *json     = NULL;
-	cJSON *data     = NULL;
-	cJSON *domains  = NULL;
+	my_json_t js;
 
 	if(HTTP_COM_DEBUG) printf("http_json_ack_waterout22 \n");
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	domains = cJSON_CreateArray();
-	if(json != NULL && data != NULL && domains != NULL)
-	{
-		cJSON_AddNumberToObject(json, "status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json, "code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json, "errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"domains",domains);		
-		
-		cJSON_AddItemToArray(domains,cJSON_CreateString("WaterOutSense"));
-		cJSON_AddItemToArray(domains,cJSON_CreateString("SystemMaintenance"));
-		cJSON_AddItemToArray(domains,cJSON_CreateString("InfoMgr"));
-		cJSON_AddItemToArray(domains,cJSON_CreateString("DeviceTiltDetection"));		
-		cJSON_AddItemToArray(domains,cJSON_CreateString("Humiture"));
-		cJSON_AddItemToArray(domains,cJSON_CreateString("Fan"));
-		cJSON_AddItemToArray(domains,cJSON_CreateString("BoxDoorMgr"));
-		cJSON_AddItemToArray(domains,cJSON_CreateString("NetworkAddress"));		
-		cJSON_AddItemToArray(domains,cJSON_CreateString("PowerMgr"));		
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}	
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	cJSON_Delete(json);
-	cJSON_Delete(domains);
-	myfree(SRAMIN,json_data);
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_array_begin(&js, "domains");
+	my_json_add_str(&js, NULL, "WaterOutSense");
+	my_json_add_str(&js, NULL, "SystemMaintenance");
+	my_json_add_str(&js, NULL, "InfoMgr");
+	my_json_add_str(&js, NULL, "DeviceTiltDetection");
+	my_json_add_str(&js, NULL, "Humiture");
+	my_json_add_str(&js, NULL, "Fan");
+	my_json_add_str(&js, NULL, "BoxDoorMgr");
+	my_json_add_str(&js, NULL, "NetworkAddress");
+	my_json_add_str(&js, NULL, "PowerMgr");
+	my_json_array_end(&js);
+	my_json_object_end(&js);			// data
+	my_json_object_end(&js);			// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -1280,68 +1077,49 @@ void http_json_ack_domins(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_BoxSubModelMgr(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data 	 = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // 数据
-	cJSON* cjson_list  = NULL;  // 列表
-	cJSON *device_param[8] = {NULL}; // 电口1
+	my_json_t js;
 	char dataid[3] = {0};
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && data != NULL && cjson_list != NULL)
+	uint8_t i;
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_array_begin(&js, "deviceList");
+
+	for(i=0;i<8;i++)
 	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);		
-		cJSON_AddItemToObject(data,"deviceList",cjson_list);
-		
-    /* 添加一个数组类型的JSON数据(添加一个链表节点) */
-		for(uint8_t i=0;i<8;i++)
-		{
-			device_param[i] = cJSON_CreateObject();
-			if(device_param[i] != NULL )
-			{		
-				cJSON_AddItemToArray(cjson_list,device_param[i]);
-				cJSON_AddStringToObject(device_param[i],"deviceType","encoder");  // "deviceType": "encoder",
-				cJSON_AddStringToObject(device_param[i],"model","");
-				cJSON_AddStringToObject(device_param[i],"ipV4Address","");
-				cJSON_AddStringToObject(device_param[i],"ipV6Address","");
-				cJSON_AddStringToObject(device_param[i],"macAddress","");
-								
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // 继电器关闭
-					cJSON_AddStringToObject(device_param[i],"powerStatus","abnormal");	
-				else if(relay_get_status_function((RELAY_DEV)i) == 1)
-					cJSON_AddStringToObject(device_param[i],"powerStatus","normal");			
-	
-				cJSON_AddStringToObject(device_param[i],"netStatus","notSupport");		
-				sprintf(dataid,"%d",i+1);
-				cJSON_AddStringToObject(device_param[i],"electricPortCode",dataid);
-				
-				cJSON_AddNumberToObject(device_param[i],"SDKPort",1);
-				cJSON_AddNumberToObject(device_param[i],"httpPort",1);
-				cJSON_AddNumberToObject(device_param[i],"portID",1); // 交换机端口索引
-				cJSON_AddStringToObject(device_param[i],"portName","undefined");
-			}
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+		my_json_object_begin(&js, NULL);					/* 数组元素对象 */
+		my_json_add_str(&js, "deviceType", "encoder");
+		my_json_add_str(&js, "model", "");
+		my_json_add_str(&js, "ipV4Address", "");
+		my_json_add_str(&js, "ipV6Address", "");
+		my_json_add_str(&js, "macAddress", "");
+
+		if(relay_get_status_function((RELAY_DEV)i) == 0)	// 继电器关闭
+			my_json_add_str(&js, "powerStatus", "abnormal");
+		else if(relay_get_status_function((RELAY_DEV)i) == 1)
+			my_json_add_str(&js, "powerStatus", "normal");
+
+		my_json_add_str(&js, "netStatus", "notSupport");
+		sprintf(dataid,"%d",i+1);
+		my_json_add_str(&js, "electricPortCode", dataid);
+
+		my_json_add_int(&js, "SDKPort", 1);
+		my_json_add_int(&js, "httpPort", 1);
+		my_json_add_int(&js, "portID", 1);					// 交换机端口索引
+		my_json_add_str(&js, "portName", "undefined");
+		my_json_object_end(&js);							/* 数组元素对象结束 */
 	}
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	for(uint8_t i=0;i<8;i++)
-	{
-		cJSON_Delete(device_param[i]);
-	}
-	cJSON_Delete(cjson_list);
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	my_json_array_end(&js);									// deviceList
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -1354,67 +1132,43 @@ void http_json_ack_BoxSubModelMgr(char* buf,uint16_t *size,uint8_t status_ID)
 ************************************************************/
 void http_json_ack_PowerPortSwitchTime(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data 	 = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // 数据
-	cJSON *value       = NULL;  // 参数
-	cJSON* cjson_list  = NULL;  // 列表
-	cJSON* plan_list   = NULL;  // 列表
-	cJSON *power_plan[8] = {NULL}; // 电口1
-	char data_id[3] = {0};	
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	value = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && data != NULL && value != NULL && cjson_list != NULL)
+	my_json_t js;
+	char data_id[3] = {0};
+	uint8_t i;
+
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_object_begin(&js, "Value");
+	my_json_array_begin(&js, "powerPortDevList");
+
+	for(i=0;i<8;i++)
 	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		cJSON_AddItemToObject(data,"Value",value);		
-		cJSON_AddItemToObject(value,"powerPortDevList",cjson_list);
-		
-    /* 添加一个数组类型的JSON数据(添加一个链表节点) */
-		for(uint8_t i=0;i<8;i++)
-		{
-			power_plan[i] = cJSON_CreateObject();
-			if(power_plan[i] != NULL )
-			{		
-				cJSON_AddItemToArray(cjson_list,power_plan[i]);
-				sprintf(data_id,"%d",i+1);
-				cJSON_AddStringToObject(power_plan[i],"portCode",data_id);  // 供电口编码
-				cJSON_AddTrueToObject(power_plan[i],"planEnabled"); // 时间计划使能
-				
-				plan_list = cJSON_CreateArray();
-				if(plan_list != NULL )
-				{
-					cJSON_AddItemToObject(power_plan[i],"timeSpanList",plan_list);
-					cJSON* time = cJSON_CreateObject();
-					cJSON_AddItemToArray(plan_list,time);
-					cJSON_AddStringToObject(time,"startTime","00:00:00");  // 开始时间
-					cJSON_AddStringToObject(time,"endTime","23:59:59"); // 结束时间				
-				}
-			}
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+		my_json_object_begin(&js, NULL);					/* 数组元素对象 */
+		sprintf(data_id,"%d",i+1);
+		my_json_add_str(&js, "portCode", data_id);			// 供电口编码
+		my_json_add_bool(&js, "planEnabled", 1);			// 原 cJSON_AddTrueToObject
+
+		my_json_array_begin(&js, "timeSpanList");
+		my_json_object_begin(&js, NULL);					/* 时间对象 */
+		my_json_add_str(&js, "startTime", "00:00:00");		// 开始时间
+		my_json_add_str(&js, "endTime", "23:59:59");		// 结束时间
+		my_json_object_end(&js);
+		my_json_array_end(&js);
+
+		my_json_object_end(&js);							/* 数组元素对象结束 */
 	}
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	for(uint8_t i=0;i<8;i++)
-	{
-		cJSON_Delete(power_plan[i]);
-	}
-	cJSON_Delete(cjson_list);
-	cJSON_Delete(value);
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	my_json_array_end(&js);									// powerPortDevList
+	my_json_object_end(&js);								// Value
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -1427,69 +1181,50 @@ void http_json_ack_PowerPortSwitchTime(char* buf,uint16_t *size,uint8_t status_I
 ************************************************************/
 void http_json_ack_GetPowerPortStatusList(char* buf,uint16_t *size,uint8_t status_ID)
 {
-	char  *json_data 	 = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;  // 数据
-	cJSON* cjson_list  = NULL;  // 列表
-	cJSON *power_state[8] = {NULL}; // 电口1
-	char dataid[3] = {0};
-	
 	data_collection_t *det_param = det_get_collect_data();
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && data != NULL && cjson_list != NULL)
-	{
-		cJSON_AddNumberToObject(json,"status",HTTP_STATUS[status_ID]);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-		cJSON_AddStringToObject(json,"code",HTTP_PUBLIC_ERROR[status_ID]);
-		cJSON_AddStringToObject(json,"errorMsg",HTTP_PUBLIC_ERRORMSG[status_ID]);
-		
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);		
-		cJSON_AddItemToObject(data,"powerPortStatusList",cjson_list);
-		
-		for(uint8_t i=0;i<8;i++)
-		{
-			power_state[i] = cJSON_CreateObject();
-			if(power_state[i] != NULL )
-			{		
-				cJSON_AddItemToArray(cjson_list,power_state[i]);
-				sprintf(dataid,"%d",i+1);
-				cJSON_AddStringToObject(power_state[i],"portCode",dataid);
-				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // 继电器关闭
-					cJSON_AddNumberToObject(power_state[i],"voltage",0); // 电压	
-				else if(relay_get_status_function((RELAY_DEV)i) == 1)
-					cJSON_AddNumberToObject(power_state[i],"voltage",det_param->vin220v); // 电压
-				
-				cJSON_AddNumberToObject(power_state[i],"electricCurrent",det_param->current[i]/1000.000f); // 电流
-				cJSON_AddNumberToObject(power_state[i],"totalPower",det_param->power[i]); // 总功率			
-				cJSON_AddNumberToObject(power_state[i],"powerConsumption",det_param->electricity[i]); // 总耗电量
-				
-				if(relay_get_status_function((RELAY_DEV)i) == 0) // 继电器关闭
-					cJSON_AddStringToObject(power_state[i],"powerPortStatus","abnormal");	
-				else if(relay_get_status_function((RELAY_DEV)i) == 1)
-					cJSON_AddStringToObject(power_state[i],"powerPortStatus","normal");	
+	my_json_t js;
+	char dataid[3] = {0};
+	uint8_t i;
 
-				if(det_param->power[i] < 1) // 功率小于1W，判断为未插入
-					cJSON_AddStringToObject(power_state[i],"powerPortStatus","notInsert");	
-			}
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+	my_json_init(&js, buf, 4000);
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "status", HTTP_STATUS[status_ID]);
+	my_json_add_str(&js, "code", HTTP_PUBLIC_ERROR[status_ID]);
+	my_json_add_str(&js, "errorMsg", HTTP_PUBLIC_ERRORMSG[status_ID]);
+
+	my_json_object_begin(&js, "data");
+	my_json_array_begin(&js, "powerPortStatusList");
+
+	for(i=0;i<8;i++)
+	{
+		my_json_object_begin(&js, NULL);					/* 数组元素对象 */
+		sprintf(dataid,"%d",i+1);
+		my_json_add_str(&js, "portCode", dataid);
+
+		if(relay_get_status_function((RELAY_DEV)i) == 0)	// 继电器关闭
+			my_json_add_int(&js, "voltage", 0);				// 电压
+		else if(relay_get_status_function((RELAY_DEV)i) == 1)
+			my_json_add_double(&js, "voltage", det_param->vin220v);	// 电压
+
+		my_json_add_double(&js, "electricCurrent", det_param->current[i]/1000.000f);	// 电流
+		my_json_add_double(&js, "totalPower", det_param->power[i]);						// 总功率
+		my_json_add_double(&js, "powerConsumption", det_param->electricity[i]);			// 总耗电量
+
+		if(relay_get_status_function((RELAY_DEV)i) == 0)	// 继电器关闭
+			my_json_add_str(&js, "powerPortStatus", "abnormal");
+		else if(relay_get_status_function((RELAY_DEV)i) == 1)
+			my_json_add_str(&js, "powerPortStatus", "normal");
+
+		if(det_param->power[i] < 1)							// 功率小于1W,判断为未插入
+			my_json_add_str(&js, "powerPortStatus", "notInsert");
+		my_json_object_end(&js);							/* 数组元素对象结束 */
 	}
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
-	
-	for(uint8_t i=0;i<8;i++)
-	{
-		cJSON_Delete(power_state[i]);
-	}
-	cJSON_Delete(cjson_list);
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	my_json_array_end(&js);									// powerPortStatusList
+	my_json_object_end(&js);								// data
+	my_json_object_end(&js);								// root
+
+	*size = (uint16_t)my_json_len(&js);
 }
 
 
@@ -1797,82 +1532,59 @@ void http_websocket_pack_data(char* data,uint16_t *len,uint16_t event_type,uint8
 ************************************************************/
 uint16_t websocket_event_alerts_wateroutreset(char* buf)
 {
-	char  *json_data 		= NULL;
-	cJSON *json        	= NULL;
-	cJSON *basic       	= NULL;
-	cJSON *notification = NULL;
-	cJSON* pictures     = NULL;
-	cJSON* pictures_pam = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	notification = cJSON_CreateObject();
-	pictures = cJSON_CreateArray();
-	if(json != NULL && basic != NULL && notification != NULL && pictures != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/WaterOutSense/WaterOutReset");	
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
-											local->mac[0],local->mac[1],local->mac[2],
-											local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"notification",notification);		
-		cJSON_AddNumberToObject(notification,"status",1.0);
-		cJSON_AddNumberToObject(notification,"action",0.0);
-		cJSON_AddStringToObject(notification,"location","undefined");
-		cJSON_AddStringToObject(notification,"relationId","undefined");
-		cJSON_AddItemToObject(notification, "pictures", pictures);
-		
-		pictures_pam = cJSON_CreateObject();
-		if(pictures_pam != NULL)
-		{		
-			cJSON_AddItemToArray(pictures, pictures_pam);
-			cJSON_AddNumberToObject(pictures_pam,"cloudtype",0);
-			cJSON_AddStringToObject(pictures_pam,"bucket","undefined");
-			cJSON_AddStringToObject(pictures_pam,"type","undefined");
-			cJSON_AddNumberToObject(pictures_pam,"length",0);
-			cJSON_AddNumberToObject(pictures_pam,"crypt",0);
-			cJSON_AddStringToObject(pictures_pam,"fileid","undefined");
-			cJSON_AddNumberToObject(pictures_pam,"tinyvideo",0);
-			cJSON_AddStringToObject(pictures_pam,"checksum","undefined");
-			cJSON_AddNumberToObject(pictures_pam,"lifecycle",0);		
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(pictures_pam);
-	cJSON_Delete(pictures);
-	cJSON_Delete(notification);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);			/* buf = http_websocket_pack_data 的 event_buf[512] */
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/WaterOutSense/WaterOutReset");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+										local->mac[0],local->mac[1],local->mac[2],
+										local->mac[3],local->mac[4],local->mac[5]);
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
+
+	my_json_object_begin(&js, "notification");
+	my_json_add_int(&js, "status", 1);
+	my_json_add_int(&js, "action", 0);
+	my_json_add_str(&js, "location", "undefined");
+	my_json_add_str(&js, "relationId", "undefined");
+	my_json_array_begin(&js, "pictures");
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "cloudtype", 0);
+	my_json_add_str(&js, "bucket", "undefined");
+	my_json_add_str(&js, "type", "undefined");
+	my_json_add_int(&js, "length", 0);
+	my_json_add_int(&js, "crypt", 0);
+	my_json_add_str(&js, "fileid", "undefined");
+	my_json_add_int(&js, "tinyvideo", 0);
+	my_json_add_str(&js, "checksum", "undefined");
+	my_json_add_int(&js, "lifecycle", 0);
+	my_json_object_end(&js);
+	my_json_array_end(&js);
+	my_json_object_end(&js);						// notification
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("wateroutreset:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -1885,82 +1597,59 @@ uint16_t websocket_event_alerts_wateroutreset(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_waterout(char* buf)
 {
-	char  *json_data 		= NULL;
-	cJSON *json        	= NULL;
-	cJSON *basic       	= NULL;
-	cJSON *notification = NULL;
-	cJSON* pictures     = NULL;
-	cJSON* pictures_pam = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	notification = cJSON_CreateObject();
-	pictures = cJSON_CreateArray();
-	if(json != NULL && basic != NULL && notification != NULL && pictures != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/WaterOutSense/WaterOut");	
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
-											local->mac[0],local->mac[1],local->mac[2],
-											local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"notification",notification);		
-		cJSON_AddNumberToObject(notification,"status",1.0);
-		cJSON_AddNumberToObject(notification,"action",0.0);
-		cJSON_AddStringToObject(notification,"location","undefined");
-		cJSON_AddStringToObject(notification,"relationId","undefined");
-		cJSON_AddItemToObject(notification, "pictures", pictures);
-		
-		pictures_pam = cJSON_CreateObject();
-		if(pictures_pam != NULL)
-		{		
-			cJSON_AddItemToArray(pictures, pictures_pam);
-			cJSON_AddNumberToObject(pictures_pam,"cloudtype",0);
-			cJSON_AddStringToObject(pictures_pam,"bucket","undefined");
-			cJSON_AddStringToObject(pictures_pam,"type","undefined");
-			cJSON_AddNumberToObject(pictures_pam,"length",0);
-			cJSON_AddNumberToObject(pictures_pam,"crypt",0);
-			cJSON_AddStringToObject(pictures_pam,"fileid","undefined");
-			cJSON_AddNumberToObject(pictures_pam,"tinyvideo",0);
-			cJSON_AddStringToObject(pictures_pam,"checksum","undefined");
-			cJSON_AddNumberToObject(pictures_pam,"lifecycle",0);		
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(pictures_pam);
-	cJSON_Delete(pictures);
-	cJSON_Delete(notification);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);			/* buf = http_websocket_pack_data 的 event_buf[512] */
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/WaterOutSense/WaterOut");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+										local->mac[0],local->mac[1],local->mac[2],
+										local->mac[3],local->mac[4],local->mac[5]);
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
+
+	my_json_object_begin(&js, "notification");
+	my_json_add_int(&js, "status", 1);
+	my_json_add_int(&js, "action", 0);
+	my_json_add_str(&js, "location", "undefined");
+	my_json_add_str(&js, "relationId", "undefined");
+	my_json_array_begin(&js, "pictures");
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "cloudtype", 0);
+	my_json_add_str(&js, "bucket", "undefined");
+	my_json_add_str(&js, "type", "undefined");
+	my_json_add_int(&js, "length", 0);
+	my_json_add_int(&js, "crypt", 0);
+	my_json_add_str(&js, "fileid", "undefined");
+	my_json_add_int(&js, "tinyvideo", 0);
+	my_json_add_str(&js, "checksum", "undefined");
+	my_json_add_int(&js, "lifecycle", 0);
+	my_json_object_end(&js);
+	my_json_array_end(&js);
+	my_json_object_end(&js);						// notification
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("waterout:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -1973,65 +1662,49 @@ uint16_t websocket_event_alerts_waterout(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_devlightingprotectionstatusreport(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *payload 	 = NULL;
-
 	struct local_ip_t  *local = app_get_local_network_function();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/LightningProtectionMgr/DevLightingProtectionStatusReport");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/LightningProtectionMgr/DevLightingProtectionStatusReport");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"payload",payload);		
-		cJSON_AddStringToObject(payload,"devName","");
-		cJSON_AddStringToObject(payload,"model","");
-		if( det_get_spd_status() == 2 )
-			cJSON_AddStringToObject(payload,"lightningProtectionStatus","abnormal");
-		else
-			cJSON_AddStringToObject(payload,"lightningProtectionStatus","normal");
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(payload);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
+
+	my_json_object_begin(&js, "payload");
+	my_json_add_str(&js, "devName", "");
+	my_json_add_str(&js, "model", "");
+	if( det_get_spd_status() == 2 )
+		my_json_add_str(&js, "lightningProtectionStatus", "abnormal");
+	else
+		my_json_add_str(&js, "lightningProtectionStatus", "normal");
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("devlightingprotectionstatusreport:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2044,71 +1717,51 @@ uint16_t websocket_event_alerts_devlightingprotectionstatusreport(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_devicetiltalarm(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *payload 	 = NULL;
-	cJSON *inclinationParam = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
 	struct threshold_params  *threshold = app_get_threshold_param_function();
 	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	inclinationParam = cJSON_CreateObject();
-	if(json != NULL && basic != NULL  && payload != NULL && inclinationParam != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/DeviceTiltDetection/DeviceTiltAlarm");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/DeviceTiltDetection/DeviceTiltAlarm");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"payload",payload);		
-		cJSON_AddStringToObject(payload,"alarmSourceType","box");
-		
-		if( det_param->attitude_acc >= threshold->angle) 
-			cJSON_AddStringToObject(payload,"exceptionType","high");
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
 
-		cJSON_AddItemToObject(payload,"inclinationParam",inclinationParam);
-		
-		cJSON_AddNumberToObject(inclinationParam,"inclination",det_param->attitude_acc);
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(inclinationParam);
-	cJSON_Delete(payload);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_object_begin(&js, "payload");
+	my_json_add_str(&js, "alarmSourceType", "box");
+	if( det_param->attitude_acc >= threshold->angle)
+		my_json_add_str(&js, "exceptionType", "high");
+	my_json_object_begin(&js, "inclinationParam");
+	my_json_add_double(&js, "inclination", det_param->attitude_acc);
+	my_json_object_end(&js);						// inclinationParam
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("devicetiltalarm:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2121,68 +1774,50 @@ uint16_t websocket_event_alerts_devicetiltalarm(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_humiditytoohigh(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *notification 	 = NULL;
-	cJSON *payload = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
 	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	notification = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && notification != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/HumidityTooHigh");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/Humiture/HumidityTooHigh");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"notification",notification);		
-		cJSON_AddNumberToObject(notification,"action",0.0);
-		cJSON_AddStringToObject(notification,"relationId","undefined");
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
 
-		cJSON_AddItemToObject(json,"payload",payload);		
-		cJSON_AddNumberToObject(payload,"humidity",det_param->humi_inside);
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(payload);
-	cJSON_Delete(notification);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_object_begin(&js, "notification");
+	my_json_add_int(&js, "action", 0);
+	my_json_add_str(&js, "relationId", "undefined");
+	my_json_object_end(&js);						// notification
+
+	my_json_object_begin(&js, "payload");
+	my_json_add_double(&js, "humidity", det_param->humi_inside);
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("humiditytoohigh:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2195,68 +1830,50 @@ uint16_t websocket_event_alerts_humiditytoohigh(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_humiditytoolow(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *notification 	 = NULL;
-	cJSON *payload = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
 	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	notification = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && notification != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/HumidityTooLow");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/Humiture/HumidityTooLow");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"notification",notification);		
-		cJSON_AddNumberToObject(notification,"action",0.0);
-		cJSON_AddStringToObject(notification,"relationId","undefined");
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
 
-		cJSON_AddItemToObject(json,"payload",payload);		
-		cJSON_AddNumberToObject(payload,"humidity",det_param->humi_inside);
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(payload);
-	cJSON_Delete(notification);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_object_begin(&js, "notification");
+	my_json_add_int(&js, "action", 0);
+	my_json_add_str(&js, "relationId", "undefined");
+	my_json_object_end(&js);						// notification
+
+	my_json_object_begin(&js, "payload");
+	my_json_add_double(&js, "humidity", det_param->humi_inside);
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("humiditytoolow:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2269,69 +1886,51 @@ uint16_t websocket_event_alerts_humiditytoolow(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_temperaturetoolow(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *notification 	 = NULL;
-	cJSON *payload = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
 	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	notification = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && notification != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/TemperatureTooLow");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/Humiture/TemperatureTooLow");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"notification",notification);		
-		cJSON_AddNumberToObject(notification,"action",0.0);
-		cJSON_AddStringToObject(notification,"relationId","undefined");
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
 
-		cJSON_AddItemToObject(json,"payload",payload);		
-		cJSON_AddNumberToObject(payload,"temperature",det_param->temp_inside);
-		cJSON_AddStringToObject(payload,"unit","celsius");
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(payload);
-	cJSON_Delete(notification);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_object_begin(&js, "notification");
+	my_json_add_int(&js, "action", 0);
+	my_json_add_str(&js, "relationId", "undefined");
+	my_json_object_end(&js);						// notification
+
+	my_json_object_begin(&js, "payload");
+	my_json_add_double(&js, "temperature", det_param->temp_inside);
+	my_json_add_str(&js, "unit", "celsius");
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("temperaturetoolow:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2344,69 +1943,51 @@ uint16_t websocket_event_alerts_temperaturetoolow(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_temperaturetoohigh(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *notification 	 = NULL;
-	cJSON *payload = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
 	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	notification = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && notification != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Humiture/TemperatureTooHigh");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/Humiture/TemperatureTooHigh");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"notification",notification);		
-		cJSON_AddNumberToObject(notification,"action",0.0);
-		cJSON_AddStringToObject(notification,"relationId","undefined");
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
 
-		cJSON_AddItemToObject(json,"payload",payload);		
-		cJSON_AddNumberToObject(payload,"temperature",det_param->temp_inside);
-		cJSON_AddStringToObject(payload,"unit","celsius");
-		
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(payload);
-	cJSON_Delete(notification);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_object_begin(&js, "notification");
+	my_json_add_int(&js, "action", 0);
+	my_json_add_str(&js, "relationId", "undefined");
+	my_json_object_end(&js);						// notification
+
+	my_json_object_begin(&js, "payload");
+	my_json_add_double(&js, "temperature", det_param->temp_inside);
+	my_json_add_str(&js, "unit", "celsius");
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("temperaturetoohigh:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2458,75 +2039,53 @@ uint16_t websocket_event_alerts_BoxDoorStatusReport(char* buf)
 //	return jsonlen;
 
 
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *payload 	 = NULL;
-	cJSON *doorStatusList = NULL;
-	cJSON *door_status = NULL;
+	my_json_t js;
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
 	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	doorStatusList = cJSON_CreateArray();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && doorStatusList != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/BoxDoorMgr/BoxDoorStatusReport");	
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/BoxDoorMgr/BoxDoorStatusReport");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"payload",payload);	
-		cJSON_AddItemToObject(payload,"doorStatusList",doorStatusList);	
-		door_status = cJSON_CreateObject();
-		if(door_status != NULL)
-		{		
-			cJSON_AddItemToArray(doorStatusList,door_status);
-			cJSON_AddNumberToObject(door_status,"doorID",1);
-			if(det_param->open_door == 0)
-				cJSON_AddStringToObject(door_status,"doorStatus","closed");
-			else if(det_param->open_door == 1)
-				cJSON_AddStringToObject(door_status,"doorStatus","opened");
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(door_status);
-	cJSON_Delete(doorStatusList);
-	cJSON_Delete(payload);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
+
+	my_json_object_begin(&js, "payload");
+	my_json_array_begin(&js, "doorStatusList");
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "doorID", 1);
+	if(det_param->open_door == 0)
+		my_json_add_str(&js, "doorStatus", "closed");
+	else if(det_param->open_door == 1)
+		my_json_add_str(&js, "doorStatus", "opened");
+	my_json_object_end(&js);
+	my_json_array_end(&js);
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("BoxDoorStatusReport:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2539,91 +2098,70 @@ uint16_t websocket_event_alerts_BoxDoorStatusReport(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_DevicePowerParamAlarm(char* buf,uint8_t typef)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *payload 	 = NULL;
-	cJSON *voltageparam = NULL;
-	cJSON *currentparam = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
 	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	voltageparam = cJSON_CreateObject();
-	currentparam = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && payload != NULL && voltageparam != NULL && currentparam != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/PowerMgr/DevicePowerParamAlarm");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/PowerMgr/DevicePowerParamAlarm");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"payload",payload);	
-		cJSON_AddStringToObject(payload,"alarmSourceType","powerPort");
-					
-		switch(typef)
-		{
-			case 0: // 电压低
-				cJSON_AddStringToObject(payload,"paramType","voltage");	
-				cJSON_AddStringToObject(payload,"exceptionType","low");	
-				break;
-			case 1: // 电压高
-				cJSON_AddStringToObject(payload,"paramType","voltage");	
-				cJSON_AddStringToObject(payload,"exceptionType","high");	
-				break;			
-			case 2: // 电流高
-				cJSON_AddStringToObject(payload,"paramType","current");	
-				cJSON_AddStringToObject(payload,"exceptionType","high");	
-				break;	
-			default:
-				cJSON_AddStringToObject(payload,"paramType","");	
-				cJSON_AddStringToObject(payload,"exceptionType","");	
-				break;
-		}
-		cJSON_AddItemToObject(payload,"voltageparam",voltageparam);	
-		cJSON_AddNumberToObject(voltageparam,"voltage",det_param->vin220v);
-		cJSON_AddItemToObject(payload,"currentparam",currentparam);	
-		cJSON_AddNumberToObject(currentparam,"electricCurrent",det_param->total_current);
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
 
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+	my_json_object_begin(&js, "payload");
+	my_json_add_str(&js, "alarmSourceType", "powerPort");
+	switch(typef)
+	{
+		case 0: // 电压低
+			my_json_add_str(&js, "paramType", "voltage");
+			my_json_add_str(&js, "exceptionType", "low");
+			break;
+		case 1: // 电压高
+			my_json_add_str(&js, "paramType", "voltage");
+			my_json_add_str(&js, "exceptionType", "high");
+			break;
+		case 2: // 电流高
+			my_json_add_str(&js, "paramType", "current");
+			my_json_add_str(&js, "exceptionType", "high");
+			break;
+		default:
+			my_json_add_str(&js, "paramType", "");
+			my_json_add_str(&js, "exceptionType", "");
+			break;
 	}
-	cJSON_Delete(currentparam);
-	cJSON_Delete(voltageparam);
-	cJSON_Delete(payload);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_object_begin(&js, "voltageparam");
+	my_json_add_double(&js, "voltage", det_param->vin220v);
+	my_json_object_end(&js);
+	my_json_object_begin(&js, "currentparam");
+	my_json_add_double(&js, "electricCurrent", det_param->total_current);
+	my_json_object_end(&js);
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("DevicePowerParamAlarm:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2636,65 +2174,48 @@ uint16_t websocket_event_alerts_DevicePowerParamAlarm(char* buf,uint8_t typef)
 ************************************************************/
 uint16_t websocket_event_alerts_DevPowerStatusReport(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *payload 	 = NULL;
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
-	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/PowerMgr/DevPowerStatusReport");
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/PowerMgr/DevPowerStatusReport");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"payload",payload);	
-		cJSON_AddStringToObject(payload,"devName","");
-		cJSON_AddStringToObject(payload,"model",HARD_NO_STR);			
-		cJSON_AddStringToObject(payload,"powerStatus","abnormal");	
-		cJSON_AddStringToObject(payload,"reclosingStatus","closed");	
-		cJSON_AddStringToObject(payload,"electricLeakageStatus","normal");	
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
 
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(payload);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	my_json_object_begin(&js, "payload");
+	my_json_add_str(&js, "devName", "");
+	my_json_add_str(&js, "model", HARD_NO_STR);
+	my_json_add_str(&js, "powerStatus", "abnormal");
+	my_json_add_str(&js, "reclosingStatus", "closed");
+	my_json_add_str(&js, "electricLeakageStatus", "normal");
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("DevPowerStatusReport:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 /************************************************************
@@ -2707,87 +2228,62 @@ uint16_t websocket_event_alerts_DevPowerStatusReport(char* buf)
 ************************************************************/
 uint16_t websocket_event_alerts_fan_status(char* buf)
 {
-	char  *json_data = NULL;
-	cJSON *json      = NULL;
-	cJSON *basic     = NULL;
-	cJSON *payload 	 = NULL;
-	cJSON *fanStatusList = NULL;
-	cJSON *fanStatus1   = NULL;
-	
 	struct local_ip_t  *local = app_get_local_network_function();
-	struct threshold_params  *threshold = app_get_threshold_param_function();
-	data_collection_t *det_param = det_get_collect_data();
 	char temp[30] = {0};
 	rtc_time_t local_rtc,utc_time;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	basic = cJSON_CreateObject();
-	fanStatusList = cJSON_CreateArray();
-	payload = cJSON_CreateObject();
-	if(json != NULL && basic != NULL && fanStatusList != NULL && payload != NULL)
-	{
-		cJSON_AddStringToObject(json,"topic","/iot/global/0-global/model/event/report/Fan/FanStatusReport");	
-		cJSON_AddItemToObject(json,"basic",basic);
-		// IP地址
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-		cJSON_AddStringToObject(basic,"ipV4Address",temp);	
-		cJSON_AddStringToObject(basic,"ipV6Address","");	
-		// MAC地址		
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
+	my_json_t js;
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	my_json_add_str(&js, "topic", "/iot/global/0-global/model/event/report/Fan/FanStatusReport");
+
+	my_json_object_begin(&js, "basic");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
+	my_json_add_str(&js, "ipV4Address", temp);
+	my_json_add_str(&js, "ipV6Address", "");
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%02x-%02x-%02x-%02x-%02x-%02x",
 									local->mac[0],local->mac[1],local->mac[2],
 									local->mac[3],local->mac[4],local->mac[5]);
-		cJSON_AddStringToObject(basic,"macAddress",temp);			
-		// dateTime		
-		RTC_Get_Time(&local_rtc);
-		local_to_utc_time(&utc_time,-8,local_rtc);
-		memset(temp,0,sizeof(temp));
-		sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
-						utc_time.year,utc_time.month,utc_time.data,
-						utc_time.hour,utc_time.min,utc_time.sec);		
-		cJSON_AddStringToObject(basic,"dateTime",temp);		
-		// UUID		
-		cJSON_AddStringToObject(basic,"UUID",uuid_buf);			
-		
-		cJSON_AddItemToObject(json,"payload",payload);	
-		cJSON_AddStringToObject(payload,"devName","");			
-		cJSON_AddStringToObject(payload,"model",HARD_NO_STR);
-		
-		cJSON_AddItemToObject(payload,"fanStatusList",fanStatusList);	
-		fanStatus1 = cJSON_CreateObject();
-		if(fanStatus1 != NULL )
-		{		
-			cJSON_AddItemToArray(fanStatusList, fanStatus1);
-			cJSON_AddNumberToObject(fanStatus1, "ID",FAN_1+1);
-			if(fan_get_status_function(FAN_1) == 1)
-			{
-				cJSON_AddNumberToObject(fanStatus1, "speed",3600);
-				cJSON_AddStringToObject(fanStatus1, "fanStatus","normal");				
-			}
-			else
-			{
-				cJSON_AddNumberToObject(fanStatus1, "speed",0);
-				cJSON_AddStringToObject(fanStatus1, "fanStatus","notPower");				
-			}				
-			cJSON_AddNumberToObject(fanStatus1, "curRunningTime", app_get_fan_time(0));
-			cJSON_AddNumberToObject(fanStatus1, "totalRunningTime",app_get_fan_time(1));
-		}
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+	my_json_add_str(&js, "macAddress", temp);
+	RTC_Get_Time(&local_rtc);
+	local_to_utc_time(&utc_time,-8,local_rtc);
+	memset(temp,0,sizeof(temp));
+	sprintf(temp,"%04d-%02d-%02dT%02d:%02d:%02d+08:00",
+					utc_time.year,utc_time.month,utc_time.data,
+					utc_time.hour,utc_time.min,utc_time.sec);
+	my_json_add_str(&js, "dateTime", temp);
+	my_json_add_str(&js, "UUID", uuid_buf);
+	my_json_object_end(&js);						// basic
+
+	my_json_object_begin(&js, "payload");
+	my_json_add_str(&js, "devName", "");
+	my_json_add_str(&js, "model", HARD_NO_STR);
+	my_json_array_begin(&js, "fanStatusList");
+	my_json_object_begin(&js, NULL);
+	my_json_add_int(&js, "ID", FAN_1+1);
+	if(fan_get_status_function(FAN_1) == 1)
+	{
+		my_json_add_int(&js, "speed", 3600);
+		my_json_add_str(&js, "fanStatus", "normal");
 	}
-	cJSON_Delete(fanStatus1);
-	cJSON_Delete(fanStatusList);
-	cJSON_Delete(payload);
-	cJSON_Delete(basic);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+	else
+	{
+		my_json_add_int(&js, "speed", 0);
+		my_json_add_str(&js, "fanStatus", "notPower");
+	}
+	my_json_add_int(&js, "curRunningTime", app_get_fan_time(0));
+	my_json_add_int(&js, "totalRunningTime", app_get_fan_time(1));
+	my_json_object_end(&js);
+	my_json_array_end(&js);
+	my_json_object_end(&js);						// payload
+
+	my_json_object_end(&js);						// root
+
 	if(HTTP_COM_DEBUG) printf("BoxDoorStatusReport:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 
@@ -2964,51 +2460,42 @@ int http_ack_certification_calculations(com_http_cmd_t *com_cmd)
 ************************************************************/
 void http_ack_certification_status(char* buf,uint16_t *size,uint8_t flag)
 {
-	char  *json_data = NULL;
-	cJSON *json        = NULL;
-	cJSON *data        = NULL;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	data = cJSON_CreateObject();
-	if(json != NULL && data != NULL)
+	my_json_t js;
+
+	my_json_init(&js, buf, 4000);		/* buf = http_com_certified_handshake 调用时的 ack_json_buf */
+	my_json_object_begin(&js, NULL);
+	if(flag == 0)
 	{
-		if(flag == 0)
-		{
-			cJSON_AddNumberToObject(json, "status",200);/* 添加一条字符串类型的JSON数据(添加一个链表节点) */
-			cJSON_AddStringToObject(json, "code","0x00000000");
-			cJSON_AddStringToObject(json, "errorMsg","Succeeded.");
-		}
-		else
-		{
-			cJSON_AddNumberToObject(json, "status",401);
-			cJSON_AddStringToObject(json, "code","0x00100001");
-			cJSON_AddStringToObject(json, "errorMsg","The device is not activated.");		
-		}
-    /* 添加嵌套的JSON数据（添加一个链表节点） */
-		cJSON_AddItemToObject(json,"data",data);	
-		if(flag == 0)
-		{	
-			cJSON_AddNumberToObject(data,"statusValue",200);
-			cJSON_AddStringToObject(data, "statusString","OK");
-		}
-		else
-		{
-			cJSON_AddNumberToObject(data,"statusValue",401);
-			cJSON_AddStringToObject(data, "statusString","Unauthorized");			
-		}
-		cJSON_AddFalseToObject(data, "isDefaultPassword");	
-		cJSON_AddFalseToObject(data, "isRiskPassword");	
-		cJSON_AddTrueToObject(data, "isActivated");
-		cJSON_AddNumberToObject(data,"residualValidity",9999);
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
+		my_json_add_int(&js, "status", 200);
+		my_json_add_str(&js, "code", "0x00000000");
+		my_json_add_str(&js, "errorMsg", "Succeeded.");
+	}
+	else
+	{
+		my_json_add_int(&js, "status", 401);
+		my_json_add_str(&js, "code", "0x00100001");
+		my_json_add_str(&js, "errorMsg", "The device is not activated.");
 	}
 
-	*size = strlen(json_data);
-	memcpy(buf,json_data,*size);
+	my_json_object_begin(&js, "data");
+	if(flag == 0)
+	{
+		my_json_add_int(&js, "statusValue", 200);
+		my_json_add_str(&js, "statusString", "OK");
+	}
+	else
+	{
+		my_json_add_int(&js, "statusValue", 401);
+		my_json_add_str(&js, "statusString", "Unauthorized");
+	}
+	my_json_add_bool(&js, "isDefaultPassword", 0);		// 原 cJSON_AddFalseToObject
+	my_json_add_bool(&js, "isRiskPassword", 0);			// 原 cJSON_AddFalseToObject
+	my_json_add_bool(&js, "isActivated", 1);			// 原 cJSON_AddTrueToObject
+	my_json_add_int(&js, "residualValidity", 9999);
+	my_json_object_end(&js);							// data
+	my_json_object_end(&js);							// root
 
-	cJSON_Delete(data);	
-	cJSON_Delete(json);
-	myfree(SRAMIN,json_data);
+	*size = (uint16_t)my_json_len(&js);
 }
 
 
@@ -3577,39 +3064,25 @@ uint16_t http_websocket_event_add_all(char* buf)
 //	jsonlen += sprintf(buf+jsonlen,"%s","}");
 //	return jsonlen;
 
-	char  *json_data  = NULL;
-	cJSON *json       = NULL;
-	cJSON *body       = NULL;
-	cJSON *cjson_list = NULL;
+	my_json_t js;
 	char *uuid_buf = app_get_device_uuid();
-	uint16_t jsonlen = 0;
-	
-	json = cJSON_CreateObject();  /* 创建一个JSON数据对象(链表头结点) */
-	body = cJSON_CreateObject();
-	cjson_list = cJSON_CreateArray();
-	if(json != NULL && body != NULL && cjson_list != NULL)
-	{	
-		if(lwipdev.client_websocket_id == 1)
-			cJSON_AddStringToObject(json,"id",sg_event_param.id);	
-		else if(lwipdev.client_websocket_id == 2)
-			cJSON_AddStringToObject(json,"id",sg_event_param2.id);
-		else if(lwipdev.client_websocket_id == 3)
-			cJSON_AddStringToObject(json,"id",sg_event_param3.id);
-	
-		cJSON_AddItemToObject(json,"body",body);
-		cJSON_AddStringToObject(body,"subscribeEventID",uuid_buf);//"1");
-	
-		json_data = cJSON_PrintUnformatted(json); // 生成JSON数据 - 使用后需要释放内存
-	}
-	cJSON_Delete(cjson_list);
-	cJSON_Delete(body);
-	cJSON_Delete(json);
-	jsonlen = strlen(json_data);
-	memcpy(buf,json_data,jsonlen);
-	myfree(SRAMIN,json_data);
-	
+
+	my_json_init(&js, buf, 512);
+	my_json_object_begin(&js, NULL);
+	if(lwipdev.client_websocket_id == 1)
+		my_json_add_str(&js, "id", sg_event_param.id);
+	else if(lwipdev.client_websocket_id == 2)
+		my_json_add_str(&js, "id", sg_event_param2.id);
+	else if(lwipdev.client_websocket_id == 3)
+		my_json_add_str(&js, "id", sg_event_param3.id);
+
+	my_json_object_begin(&js, "body");
+	my_json_add_str(&js, "subscribeEventID", uuid_buf);
+	my_json_object_end(&js);
+	my_json_object_end(&js);
+
 	if(HTTP_COM_DEBUG) printf("event_add:%s\n",buf);
-	return jsonlen;
+	return (uint16_t)my_json_len(&js);
 }
 
 

@@ -39,6 +39,7 @@ void     my_json_array_end(my_json_t *js);
 /* 成员: key 为 NULL 时作为数组元素写入 */
 void     my_json_add_str(my_json_t *js, const char *key, const char *val);
 void     my_json_add_int(my_json_t *js, const char *key, int32_t val);
+void     my_json_add_double(my_json_t *js, const char *key, double val);
 void     my_json_add_bool(my_json_t *js, const char *key, uint8_t val);
 void     my_json_add_null(my_json_t *js, const char *key);
 void     my_json_add_raw(my_json_t *js, const char *key, const char *raw);

@@ -172,6 +172,27 @@ void my_json_add_int(my_json_t *js, const char *key, int32_t val)
 	mj_puts(js, tmp);
 }
 
+/* 浮点输出: 与 cJSON_PrintUnformatted 的数值格式保持一致 */
+void my_json_add_double(my_json_t *js, const char *key, double val)
+{
+	char   tmp[40];
+	double test;
+
+	if(val == 0)
+		strcpy(tmp, "0");
+	else if(val == (double)(int)val)
+		sprintf(tmp, "%d", (int)val);
+	else
+	{
+		sprintf(tmp, "%1.15g", val);
+		if((sscanf(tmp, "%lg", &test) != 1) || ((double)test != val))
+			sprintf(tmp, "%1.17g", val);
+	}
+
+	mj_prefix(js, key);
+	mj_puts(js, tmp);
+}
+
 void my_json_add_bool(my_json_t *js, const char *key, uint8_t val)
 {
 	mj_prefix(js, key);

@@ -14,7 +14,6 @@
 #include "det.h"
 #include "gsm.h"
 #include "print.h"
-#include "cJSON.h"
 #include "hal_lis3dh.h"
 #include "aht20.h"
 #include "LAN8720.h"
@@ -39,34 +38,34 @@
 ChipID_t g_chipid_t;
 code_id_t code_id_crc;
 
-/* ³õÊ¼»¯PVD */
+/* åˆå§‹åŒ–PVD */
 void PVD_Init(void)
 {
 	EXTI_InitTypeDef EXTI_InitStructure;
 	NVIC_InitTypeDef NVIC_InitStructure;
 	
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE); //Ê¹ÄÜPVDµçÑ¹¼ì²âÄ£¿éµÄÊ±ÖÓ
-	PWR_PVDLevelConfig(PWR_PVDLevel_3); // Éè¶¨¼à¿Ø·§Öµ
-	PWR_PVDCmd(ENABLE); // Ê¹ÄÜPVD
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE); //ä½¿èƒ½PVDç”µå‹æ£€æµ‹æ¨¡å—çš„æ—¶é’Ÿ
+	PWR_PVDLevelConfig(PWR_PVDLevel_3); // è®¾å®šç›‘æ§é˜€å€¼
+	PWR_PVDCmd(ENABLE); // ä½¿èƒ½PVD
 
-	EXTI_InitStructure.EXTI_Line = EXTI_Line16; // PVDÁ¬½Óµ½ÖĞ¶ÏÏß16ÉÏ
-	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt; //Ê¹ÓÃÖĞ¶ÏÄ£Ê½
-	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;//µçÑ¹µÍÓÚ·§ÖµÊ±²úÉúÖĞ¶Ï
-	EXTI_InitStructure.EXTI_LineCmd = ENABLE; // Ê¹ÄÜÖĞ¶ÏÏß
-	EXTI_Init(&EXTI_InitStructure); // ³õÊ¼
+	EXTI_InitStructure.EXTI_Line = EXTI_Line16; // PVDè¿æ¥åˆ°ä¸­æ–­çº¿16ä¸Š
+	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt; //ä½¿ç”¨ä¸­æ–­æ¨¡å¼
+	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;//ç”µå‹ä½äºé˜€å€¼æ—¶äº§ç”Ÿä¸­æ–­
+	EXTI_InitStructure.EXTI_LineCmd = ENABLE; // ä½¿èƒ½ä¸­æ–­çº¿
+	EXTI_Init(&EXTI_InitStructure); // åˆå§‹
 	
-	NVIC_InitStructure.NVIC_IRQChannel = PVD_IRQn; //¶¨Ê±Æ÷3ÖĞ¶Ï
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0; //ÇÀÕ¼ÓÅÏÈ¼¶1
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0; //×ÓÓÅÏÈ¼¶3
+	NVIC_InitStructure.NVIC_IRQChannel = PVD_IRQn; //å®šæ—¶å™¨3ä¸­æ–­
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0; //æŠ¢å ä¼˜å…ˆçº§1
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0; //å­ä¼˜å…ˆçº§3
 	NVIC_InitStructure.NVIC_IRQChannelCmd=ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 }
 
-/* PVDÖĞ¶Ï´¦Àí */
+/* PVDä¸­æ–­å¤„ç† */
 void PVD_IRQHandler(void)
 {
 	EXTI_ClearITPendingBit(EXTI_Line16);
-	if(PWR_GetFlagStatus( PWR_FLAG_PVDO ))    /* 1ÎªVDDĞ¡ÓÚPVDãĞÖµ,µôµçÇé¿ö */
+	if(PWR_GetFlagStatus( PWR_FLAG_PVDO ))    /* 1ä¸ºVDDå°äºPVDé˜ˆå€¼,æ‰ç”µæƒ…å†µ */
 	{
 		while(1)
 		{
@@ -74,7 +73,7 @@ void PVD_IRQHandler(void)
 			for(uint32_t i=0;i<0x50000;i++);
 			IWDG_Feed();
 			pwr_tst_detection();
-			if(det_get_220v_in_function() == 1)  // 220VÉÏµç
+			if(det_get_220v_in_function() == 1)  // 220Vä¸Šç”µ
 				System_SoftReset();			
 		}
 	}
@@ -91,50 +90,46 @@ void BOR_Init(void)
 /************************************************************
 *
 * Function name	: start_system_init_function
-* Description	: ÏµÍ³³õÊ¼»¯º¯Êı
+* Description	: ç³»ç»Ÿåˆå§‹åŒ–å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void start_system_init_function(void)
 {
-	cJSON_Hooks hook;
 //	PVD_Init();
 //	BOR_Init();
-	IWDG_Init(4,1000);				// ³õÊ¼»¯¿´ÃÅ¹· 2s
+	IWDG_Init(4,1000);				// åˆå§‹åŒ–çœ‹é—¨ç‹— 2s
 	
-	start_get_device_id_function();					// »ñÈ¡±¾»úID
-	mymem_init(SRAMIN);											// ÄÚ´æ³õÊ¼»¯
-	hook.malloc_fn = mymalloc_sramin;
-	hook.free_fn   = myfree_sramin;
-	cJSON_InitHooks(&hook);
+	start_get_device_id_function();					// è·å–æœ¬æœºID
+	mymem_init(SRAMIN);											// å†…å­˜åˆå§‹åŒ–
 	
-	led_gpio_init_function();						// LED³õÊ¼»¯£¨ÒÑ²âÊÔ£©
-	relay_gpio_init_function();				  // ¼ÌµçÆ÷³õÊ¼»¯£¨ÒÑ²âÊÔ£©	
-	usart_debug_init_function(115200);  // µ÷ÊÔ½Ó¿Ú¡ª¡ª´®¿Ú2£¨ÒÑ²âÊÔ£©
-	key_init_function();	 						  // °´¼ü³õÊ¼»¯(ÒÑ²âÊÔ)
-	TIM3_Int_Init(1000-1,84-1);					// ¶¨Ê±Æ÷3³õÊ¼»¯(ÒÑ²âÊÔ)
-	TIM2_Int_Init(10000-1,84-1);				// ¶¨Ê±Æ÷2³õÊ¼»¯(ÒÑ²âÊÔ)
-	TIM6_Int_Init(10000-1,8400-1);			// ¶¨Ê±Æ÷6³õÊ¼»¯ 1Hz(ÒÑ²âÊÔ)
-	My_RTC_Init();											// RTC³õÊ¼»¯(ÒÑ²âÊÔ)
+	led_gpio_init_function();						// LEDåˆå§‹åŒ–ï¼ˆå·²æµ‹è¯•ï¼‰
+	relay_gpio_init_function();				  // ç»§ç”µå™¨åˆå§‹åŒ–ï¼ˆå·²æµ‹è¯•ï¼‰	
+	usart_debug_init_function(115200);  // è°ƒè¯•æ¥å£â€”â€”ä¸²å£2ï¼ˆå·²æµ‹è¯•ï¼‰
+	key_init_function();	 						  // æŒ‰é”®åˆå§‹åŒ–(å·²æµ‹è¯•)
+	TIM3_Int_Init(1000-1,84-1);					// å®šæ—¶å™¨3åˆå§‹åŒ–(å·²æµ‹è¯•)
+	TIM2_Int_Init(10000-1,84-1);				// å®šæ—¶å™¨2åˆå§‹åŒ–(å·²æµ‹è¯•)
+	TIM6_Int_Init(10000-1,8400-1);			// å®šæ—¶å™¨6åˆå§‹åŒ– 1Hz(å·²æµ‹è¯•)
+	My_RTC_Init();											// RTCåˆå§‹åŒ–(å·²æµ‹è¯•)
 //	RTC_Set_AlarmA(RTC_Weekday_Tuesday,1,00,00);
 	
 	printf("13213\r\n");
 	
-	RNG_Init();                         // Ó²¼şËæ»úÊı³õÊ¼»¯
+	RNG_Init();                         // ç¡¬ä»¶éšæœºæ•°åˆå§‹åŒ–
 	
 	printf("88888\r\n");
 	
 	
 	IWDG_Feed();
 	
-	bl0910_init_function();						// µçÄÜ¼ì²â³õÊ¼»¯(ÒÑ²âÊÔ)	
-	fan_gpio_init_function();           // ·çÉÈ³õÊ¼»¯(ÒÑ²âÊÔ)
+	bl0910_init_function();						// ç”µèƒ½æ£€æµ‹åˆå§‹åŒ–(å·²æµ‹è¯•)	
+	fan_gpio_init_function();           // é£æ‰‡åˆå§‹åŒ–(å·²æµ‹è¯•)
 
  // fan_test();
 
-	hal_lis3dh_init(true);	 						// ÍÓÂİÒÇ³õÊ¼»¯ IIC (ÒÑ²âÊÔ)	
-	aht20_init_function();							// ÎÂÊª¶È³õÊ¼»¯(ÒÑ²âÊÔ)
+	hal_lis3dh_init(true);	 						// é™€èºä»ªåˆå§‹åŒ– IIC (å·²æµ‹è¯•)	
+	aht20_init_function();							// æ¸©æ¹¿åº¦åˆå§‹åŒ–(å·²æµ‹è¯•)
 	printf("ceshi\r\n");
 	printf("RCC->CSR2..:0x%08x..\r\n",RCC->CSR);	
 //	RCC_ClearFlag();
@@ -142,7 +137,7 @@ void start_system_init_function(void)
 	while((RCC->CSR & 0x0A000000) != 0)
 	{ 
 		pwr_tst_detection();
-		if(det_get_220v_in_function() == 1)  // 220VÉÏµç
+		if(det_get_220v_in_function() == 1)  // 220Vä¸Šç”µ
 		{
 			RCC_ClearFlag();
 			System_SoftReset();
@@ -153,16 +148,16 @@ void start_system_init_function(void)
 			IWDG_Feed();
 		}
 	}
-	RCC_ClearFlag();                	// Çå³ş±êÖ¾Î»
+	RCC_ClearFlag();                	// æ¸…æ¥šæ ‡å¿—ä½
 	IWDG_Feed();
-	W25QXX_Init();			 							// ³õÊ¼»¯spiflash
+	W25QXX_Init();			 							// åˆå§‹åŒ–spiflash
 	save_init_function();	
-	com_recevie_function_init();			// ³õÊ¼»¯½ÓÊÕ»º³åÇø
+	com_recevie_function_init();			// åˆå§‹åŒ–æ¥æ”¶ç¼“å†²åŒº
 	http_com_buff_init();
 	http_com_buff_init2();
 	http_com_buff_init3();
-	app_get_storage_param_function();	// »ñÈ¡±¾µØ´æ´¢µÄÊı¾İ
-	my_modem_init();									// ¸üĞÂ¼ì²â
+	app_get_storage_param_function();	// è·å–æœ¬åœ°å­˜å‚¨çš„æ•°æ®
+	my_modem_init();									// æ›´æ–°æ£€æµ‹
 	my_app_run_param_init();
 	IWDG_Feed();
 }
@@ -170,13 +165,13 @@ void start_system_init_function(void)
 /************************************************************
 *
 * Function name	: start_get_device_id_function
-* Description	: »ñÈ¡±¾»úID
+* Description	: è·å–æœ¬æœºID
 * Parameter		: 
 * Return		: 
-*	STM2F1_UUID_ADDR  0X1FFFF7E8   // ÈÎÒâµÄÒ»¸öÊı
-	STM2F3_UUID_ADDR  0X1FFFF7AC   // ÈÎÒâµÄÒ»¸öÊı
-	STM2F4_UUID_ADDR  0X1FFF7A10   // ÈÎÒâµÄÒ»¸öÊı
-	STM2F7_UUID_ADDR  0X1FF0F420   // ÈÎÒâµÄÒ»¸öÊı
+*	STM2F1_UUID_ADDR  0X1FFFF7E8   // ä»»æ„çš„ä¸€ä¸ªæ•°
+	STM2F3_UUID_ADDR  0X1FFFF7AC   // ä»»æ„çš„ä¸€ä¸ªæ•°
+	STM2F4_UUID_ADDR  0X1FFF7A10   // ä»»æ„çš„ä¸€ä¸ªæ•°
+	STM2F7_UUID_ADDR  0X1FF0F420   // ä»»æ„çš„ä¸€ä¸ªæ•°
 ************************************************************/
 void start_get_device_id_function(void)
 {
@@ -193,7 +188,7 @@ void start_get_device_id_function(void)
 /************************************************************
 *
 * Function name	: start_get_device_id_str
-* Description	: »ñÈ¡±¾»úID
+* Description	: è·å–æœ¬æœºID
 * Parameter		: 
 * Return		: 
 *	
@@ -206,7 +201,7 @@ void start_get_device_id_str(uint8_t *str)
 /************************************************************
 *
 * Function name	: start_pack_device_uuid_str
-* Description	: ´ò°ü³ÉUUID
+* Description	: æ‰“åŒ…æˆUUID
 * Parameter		: 
 * Return		: 
 *	"079f23cd-0988-459f-96f5-fa1c507dd07c"
@@ -228,61 +223,61 @@ void start_get_device_id(uint32_t *id)
 	id[2] = g_chipid_t.id[2];
 }
 
-/* ÈÎÎñÓÅÏÈ¼¶ */
+/* ä»»åŠ¡ä¼˜å…ˆçº§ */
 #define APP_TASK_PRIO		11
-/* ÈÎÎñ¶ÑÕ»´óĞ¡ */
+/* ä»»åŠ¡å †æ ˆå¤§å° */
 #define APP_STK_SIZE		512
-/* ÈÎÎñ¶ÑÕ» */
+/* ä»»åŠ¡å †æ ˆ */
 __align(8) static OS_STK START_TASK_STK[APP_STK_SIZE];
-/* ÈÎÎñº¯Êı */
+/* ä»»åŠ¡å‡½æ•° */
 void app_task(void *argument);
 
-/* ÈÎÎñÓÅÏÈ¼¶ */
+/* ä»»åŠ¡ä¼˜å…ˆçº§ */
 #define ETH_TASK_PRIO		13
-/* ÈÎÎñ¶ÑÕ»´óĞ¡ */
+/* ä»»åŠ¡å †æ ˆå¤§å° */
 #define ETH_STK_SIZE		256
-/* ÈÎÎñ¶ÑÕ» */
+/* ä»»åŠ¡å †æ ˆ */
 __align(8) static OS_STK ETH_TASK_STK[ETH_STK_SIZE];
-/* ÈÎÎñº¯Êı */
+/* ä»»åŠ¡å‡½æ•° */
 void eth_task(void *argument);
 
-/* ÈÎÎñÓÅÏÈ¼¶ */
+/* ä»»åŠ¡ä¼˜å…ˆçº§ */
 #define DET_TASK_PRIO		12
-/* ÈÎÎñ¶ÑÕ»´óĞ¡ */
+/* ä»»åŠ¡å †æ ˆå¤§å° */
 #define DET_STK_SIZE		512
-/* ÈÎÎñ¶ÑÕ» */
+/* ä»»åŠ¡å †æ ˆ */
 __align(8) static OS_STK DET_TASK_STK[DET_STK_SIZE];
-/* ÈÎÎñº¯Êı */
+/* ä»»åŠ¡å‡½æ•° */
 void det_task(void *argument);
 
-//ÈÎÎñÓÅÏÈ¼¶
+//ä»»åŠ¡ä¼˜å…ˆçº§
 #define STORAGESTACK_PRIO		30
-//ÈÎÎñ¶ÑÕ»´óĞ¡	
+//ä»»åŠ¡å †æ ˆå¤§å°	
 #define STORAGESTACK_STK_SIZE 		128
-//ÈÎÎñ¶ÑÕ»	
+//ä»»åŠ¡å †æ ˆ	
 OS_STK STORAGESTACK_STK[STORAGESTACK_STK_SIZE];
-//ÈÎÎñº¯Êı
+//ä»»åŠ¡å‡½æ•°
 void storagestack_task(void *p_arg);
 
 
-/* ÈÎÎñÓÅÏÈ¼¶ */
+/* ä»»åŠ¡ä¼˜å…ˆçº§ */
 #define GSM_TASK_PRIO		19
-/* ÈÎÎñ¶ÑÕ»´óĞ¡ */
+/* ä»»åŠ¡å †æ ˆå¤§å° */
 #define GSM_STK_SIZE		512
-/* ÈÎÎñ¶ÑÕ» */
+/* ä»»åŠ¡å †æ ˆ */
 OS_STK GSM_TASK_STK[GSM_STK_SIZE];
-/* ÈÎÎñº¯Êı */
+/* ä»»åŠ¡å‡½æ•° */
 void gsm_task(void *argument);
 
 
-#define PRINT_TASK_PRIO		29   /* ÈÎÎñÓÅÏÈ¼¶ */
-#define PRINT_STK_SIZE		300 /* ÈÎÎñ¶ÑÕ»´óĞ¡ */
-OS_STK 	PRINT_TASK_STK[PRINT_STK_SIZE]; /* ÈÎÎñ¶ÑÕ» */
-void print_task(void *argument); /* ÈÎÎñº¯Êı */
+#define PRINT_TASK_PRIO		29   /* ä»»åŠ¡ä¼˜å…ˆçº§ */
+#define PRINT_STK_SIZE		300 /* ä»»åŠ¡å †æ ˆå¤§å° */
+OS_STK 	PRINT_TASK_STK[PRINT_STK_SIZE]; /* ä»»åŠ¡å †æ ˆ */
+void print_task(void *argument); /* ä»»åŠ¡å‡½æ•° */
 /************************************************************
 *
 * Function name	: start_creat_task_function
-* Description	: ´´½¨ÈÎÎñ
+* Description	: åˆ›å»ºä»»åŠ¡
 * Parameter		: 
 * Return		: 
 *	
@@ -291,95 +286,95 @@ void start_creat_task_function(void)
 {
 	OS_CPU_SR cpu_sr;
 	INT8U  err;			
-	OS_ENTER_CRITICAL();  																	// ¹ØÖĞ¶Ï
+	OS_ENTER_CRITICAL();  																	// å…³ä¸­æ–­
 	
-	/* ´´½¨ÈÎÎñ */
-	OSTaskCreateExt(	 app_task, 																					//½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-										(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-										(OS_STK*)&START_TASK_STK[APP_STK_SIZE-1], 					//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-										(INT8U)APP_TASK_PRIO, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-										(INT16U)APP_TASK_PRIO,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-										(OS_STK *)&START_TASK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-										(INT32U)APP_STK_SIZE, 															//Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-										(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+	/* åˆ›å»ºä»»åŠ¡ */
+	OSTaskCreateExt(	 app_task, 																					//å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+										(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+										(OS_STK*)&START_TASK_STK[APP_STK_SIZE-1], 					//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+										(INT8U)APP_TASK_PRIO, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+										(INT16U)APP_TASK_PRIO,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+										(OS_STK *)&START_TASK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+										(INT32U)APP_STK_SIZE, 															//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+										(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 	OSTaskNameSet(APP_TASK_PRIO, (INT8U *)(void *)"app", &err);
-	OSTaskCreateExt(	 eth_task, 																					//½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-										(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-										(OS_STK*)&ETH_TASK_STK[ETH_STK_SIZE-1], 					//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-										(INT8U)ETH_TASK_PRIO, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-										(INT16U)ETH_TASK_PRIO,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-										(OS_STK *)&ETH_TASK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-										(INT32U)ETH_STK_SIZE, 															//Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-										(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+	OSTaskCreateExt(	 eth_task, 																					//å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+										(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+										(OS_STK*)&ETH_TASK_STK[ETH_STK_SIZE-1], 					//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+										(INT8U)ETH_TASK_PRIO, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+										(INT16U)ETH_TASK_PRIO,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+										(OS_STK *)&ETH_TASK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+										(INT32U)ETH_STK_SIZE, 															//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+										(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 	OSTaskNameSet(ETH_TASK_PRIO, (INT8U *)(void *)"eth", &err);
 										
-	OSTaskCreateExt(	 det_task, 																					//½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-										(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-										(OS_STK*)&DET_TASK_STK[DET_STK_SIZE-1], 					//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-										(INT8U)DET_TASK_PRIO, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-										(INT16U)DET_TASK_PRIO,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-										(OS_STK *)&DET_TASK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-										(INT32U)DET_STK_SIZE, 															//Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-										(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+	OSTaskCreateExt(	 det_task, 																					//å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+										(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+										(OS_STK*)&DET_TASK_STK[DET_STK_SIZE-1], 					//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+										(INT8U)DET_TASK_PRIO, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+										(INT16U)DET_TASK_PRIO,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+										(OS_STK *)&DET_TASK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+										(INT32U)DET_STK_SIZE, 															//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+										(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 	OSTaskNameSet(DET_TASK_PRIO, (INT8U *)(void *)"det", &err);
 
-	OSTaskCreateExt(	 gsm_task, 																					//½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-										(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-										(OS_STK*)&GSM_TASK_STK[GSM_STK_SIZE-1], 					//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-										(INT8U)GSM_TASK_PRIO, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-										(INT16U)GSM_TASK_PRIO,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-										(OS_STK *)&GSM_TASK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-										(INT32U)GSM_STK_SIZE, 															//Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-										(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+	OSTaskCreateExt(	 gsm_task, 																					//å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+										(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+										(OS_STK*)&GSM_TASK_STK[GSM_STK_SIZE-1], 					//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+										(INT8U)GSM_TASK_PRIO, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+										(INT16U)GSM_TASK_PRIO,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+										(OS_STK *)&GSM_TASK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+										(INT32U)GSM_STK_SIZE, 															//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+										(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 	OSTaskNameSet(GSM_TASK_PRIO, (INT8U *)(void *)"gsm", &err);
 
-	OSTaskCreateExt(	 print_task,                                        //½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-										(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-										(OS_STK*)&PRINT_TASK_STK[PRINT_STK_SIZE-1], 					//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-										(INT8U)PRINT_TASK_PRIO, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-										(INT16U)PRINT_TASK_PRIO,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-										(OS_STK *)&PRINT_TASK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-										(INT32U)PRINT_STK_SIZE, 															//Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-										(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+	OSTaskCreateExt(	 print_task,                                        //å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+										(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+										(OS_STK*)&PRINT_TASK_STK[PRINT_STK_SIZE-1], 					//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+										(INT8U)PRINT_TASK_PRIO, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+										(INT16U)PRINT_TASK_PRIO,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+										(OS_STK *)&PRINT_TASK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+										(INT32U)PRINT_STK_SIZE, 															//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+										(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 	OSTaskNameSet(PRINT_TASK_PRIO, (INT8U *)(void *)"print", &err);
 										
-//	OSTaskCreateExt(	 storagestack_task, 															 //½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-//										(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-//										(OS_STK*)&STORAGESTACK_STK[STORAGESTACK_STK_SIZE-1], //·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-//										(INT8U)STORAGESTACK_PRIO, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-//										(INT16U)STORAGESTACK_PRIO,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-//										(OS_STK *)&STORAGESTACK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-//										(INT32U)STORAGESTACK_STK_SIZE, 												 //Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-//										(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-//										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+//	OSTaskCreateExt(	 storagestack_task, 															 //å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+//										(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+//										(OS_STK*)&STORAGESTACK_STK[STORAGESTACK_STK_SIZE-1], //åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+//										(INT8U)STORAGESTACK_PRIO, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+//										(INT16U)STORAGESTACK_PRIO,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+//										(OS_STK *)&STORAGESTACK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+//										(INT32U)STORAGESTACK_STK_SIZE, 												 //æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+//										(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+//										(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 //	OSTaskNameSet(STORAGESTACK_PRIO, (INT8U *)(void *)"storagestack", &err);
 	
-	OS_EXIT_CRITICAL();  		 															// ¿ªÖĞ¶Ï
+	OS_EXIT_CRITICAL();  		 															// å¼€ä¸­æ–­
 }
 
 /************************************************************
 *
 * Function name	: app_task_function
-* Description	: Ö÷ÒªÈÎÎñº¯Êı
+* Description	: ä¸»è¦ä»»åŠ¡å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void app_task(void *argument)
 {
-	OSStatInit();	  	// ³õÊ¼»¯Í³¼ÆÈÎÎñ
+	OSStatInit();	  	// åˆå§‹åŒ–ç»Ÿè®¡ä»»åŠ¡
 	app_task_function();
 }
 
 /************************************************************
 *
 * Function name	: eth_task
-* Description	: Íø¿Ú¼ì²âÈÎÎñ:Ò»Ö±¶ÔÍø¿Ú½øĞĞÂÖÑ¯
+* Description	: ç½‘å£æ£€æµ‹ä»»åŠ¡:ä¸€ç›´å¯¹ç½‘å£è¿›è¡Œè½®è¯¢
 * Parameter		: 
 * Return		: 
 *	
@@ -392,7 +387,7 @@ void eth_task(void *argument)
 /************************************************************
 *
 * Function name	: det_task
-* Description	: ¼ì²âº¯Êı£º°üÀ¨ÎÂÊª¶È¡¢adcµÈ
+* Description	: æ£€æµ‹å‡½æ•°ï¼šåŒ…æ‹¬æ¸©æ¹¿åº¦ã€adcç­‰
 * Parameter		: 
 * Return		: 
 *	
@@ -405,7 +400,7 @@ void det_task(void *argument)
 /************************************************************
 *
 * Function name	: gsm_task
-* Description	: 2GÄ£¿éÈÎÎñ£º´òµç»°
+* Description	: 2Gæ¨¡å—ä»»åŠ¡ï¼šæ‰“ç”µè¯
 * Parameter		: 
 * Return		: 
 *	
@@ -418,7 +413,7 @@ void gsm_task(void *argument)
 /************************************************************
 *
 * Function name	: gsm_task
-* Description	: 2GÄ£¿éÈÎÎñ£º´òµç»°
+* Description	: 2Gæ¨¡å—ä»»åŠ¡ï¼šæ‰“ç”µè¯
 * Parameter		: 
 * Return		: 
 *	
@@ -430,28 +425,28 @@ void print_task(void *argument)
 /************************************************************
 *
 * Function name	: gsm_task
-* Description	: 2GÄ£¿éÈÎÎñ£º´òµç»°
+* Description	: 2Gæ¨¡å—ä»»åŠ¡ï¼šæ‰“ç”µè¯
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void storagestack_task(void *p_arg)
 {
-	OS_TCB *ptcb;       //¶¨ÒåÒ»¸öÈÎÎñ¿ØÖÆ¿é£¬½á¹¹ÌåÖ¸Õë
-	OS_STK_DATA stkDat;   //¶¨Òå¶ÑÕ»½á¹¹Ìå±äÁ¿ 
+	OS_TCB *ptcb;       //å®šä¹‰ä¸€ä¸ªä»»åŠ¡æ§åˆ¶å—ï¼Œç»“æ„ä½“æŒ‡é’ˆ
+	OS_STK_DATA stkDat;   //å®šä¹‰å †æ ˆç»“æ„ä½“å˜é‡ 
 	while(1)
 	{
-		ptcb = &OSTCBTbl[0];//½«Ö¸ÕëÖ¸ÏòÈÎÎñ±íµÄµÚÒ»¸öÈÎÎñ
+		ptcb = &OSTCBTbl[0];//å°†æŒ‡é’ˆæŒ‡å‘ä»»åŠ¡è¡¨çš„ç¬¬ä¸€ä¸ªä»»åŠ¡
 		printf("************************************ App Task Debug Info ***********************************\r\n");
 		printf("  Prio    Used     Free    Per     TaskName\r\n");
-		while (ptcb != NULL)//ÂÖÑ¯Ã¿Ò»¸öÈÎÎñ
+		while (ptcb != NULL)//è½®è¯¢æ¯ä¸€ä¸ªä»»åŠ¡
 		{
 				OSTaskStkChk(ptcb->OSTCBPrio, &stkDat);//Check task stack
 				printf("   %2d    %5d    %5d    %02d%%     %s\r\n", ptcb->OSTCBPrio, stkDat.OSUsed, stkDat.OSFree, (stkDat.OSUsed * 100)/(stkDat.OSUsed + stkDat.OSFree), ptcb->OSTCBTaskName);        
 				ptcb = ptcb->OSTCBPrev;//Previous TCB list
 		}
 		printf("\r\n");
-		OSTimeDlyHMSM(0,0,10,0); //ÑÓÊ±3s
+		OSTimeDlyHMSM(0,0,10,0); //å»¶æ—¶3s
 	}
 }
 
