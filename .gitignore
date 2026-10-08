@@ -19,3 +19,7 @@ DebugConfig/
 
 # 编辑器与合并备份
 *.orig
+
+# 本地 ST-Link 调试工具链(xPack OpenOCD)与烧录/串口日志
+.tools/
+*.log

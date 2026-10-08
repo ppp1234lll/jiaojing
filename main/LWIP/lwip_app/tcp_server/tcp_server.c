@@ -83,7 +83,10 @@ static void tcp_server_thread(void *arg)
 			tcp_server_stop_function();
 		}	
 		IWDG_Feed();
-		OSTimeDlyHMSM(0,0,0,2);		// 加快 accept 轮询, 便于快速短连接及时接入
+		/* 注意: 此处延时必须足够大(>=10ms)。uCOS-II 换算: ticks = OS_TICKS_PER_SEC*((ms)+(500/OS_TICKS_PER_SEC))/1000,
+		   节拍 200Hz 下 2ms 会算出 0 个 tick, 而 OSTimeDly(0) 不会延时。本任务优先级 10 高于 app 任务 11,
+		   会变成忙等把 app 主任务饿死, 导致参数保存(app_task_save_function)永不执行、重启后参数丢失。 */
+		OSTimeDlyHMSM(0,0,0,10);
 	}
 }
 
