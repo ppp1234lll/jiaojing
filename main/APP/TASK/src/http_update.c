@@ -1291,6 +1291,19 @@ void http_update_failed(void)
 }
 ////////////////////
 
+/* 释放HTTP应答缓冲(升级结束/失败时调用, 避免2KB常驻) */
+void http_update_free_response(void)
+{
+	if(sg_http_update_param.http_response_buff)
+	{
+		myfree(SRAMIN, sg_http_update_param.http_response_buff);
+		sg_http_update_param.http_response_buff = NULL;
+	}
+	sg_http_update_param.http_response_buff_size = 0;
+	sg_http_update_param.http_response_recv_size = 0;
+}
+////////////////////
+
 /* 清除升级参数(状态置为NONE) */
 void http_update_clear_param(void)
 {

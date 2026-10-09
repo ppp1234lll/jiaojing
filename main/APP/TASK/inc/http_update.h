@@ -86,6 +86,7 @@ extern void http_update_close_connect_by_gprs(void);
 extern void http_update_success_reboot(void);
 extern void http_update_failed(void);
 extern void http_update_clear_param(void);
+extern void http_update_free_response(void);
 
 #if 0 // ²âÊÔ×·×Ù
 void trace_update_param(const char *trace_flag);

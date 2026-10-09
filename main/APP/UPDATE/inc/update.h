@@ -43,6 +43,9 @@ typedef struct {
 
 void *update_get_infor_data_function(void);
 
+/* 开机检测上次升级结果并上报平台 */
+void update_status_detection(void);
+
 /* 无线模块对应的更新函数 */
 int8_t update_mobile_task_function(void);
 int8_t update_gsm_recevie_data_function(uint8_t *buff, uint16_t len);

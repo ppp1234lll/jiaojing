@@ -17,8 +17,6 @@ LR_IROM1 0x08040000 0x00040000  {    ; load region size_region
 	start.o      (+RW +ZI)	
 	app.o        (+RW +ZI)
 	http_com.o   (+RW +ZI)
-	http_com2.o  (+RW +ZI)
-	http_com3.o  (+RW +ZI)
 	tcp_client.o (+RW +ZI)
 	tcp_server.o (+RW +ZI)
 	w25qxx.o     (+RW +ZI)

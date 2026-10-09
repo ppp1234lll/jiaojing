@@ -13,6 +13,9 @@
 #include "lwip/tcp.h"
 #include "save.h"
 #include "iwdg.h"
+#include "app.h"
+#include "com.h"
+#include "http_update.h"
 #include <queue.h>
 
 update_param_t sg_updateparam_t = {
@@ -172,5 +175,39 @@ uint8_t update_detection_status_function(void)
 void update_end_function(void)
 {
 	sg_updateparam_t.end = 1;
+}
+
+/************************************************************
+*
+* Function name	: update_status_detection
+* Description	: 开机检测上次升级结果并上报平台(无线HTTP升级)
+* Parameter		: 
+* Return		: 
+*	
+************************************************************/
+void update_status_detection(void)
+{
+	struct BOOT_UPDATE_PARAM boot_update_param = {0};
+	////
+
+	W25QXX_Read((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
+
+	switch(boot_update_param.update_status)
+	{
+		case BOOT_UPDATE_SUCCESS:
+			/* 上报: 升级成功 */
+			app_set_reply_parameters_function(CONFIGURE_UPDATE_SYSTEM, 0x01);
+			http_update_clear_param();
+			break;
+
+		case BOOT_UPDATE_FAILED:
+			/* 上报: 升级失败 */
+			app_set_reply_parameters_function(CONFIGURE_UPDATE_SYSTEM, 0x00);
+			http_update_clear_param();
+			break;
+
+		default:
+			break;
+	}
 }
 

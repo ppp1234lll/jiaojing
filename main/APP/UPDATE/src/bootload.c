@@ -384,7 +384,6 @@ uint16_t disconnect_cnt=0;
 -----------------------------------------------------------------------------*/
 void my_modem_recieve_gprs_deal(MYMODEM *modem)
 {
-	uint8_t state = 1;
 	uint8_t error_state = 0;
 	static  uint8_t no_ack_cnt = 0;  //无数据接收计数
 	int8_t  queue_status = 0;

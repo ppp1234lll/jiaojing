@@ -82,6 +82,9 @@ UPDATE_END:
 
 	led_control_function(LD_GPRS, LD_OFF);
 
+	/* 释放升级过程中申请的HTTP应答缓冲 */
+	http_update_free_response();
+
 	/* 升级结束, 触发4G业务链路重新连接 */
 	gsm_set_network_reset_function();
 
