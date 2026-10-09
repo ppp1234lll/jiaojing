@@ -829,8 +829,10 @@ void app_deal_com_send_wait_function(void)
 				/* 发送响应超时 */
 				sg_sysoperate_t.com.repeat = 0;
 				/* 发送超时，服务器无响应或者网络已断开 */
-				eth_set_tcp_connect_reset();						// 重启TCP连接
-				gsm_set_network_reset_function();					// 重启GRPS连接
+				/* 国标(JP)协议只经 4G 通道收发, 有线通道承载的是海康 HTTP/WebSocket,
+				   二者协议与链路相互独立。此处只复位 4G, 不再复位以太网 TCP,
+				   避免误伤正在工作的海康平台链路。 */
+				gsm_set_network_reset_function();					// 仅重启GRPS连接
 				
 				/* 数据清空 */
 				sg_sysoperate_t.com.send_status = SEND_STATUS_NO; 	// 进行下一次发送

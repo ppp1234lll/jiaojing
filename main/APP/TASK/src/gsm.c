@@ -33,8 +33,16 @@ typedef struct
 } gsm_operate_t;
 
 gsm_operate_t sg_gsmoperate_t;
-uint8_t  *sg_gsm_buff;
-uint16_t sg_gsm_flag   = 0;
+
+/* 4G 发送暂存区:
+   app_task(优先级11) 组包后, gsm_send_tcp_data() 只把数据拷入本缓冲;
+   gsm_task(优先级19) 再从本缓冲发送。二者解耦后, app_task 在 gsm_task 发送
+   期间(AT 交互内有 OSTimeDly 让出 CPU)再次组包/清空自己的 sg_send_buff,
+   也不会污染正在发送的国标帧。 */
+#define GSM_TX_BUFF_SIZE (1024)
+static uint8_t  sg_gsm_tx_buff[GSM_TX_BUFF_SIZE] = {0};
+uint16_t sg_gsm_flag   = 0;			/* bit15=待发送标志, 低15位=长度 */
+static uint8_t sg_gsm_sending = 0;	/* 1-正在发送(暂存区被占用, 生产者勿覆盖) */
 
 /************************************************************
 *
@@ -47,6 +55,8 @@ uint16_t sg_gsm_flag   = 0;
 void gsm_task_function(void)
 {
 	uint32_t status_count = 0;
+	uint16_t tx_len       = 0;
+	OS_CPU_SR cpu_sr;
 	#ifdef COM_GPS_ENABLE
 	uint16_t gps_count = 0;
 	#endif
@@ -57,6 +67,8 @@ void gsm_task_function(void)
 __RESET:
 	led_control_function(LD_GPRS,LD_OFF);
 	/* 通信模块初始化 */
+	sg_gsm_flag    = 0;
+	sg_gsm_sending = 0;
 	memset(&sg_gsmoperate_t,0,sizeof(gsm_operate_t));
 	gprs_deinit_function(); // 清除数据再进行初始化
 	while(gprs_status_check_function() == 1) {
@@ -82,10 +94,24 @@ __RESET:
 				gsm_tcp_control_function();	// tcp连接
 				gsm_reset_task_function();	// 重启软件
 					
-				if(sg_gsmoperate_t.tcp_status == 1 && (sg_gsm_flag&0x8000))		/* 数据发送 */
+				if(sg_gsmoperate_t.tcp_status == 1)		/* 数据发送 */
 				{
-					gprs_network_data_send_function(sg_gsm_buff,(sg_gsm_flag&0x7fff));
-					sg_gsm_flag = 0;
+					OS_ENTER_CRITICAL();
+					tx_len = 0;
+					if(sg_gsm_flag & 0x8000) {
+						tx_len = sg_gsm_flag & 0x7fff;
+						sg_gsm_sending = 1;				/* 占用暂存区, 禁止生产者覆盖 */
+					}
+					OS_EXIT_CRITICAL();
+
+					if(tx_len != 0)
+					{
+						gprs_network_data_send_function(sg_gsm_tx_buff,tx_len);
+						OS_ENTER_CRITICAL();
+						sg_gsm_flag = 0;
+						sg_gsm_sending = 0;				/* 释放暂存区 */
+						OS_EXIT_CRITICAL();
+					}
 				}
 			}
 			else if( update_get_mode_function() == UPDATE_MODE_GPRS)
@@ -250,8 +276,23 @@ void gsm_set_tcp_cmd(uint8_t cmd)
 ************************************************************/
 void gsm_send_tcp_data(uint8_t *data, uint16_t size)
 {
-	sg_gsm_buff = data;
-	sg_gsm_flag = size + 0x8000;
+	OS_CPU_SR cpu_sr;
+
+	if(data == NULL || size == 0) {
+		return;
+	}
+	if(size > GSM_TX_BUFF_SIZE) {
+		size = GSM_TX_BUFF_SIZE;
+	}
+
+	OS_ENTER_CRITICAL();
+	/* 仅在无人发送时更新暂存区:
+	   保持原有"后写覆盖"语义, 同时避免覆盖正在发送(sg_gsm_sending=1)的国标帧 */
+	if(sg_gsm_sending == 0) {
+		memcpy(sg_gsm_tx_buff,data,size);
+		sg_gsm_flag = size + 0x8000;
+	}
+	OS_EXIT_CRITICAL();
 }
 
 const char gsm_moduble_init[]   = {0x20,0xe5,0xb7,0xb2,0xe6,0x8c,0x82,0xe8,0xbd,0xbd,0x20,0x00}; // 已挂在

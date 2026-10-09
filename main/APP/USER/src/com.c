@@ -1768,15 +1768,20 @@ void com_queue_time_function(void)
 ************************************************************/
 uint16_t com_queue_find_msg(uint8_t *msg,uint16_t size)
 {
+	uint16_t msg_size = 0;
 	#ifdef COMDATA_PROCESS_MODE2
 	static uint16_t msg_state = 0;
 	static uint16_t	msg_head  = 0;
 	static uint8_t  buff_size = 0;
 	static uint8_t  buff_cmd  = 0;
-	uint16_t 		msg_size  = 0;
 	uint8_t  		msg_data  = 0;
+	OS_CPU_SR 		cpu_sr;
 	buff_cmd  =  buff_cmd;
 	
+	/* 关中断: 本环形队列由串口空闲中断(com_stroage_cache_data)入队,
+	   由本函数在任务中出队, 并发读写 front/rear 会破坏队列索引与帧,
+	   故整段解析加临界区保护(纯内存操作, 时间极短)。 */
+	OS_ENTER_CRITICAL();
 	while(com_size_queue(sg_comqueue_t) > 0)
 	{
 		com_cutdown_time = CUTDOWN_TIME;
@@ -1812,7 +1817,7 @@ uint16_t com_queue_find_msg(uint8_t *msg,uint16_t size)
 			msg_state = 0;						//重新检测帧尾巴
 			msg_pos   = 0;					    //复位指令指针
 			buff_size = 0;
-			return msg_size;
+			break;
 		}
 		
 		msg_state = ((msg_state<<8)|msg_data); //拼接最后2个字节，组成一个16位整数
@@ -1825,7 +1830,7 @@ uint16_t com_queue_find_msg(uint8_t *msg,uint16_t size)
 			msg_pos   = 0;					    //复位指令指针
 			buff_cmd  = 0;
 			
-			return msg_size;
+			break;
 		}
 		
 		/* 协议数据出错处理 */
@@ -1834,9 +1839,10 @@ uint16_t com_queue_find_msg(uint8_t *msg,uint16_t size)
 			msg_state = 0;						//重新检测帧尾巴
 			msg_pos   = 0;					    //复位指令指针
 			buff_size = 0;
-			return msg_size;
+			break;
 		}
 	}
+	OS_EXIT_CRITICAL();
 	#endif
-	return 0; 
+	return msg_size; 
 }
