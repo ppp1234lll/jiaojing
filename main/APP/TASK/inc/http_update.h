@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "queue.h"
-#include "ip_addr.h"
+#include "lwip/ip_addr.h"
 #include "api.h"
 #include "malloc.h"
 #include "appconfig.h"
@@ -25,9 +25,8 @@
 ////
 
 #define UPDATE_CHUNK_SIZE (1024 + 2)
-#define UPDATA_SPIFLASH_ADDR   (3*1024*1024) // W25Q128升级文件存储地址
-#define UPDATA_PARAM_ADDR (UPDATA_SPIFLASH_ADDR + (1*1024*1024) - (1*1024)) // 系统升级参数存储地址
-//#define UPDATA_PARAM_ADDR       0x08008000              // 升级参数,内部flash地址
+/* 升级BIN/参数地址统一由 stmflash.h 定义:
+   UPDATA_SPIFLASH_ADDR = 3*1024*1024, UPDATA_PARAM_ADDR = 3*1024*1024-16*1024 (0x2FC000) */
 ////
 
 // http 升级步骤信息
@@ -58,12 +57,18 @@ struct IAPStruct
 };
 ////
 
-// 开机升级参数
+/* 升级状态 (取值须与 bootloader/USER/main.h 一致) */
+#define BOOT_UPDATE_NONE    0
+#define BOOT_UPDATE_SUCCESS 1
+#define BOOT_UPDATE_FAILED  2
+
+// 开机升级参数 (布局须与 bootloader/USER/main.h 的 struct BOOT_UPDATE_PARAM 完全一致)
 struct BOOT_UPDATE_PARAM
 {
 	unsigned int is_update;     // true:需要升级, false:无需升级
 	unsigned int section_size;  // 每包的实际数据(去掉校验2字节)大小
 	unsigned int section_count; // 总包数
+	unsigned int update_status; // 升级状态
 };
 ////
 
@@ -79,6 +84,8 @@ extern int http_update_get_crc_bin_file_data_by_gprs(void);
 extern void http_update_close_connect_by_lwip(void);
 extern void http_update_close_connect_by_gprs(void);
 extern void http_update_success_reboot(void);
+extern void http_update_failed(void);
+extern void http_update_clear_param(void);
 
 #if 0 // 测试追踪
 void trace_update_param(const char *trace_flag);

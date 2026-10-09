@@ -46,6 +46,25 @@ typedef struct
 	uint32_t jump_addr;   // 跳转地址
 }run_result_t;
 
+/* 升级状态 (取值须与 main/APP/TASK/inc/http_update.h 一致) */
+typedef enum
+{
+	UPDATE_NONE    = 0,
+	UPDATE_SUCCESS = 1,
+	UPDATE_FAILED  = 2,
+} update_status_t;
+
+/* 无线HTTP升级参数 (布局须与 main/APP/TASK/inc/http_update.h 的 struct BOOT_UPDATE_PARAM 完全一致)
+   存储于 UPDATA_PARAM_ADDR(0x2FC000), 与有线 save_param_t 复用同一地址;
+   两者通过鉴别字段区分: 无线时 is_update 恰好==1, 有线时该32位值含 bin_size, 不等于1。 */
+struct BOOT_UPDATE_PARAM
+{
+	unsigned int is_update;     // true:需要升级, false:无需升级
+	unsigned int section_size;  // 每包的实际数据大小(字节)
+	unsigned int section_count; // 总包数
+	unsigned int update_status; // 升级状态
+};
+
 void system_setup_function(void);
 void update_check_function(void);
 int8_t updating_function(void);
@@ -54,6 +73,11 @@ void led_show_control(uint8_t mode);
 void save_stroage_update_file_infor_function(save_param_t param);
 void save_read_update_file_infor_function(save_param_t *param);
 int DeviceRstReason(void);
+
+/* 无线HTTP升级: boot 参数读写与搬运 */
+void update_read_boot_param(struct BOOT_UPDATE_PARAM *param);
+void update_write_boot_param(struct BOOT_UPDATE_PARAM *param);
+int8_t update_app_from_boot_param(void);
 
 void save_write_run_param(run_result_t param);
 void save_read_run_param(run_result_t *param);

@@ -57,7 +57,8 @@
 #define GPRS_UART_INIT(baudrate) gsm_usart_init(baudrate)
 #define GPRS_STR_SEND(data,len)  gsm_usart_send_str(data,len)
 
-//static int gprs_wait_feedback(const unsigned char *feedback, int feedback_len, int waittime);
+/* 无线 HTTP 升级: 接收流追加(定义见文件末尾) */
+static void gprs_ota_rx_append(uint8_t *buff, uint16_t len);
 ////
 
 // GPRS接收数据流
@@ -942,6 +943,14 @@ void gprs_get_receive_data_function(uint8_t *buff, uint16_t len)
 	if(len == 0 || buff == NULL) 
 		return;
 	
+	/* 无线HTTP升级期间: 全部数据(AT回馈 + rtcp数据)统一追加到升级接收流,
+	   由 gprs_recv_data()/gprs_ota_wait_feedback() 解析 */
+	if(update_get_mode_function() == UPDATE_MODE_GPRS)
+	{
+		gprs_ota_rx_append(buff,len);
+		return;
+	}
+	
 	/* 更新数据检测 */
 	ret = update_gsm_recevie_data_function(buff,len);
 	if(ret == 0) {
@@ -1064,4 +1073,255 @@ char* my_strstr(const char* str1, const char* str2)
 	}
 	return NULL;
 }
+
+/******************************************************************************
+* 无线 HTTP 升级(OTA) 专用接口
+* 说明: 为"4G + HTTP 分块下载升级"提供 TCP 连接/发送/接收原语。
+*       升级期间(update_get_mode_function()==UPDATE_MODE_GPRS)的串口数据
+*       由 gprs_ota_rx_append() 追加到升级接收流, gprs_recv_data() 从中切片解析。
+******************************************************************************/
+/* 升级接收流复用 gprs_rx_buff(容量 GSM_USART_RX_MAX): 升级期间不占用普通AT流程 */
+static uint16_t gprs_ota_rx_len     = 0;  /* 已接收字节数 */
+static uint16_t gprs_ota_take_point = 0;  /* 已解析位置 */
+
+/* 追加一段数据到升级接收流(串口中断中调用) */
+static void gprs_ota_rx_append(uint8_t *buff, uint16_t len)
+{
+	if((uint32_t)gprs_ota_rx_len + len > GSM_USART_RX_MAX)
+	{
+		/* 空间不足: 丢弃本段(上层会因块校验失败而重试) */
+		return;
+	}
+	memcpy(&gprs_rx_buff[gprs_ota_rx_len], buff, len);
+	gprs_ota_rx_len += len;
+}
+
+/* 清空升级接收流 */
+static void gprs_ota_rx_reset(void)
+{
+	gprs_ota_rx_len     = 0;
+	gprs_ota_take_point = 0;
+}
+
+/* 等待指定回馈串; 返回值: enum GPRS_SEND_CODE_E */
+static int gprs_ota_wait_feedback(const uint8_t *feedback, int feedback_len, int waittime)
+{
+	char *pt = NULL;
+
+	if(!feedback || !feedback_len){ return(GPRS_SEND_OK); }
+
+	while(1)
+	{
+		if(gprs_ota_rx_len >= (uint16_t)(gprs_ota_take_point + feedback_len))
+		{
+			if( !memcmp(&gprs_rx_buff[gprs_ota_take_point], feedback, feedback_len) )
+			{
+				gprs_ota_take_point += feedback_len;
+				return(GPRS_SEND_OK);
+			}
+			else if( !memcmp(&gprs_rx_buff[gprs_ota_take_point], "\r\n+MIPURC: \"disconn\",", 21) )
+			{
+				pt = my_strstr((char*)&gprs_rx_buff[gprs_ota_take_point + 21], "\r\n");
+				if(pt){ gprs_ota_take_point = (uint16_t)(pt + 2 - (char*)gprs_rx_buff); }
+				return(GPRS_SEND_DISCONN);
+			}
+			else{ return(GPRS_SEND_ERROR); }
+		}
+
+		if(waittime <= 0){ break; }
+
+		GPRS_DELAY_MS(5); waittime -= 5;
+	}
+
+	return(GPRS_SEND_TIMEOUT);
+}
+
+/* 发送单一 AT 指令, 等待若干回馈串; 返回值 enum GPRS_SEND_CODE_E */
+int gprs_send_cmd
+(
+	const uint8_t *AT_cmd,
+	int AT_cmd_len,
+	const struct GPRS_FEEDBACK *feedback_array,
+	unsigned int feedback_count,
+	int waittime
+)
+{
+	int res = 0;
+	unsigned int ii = 0;
+	OS_CPU_SR cpu_sr;
+
+	if(AT_cmd && (AT_cmd_len > 0))
+	{
+		OS_ENTER_CRITICAL();
+		gprs_ota_rx_reset();
+		OS_EXIT_CRITICAL();
+		sg_gprs_status_t.cmdon = 1;
+		GPRS_STR_SEND( (uint8_t *)AT_cmd, (uint16_t)AT_cmd_len );
+	}
+
+	if(!feedback_array || !feedback_count)
+	{
+		sg_gprs_status_t.cmdon = 0;
+		return(GPRS_SEND_OK);
+	}
+
+	for(ii=0; ii<feedback_count; ii++)
+	{
+		if( !(feedback_array[ii].feedback) || !(feedback_array[ii].feedback_len) ){ continue; }
+		res = gprs_ota_wait_feedback(feedback_array[ii].feedback, feedback_array[ii].feedback_len, waittime);
+		if(res != GPRS_SEND_OK){ sg_gprs_status_t.cmdon = 0; return(res); }
+	}
+
+	sg_gprs_status_t.cmdon = 0;
+	return(GPRS_SEND_OK);
+}
+
+/* 连接服务器: AT+MIPOPEN; 返回值 enum GPRS_SEND_CODE_E */
+int gprs_network_connect_server(const char *host, unsigned short port)
+{
+	uint8_t buff[128] = {0};
+	int res = 0;
+	struct GPRS_FEEDBACK feedback_array[2]=
+	{
+		{(const unsigned char *)"\r\nOK\r\n", 6},
+		{(const unsigned char *)"\r\n+MIPOPEN: 1,0\r\n", 17}
+	};
+
+	sprintf((char*)buff, "AT+MIPOPEN=%d,\"TCP\",\"%s\",%d,100,0\r\n", 1, host, port);
+	res = gprs_send_cmd((uint8_t*)buff, strlen((char*)buff), feedback_array, 2, 1000);
+	if(res == GPRS_SEND_OK){ sg_gprs_status_t.network = 1; }
+
+	return(res);
+}
+
+/* 断开当前连接: AT+MIPCLOSE */
+void gprs_disconnect(void)
+{
+	uint8_t buff[128] = {0};
+	struct GPRS_FEEDBACK feedback_array[2]=
+	{
+		{(const unsigned char *)"\r\nOK\r\n", 6},
+		{(const unsigned char *)"\r\n+MIPCLOSE: 1\r\n", 16}
+	};
+
+	sprintf((char*)buff, "AT+MIPCLOSE=%d\r\n", 1);
+	gprs_send_cmd((uint8_t*)buff, strlen((char*)buff), feedback_array, 2, 1000);
+	sg_gprs_status_t.network = 0;
+}
+
+/* 发送一段数据: AT+MIPSEND; 返回值 enum GPRS_SEND_CODE_E */
+int gprs_send_data(const uint8_t *data, int len, int waittime)
+{
+	int res = 0;
+	char AT_cmd[64];
+	OS_CPU_SR cpu_sr;
+
+	if(!data || !len){ return(GPRS_SEND_OK); }
+
+	/* (1) 发送 AT+MIPSEND 指令 */
+	OS_ENTER_CRITICAL();
+	gprs_ota_rx_reset();
+	OS_EXIT_CRITICAL();
+	sg_gprs_status_t.cmdon = 1;
+
+	sprintf(AT_cmd, "AT+MIPSEND=%d,%d\r\n", 1, len);
+	GPRS_STR_SEND( (uint8_t *)AT_cmd, (uint16_t)strlen(AT_cmd) );
+
+	/* 等待回馈 "\r\n>\r\n" */
+	res = gprs_ota_wait_feedback((const uint8_t *)"\r\n>\r\n", 5, waittime);
+	if(res != GPRS_SEND_OK){ sg_gprs_status_t.cmdon = 0; return(res); }
+
+	/* (2) 发送数据 */
+	OS_ENTER_CRITICAL();
+	gprs_ota_rx_reset();
+	OS_EXIT_CRITICAL();
+
+	GPRS_STR_SEND( (uint8_t *)data, (uint16_t)len );
+
+	/* 等待回馈 "\r\n+MIPSEND: 1,<len>\r\n" */
+	sprintf(AT_cmd, "\r\n+MIPSEND: 1,%d\r\n", len);
+	res = gprs_ota_wait_feedback((const uint8_t *)AT_cmd, strlen(AT_cmd), waittime);
+	if(res != GPRS_SEND_OK){ sg_gprs_status_t.cmdon = 0; return(res); }
+
+	/* 等待回馈 "\r\nOK\r\n" */
+	res = gprs_ota_wait_feedback((const uint8_t *)"\r\nOK\r\n", 6, waittime);
+	sg_gprs_status_t.cmdon = 0;
+
+	return(res);
+}
+
+/* 从升级接收流中读取一段数据
+   (数据形如: \r\n+MIPURC: "rtcp",1,<len>,<payload>) */
+int gprs_recv_data(const unsigned char **recv_data, int *recv_data_size)
+{
+	char *pt = NULL, *pt2 = NULL;
+	int section_size = 0;
+
+	if(recv_data){ (*recv_data) = NULL; }
+	if(recv_data_size){ (*recv_data_size) = 0; }
+
+	/* 已全部解析: 复位读指针, 释放接收流空间 */
+	if(gprs_ota_take_point >= gprs_ota_rx_len)
+	{
+		gprs_ota_rx_len     = 0;
+		gprs_ota_take_point = 0;
+		return(GPRS_SEND_OK);
+	}
+
+	pt = my_strstr((char*)(gprs_rx_buff + gprs_ota_take_point), "+MIPURC: \"rtcp\",");
+	if(!pt)
+	{
+		/* 服务器是否断开 */
+		pt = my_strstr((char*)(gprs_rx_buff + gprs_ota_take_point), "+MIPURC: \"disconn\",1,1");
+		if(pt)
+		{
+			gprs_ota_take_point += (uint16_t)((pt + 24) - (char*)(gprs_rx_buff + gprs_ota_take_point));
+			return(GPRS_SEND_DISCONN);
+		}
+
+		pt = my_strstr((char*)(gprs_rx_buff + gprs_ota_take_point), "+CME ERROR: 550");
+		if(pt)
+		{
+			gprs_ota_take_point += (uint16_t)((pt + 17) - (char*)(gprs_rx_buff + gprs_ota_take_point));
+			return(GPRS_SEND_DISCONN);
+		}
+
+		return(GPRS_SEND_OK); /* 暂无数据 */
+	}
+
+	pt += 16; /* 跳过 "+MIPURC: \"rtcp\"," */
+
+	pt2 = strchr(pt, ',');
+	if(!pt2)
+	{
+		gprs_ota_take_point += (uint16_t)(pt - (char*)(gprs_rx_buff + gprs_ota_take_point));
+		return(GPRS_SEND_OK);
+	}
+
+	pt = pt2 + 1;
+	section_size = atoi(pt);
+
+	pt2 = strchr(pt, ',');
+	if(!pt2)
+	{
+		gprs_ota_take_point += (uint16_t)(pt - (char*)(gprs_rx_buff + gprs_ota_take_point));
+		return(GPRS_SEND_OK);
+	}
+
+	pt = pt2 + 1;
+
+	/* 数据尚未接收完整: 等后续数据到齐后再取, 避免越界读 */
+	if( ((uint32_t)(pt - (char*)gprs_rx_buff) + (uint32_t)section_size) > gprs_ota_rx_len )
+	{
+		return(GPRS_SEND_OK);
+	}
+
+	if(recv_data){ (*recv_data) = (const unsigned char *)pt; }
+	if(recv_data_size){ (*recv_data_size) = section_size; }
+
+	gprs_ota_take_point += (uint16_t)((pt + section_size) - (char*)(gprs_rx_buff + gprs_ota_take_point));
+
+	return(GPRS_SEND_OK);
+}
+
 

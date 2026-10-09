@@ -30,8 +30,17 @@ static int http_update_recv_reponse_by_gprs(int *out_recv_size);
 // http升级信息
 struct IAPStruct sg_http_update_param = {0};
 
-// 升级信息文件 url(可配置)
-char http_info_txt_url[64] = {"/FN-ST-BJ-01/info.txt"};
+// 升级信息文件 url(可配置): /<HARD_NO_STR>/info.txt
+char http_info_txt_url[64] = {0};
+
+// 按硬件型号拼接 info.txt 请求路径
+static void http_update_info_url_init(void)
+{
+	if(http_info_txt_url[0] == 0)
+	{
+		sprintf(http_info_txt_url, "/%s/info.txt", HARD_NO_STR);
+	}
+}
 ////
 
 // 1: 获得info.txt信息
@@ -311,7 +320,8 @@ static int http_update_send_request_for_info_txt_by_lwip(ip_addr_t *server_ipadd
 	int ret = 0;
 	////
 
-	sprintf(append_pt, "GET /%s HTTP/1.1\r\n", http_info_txt_url); append_pt += strlen(append_pt);
+	http_update_info_url_init();
+	sprintf(append_pt, "GET %s HTTP/1.1\r\n", http_info_txt_url); append_pt += strlen(append_pt);
 	sprintf(append_pt, "Host: %s:%d\r\n\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt);
 
 	//printf("\nhttp请求:\n%s\n", send_buf);
@@ -328,6 +338,7 @@ static int http_update_send_request_for_info_txt_by_gprs(ip_addr_t *server_ipadd
 	int ret = 0;
 	////
 
+	http_update_info_url_init();
 	sprintf(append_pt, "GET %s HTTP/1.1\r\n", http_info_txt_url); append_pt += strlen(append_pt);
 	sprintf(append_pt, "Host: %s:%d\r\n\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt);
 
@@ -1218,7 +1229,7 @@ static int http_update_parse_crc_bin_data(void)
 	if(!pt){ return(-4); }
 	body_pt = (unsigned char *)(pt + 4);
 
-	count_crc = CRC16_MODBUS(body_pt, (UPDATE_CHUNK_SIZE-2));  //计算数据包crc校验值
+	count_crc = usMBCRC16(body_pt, (UPDATE_CHUNK_SIZE-2));  //计算数据包crc校验值(CRC16-MODBUS)
 	section_crc = ( (body_pt[UPDATE_CHUNK_SIZE - 2] << 8) | (body_pt[UPDATE_CHUNK_SIZE - 1]) ); // 块尾的校验值
 	if(count_crc != section_crc){ return(-5); } // 校验失败
 
@@ -1247,6 +1258,7 @@ void http_update_success_reboot(void)
 	boot_update_param.is_update = true;
 	boot_update_param.section_count = sg_http_update_param.section_total;
 	boot_update_param.section_size = sg_http_update_param.section_len;
+	boot_update_param.update_status = BOOT_UPDATE_SUCCESS;
 
 	OS_ENTER_CRITICAL();// 关中断
 	{
@@ -1258,6 +1270,43 @@ void http_update_success_reboot(void)
 	lfs_unmount(&g_lfs_t);
 
 	System_SoftReset(); // 重启系统
+}
+////////////////////
+
+/* 升级失败: 记录失败状态到Flash */
+void http_update_failed(void)
+{
+	struct BOOT_UPDATE_PARAM boot_update_param = {0};
+	OS_CPU_SR cpu_sr = 0;
+	////
+
+	W25QXX_Read((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
+	boot_update_param.update_status = BOOT_UPDATE_FAILED;
+
+	OS_ENTER_CRITICAL();// 关中断
+	{
+		W25QXX_Write((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
+	}
+	OS_EXIT_CRITICAL();// 开中断
+}
+////////////////////
+
+/* 清除升级参数(状态置为NONE) */
+void http_update_clear_param(void)
+{
+	struct BOOT_UPDATE_PARAM boot_update_param = {0};
+	OS_CPU_SR cpu_sr = 0;
+	////
+
+	W25QXX_Read((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
+	boot_update_param.is_update = 0;
+	boot_update_param.update_status = BOOT_UPDATE_NONE;
+
+	OS_ENTER_CRITICAL();// 关中断
+	{
+		W25QXX_Write((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
+	}
+	OS_EXIT_CRITICAL();// 开中断
 }
 ////////////////////
 

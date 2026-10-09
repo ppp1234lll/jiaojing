@@ -4,7 +4,7 @@
 #include "sys.h"
 
 /* 参数 */
-#define GSM_USART_RX_MAX (1024+64)
+#define GSM_USART_RX_MAX (1024+512)  /* 需容纳无线HTTP升级分块+MIPURC前缀, 原1024+64偏小 */
 #define GSM_USART_TX_MAX  1600
 
 /* 函数声明 */

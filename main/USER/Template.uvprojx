@@ -428,6 +428,11 @@
               <FileType>1</FileType>
               <FilePath>..\APP\TASK\src\gsm.c</FilePath>
             </File>
+            <File>
+              <FileName>http_update.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\APP\TASK\src\http_update.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

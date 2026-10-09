@@ -14,6 +14,9 @@ save_param_t save_param = {
 
 run_result_t sg_run_param = {0};
 
+/* 无线HTTP升级参数 */
+struct BOOT_UPDATE_PARAM boot_update_param = {0};
+
 /************************************************************
 *
 * Function name	: main
@@ -100,10 +103,24 @@ void update_check_function(void)
 	}	
 /* 跳转地址判断 */
 	
-/*开始检测是否需要升级APP(即判断IapFlag标志位)*/
-	if(save_param.iap_update_flag == 1)	   /*IapFlag合法*/ //IapFlag标志位合法性校验
+/*开始检测是否需要升级APP*/
+	/* 无线HTTP升级与有线TCP升级复用同一参数区(0x2FC000), 用鉴别字段区分:
+	   - 无线: struct BOOT_UPDATE_PARAM.is_update 恰好 == 1 (前4字节 01 00 00 00)
+	   - 有线: save_param_t.iap_update_flag == 1 且 bin_size 非0 → 该32位值 != 1 */
+	boot_update_param.is_update = 0;
+	update_read_boot_param(&boot_update_param);
+
+	if(boot_update_param.is_update == 1)   /* 无线HTTP升级 */
 	{
-//		printf("执行升级程序\n") ;
+//		printf("执行无线HTTP升级程序\n") ;
+		if(update_app_from_boot_param() < 0 )
+			app_run_addr = RUN_APP_ADDR;
+		else
+			app_run_addr = FSCTORY_APP_ADDR;
+	}
+	else if(save_param.iap_update_flag == 1)	   /* 有线TCP升级, IapFlag合法 */
+	{
+//		printf("执行有线升级程序\n") ;
 		if(updating_function() < 0 )   //跳转到升级程序              
 			app_run_addr = RUN_APP_ADDR; 
 		else
@@ -193,6 +210,70 @@ int8_t updating_function(void)
 			}
 		}
 	}
+}
+
+/************************************************************
+*
+* Function name	: update_read_boot_param
+* Description	: 读取无线HTTP升级参数
+*
+************************************************************/
+void update_read_boot_param(struct BOOT_UPDATE_PARAM *param)
+{
+	W25QXX_Read((uint8_t*)param, UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
+}
+
+/************************************************************
+*
+* Function name	: update_write_boot_param
+* Description	: 写入无线HTTP升级参数
+*
+************************************************************/
+void update_write_boot_param(struct BOOT_UPDATE_PARAM *param)
+{
+	W25QXX_Write((uint8_t*)param, UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
+}
+
+/************************************************************
+*
+* Function name	: update_app_from_boot_param
+* Description	: 无线HTTP升级搬运: 按 section_size 分块从W25Q128搬移到APP区
+* Parameter		: 
+* Return		: 0-成功 <0-失败
+*	
+************************************************************/
+int8_t update_app_from_boot_param(void)
+{
+	uint32_t i = 0;
+	uint32_t read_addr = 0;
+	uint32_t total = boot_update_param.section_count;
+	uint16_t chunk = (uint16_t)boot_update_param.section_size;
+
+	if((chunk == 0) || (total == 0) || (chunk > CHUNK_SIZE))
+	{
+		return -1;
+	}
+
+	for(i = 0; i < total; i++)
+	{
+		led_show_control(i);
+		IWDG_Feed();
+
+		read_addr = UPDATA_SPIFLASH_ADDR + i * chunk;
+		W25QXX_Read(appbuf, read_addr, chunk);
+		iap_write_appbin(RUN_APP_ADDR + i * chunk, appbuf, chunk);
+	}
+	IWDG_Feed();
+
+	/* 写入成功状态并清除升级标志, 避免每次上电重复搬运 */
+	boot_update_param.update_status = UPDATE_SUCCESS;
+	boot_update_param.is_update    = 0;
+	update_write_boot_param(&boot_update_param);
+
+	delay_ms(100);
+	IWDG_Feed();
+
+	return 0;
 }
 
 /************************************************************
