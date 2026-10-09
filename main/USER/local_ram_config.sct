@@ -20,7 +20,6 @@ LR_IROM1 0x08040000 0x00040000  {    ; load region size_region
 	tcp_client.o (+RW +ZI)
 	tcp_server.o (+RW +ZI)
 	w25qxx.o     (+RW +ZI)
-	update_gsm.o (+RW +ZI)
 	gprs.o       (+RW +ZI)
 	http_update.o (+RW +ZI)
 	

@@ -48,7 +48,6 @@ void update_status_detection(void);
 
 /* 无线模块对应的更新函数 */
 int8_t update_mobile_task_function(void);
-int8_t update_gsm_recevie_data_function(uint8_t *buff, uint16_t len);
 
 /* 有线更新函数 */
 int8_t update_lwip_task_function(void);

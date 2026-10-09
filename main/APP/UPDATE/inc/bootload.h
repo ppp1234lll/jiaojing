@@ -8,7 +8,6 @@
 #include "delay.h"
 #include "stmflash.h"
 
-#define GSM_CHUNK_SIZE    	512      //一次性接收的最大数据 2K
 #define LWIP_CHUNK_SIZE     1024   //一次性接收的最大数据 2K 
 #define ApplicationAddress					0x08008000  //应用程序写入起始地址，保留0X08000000~0X0801FFFF的空间为IAP使用
 
@@ -57,7 +56,6 @@ extern MYMODEM my_modem;
 
 extern void my_modem_receive_task(uint8_t data, MYMODEM *modem);
 extern void my_modem_receive_timeout(MYMODEM *modem);
-extern void my_modem_recieve_gprs_deal(MYMODEM *modem);
 extern void my_modem_recieve_lwip_deal(MYMODEM *modem);
 extern void my_modem_timer_task(void);
 
@@ -66,10 +64,6 @@ void my_modem_receive_file_end(uint8_t status);
 void my_modem_detcet_update_status_function(void);
 void my_modem_init(void);
 void my_modem_detection_status(void);
-
-
-
-int8_t update_queue_find_msg(MYMODEM *modem);  // 无线数据处理，从队列取出数据
 
 
 #endif

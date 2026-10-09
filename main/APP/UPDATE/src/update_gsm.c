@@ -5,10 +5,6 @@
 #include "bootload.h"
 #include "iwdg.h"
 #include "http_update.h"
-#include <queue.h>
-
-queue_s	 sg_queue_updata =	{0};	// 更新
-uint32_t update_count_time = 0;
 /************************************************************
 *
 * Function name	: update_mobile_task_function
@@ -91,40 +87,3 @@ UPDATE_END:
 	if(ret < 0){ return(-1); }
 	return(0);
 }
-
-/************************************************************
-*
-* Function name	: update_gsm_recevie_data_function
-* Description	: 更新数据接收函数 - 无线网络
-* Parameter		: 
-* Return		: 
-*	
-************************************************************/
-int8_t update_gsm_recevie_data_function(uint8_t *buff, uint16_t len)
-{
-	uint8_t *p1    = NULL;
-	int temp1,temp2;
-	
-	if(update_detection_status_function() == UPDATE_MODE_GPRS && (gsm_get_network_connect_status_function() == 1 ))
-	{
-		p1 = (uint8_t*)strstr((char*)buff,"+MIPURC: \"rtcp\"");
-		if(p1!=0 ) 
-		{
-			p1 = (uint8_t*)strstr((char*)p1,"\"rtcp\"");
-			sscanf((char*)p1,"\"rtcp\",%d,%d",&temp1,&temp2);
-			p1 = (uint8_t*)strstr((char*)p1,",");
-			p1 = (uint8_t*)strstr((char*)p1+1,",");
-			p1 = (uint8_t*)strstr((char*)p1+1,",");
-			if(p1 !=NULL)
-				Enqueue_Bytes_From_Buffer(p1+1,&sg_queue_updata,temp2); // 存入队列
-			else
-				return -1;
-			
-			return temp2;
-		}
-	}
-	return -1;
-}
-
-
-

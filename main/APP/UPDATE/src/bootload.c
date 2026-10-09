@@ -18,11 +18,6 @@ const uint8_t DATA_HEAD[5] = {'s','t','a','r','t'};//帧头
 const uint8_t DATA_END[3] = {'e','n','d'};         //所有数据结束
 static uint8_t ackData[10] = {0x7F,0xF7,0xDA,0,0,0,0,0x57,0x75,0x00};//响应获取数据包
 
-extern queue_s	 sg_queue_updata;
-uint8_t gsm_recv_init = 0; // 无线接收标志
-
-uint8_t update_error_recv = 0;
-
 //定义且初始化接收结构体
 MYMODEM my_modem = {
 	0,
@@ -63,17 +58,6 @@ void my_modem_receive_task(uint8_t data, MYMODEM *modem)
 				modem->receive_state = 1; // 数据接收完成
 			}
 		}	
-	}
-	else
-	{
-		if(modem->receive_state == 0) // 接收未完成
-		{
-			modem->receive_buf[modem->receive_count++] = data;   //保存数据
-		}
-		if(modem->receive_count >= GSM_CHUNK_SIZE + 11)  //数据不大于一包数据大小
-		{
-			modem->receive_state = 1; //数据接收完成
-		}
 	}
 }
 
@@ -183,10 +167,8 @@ static uint8_t sg_file_init_t;
 ************************************************************/
 void my_modem_recevie_file_init(uint16_t size)
 {
-	Init_Queue(&sg_queue_updata);
 	g_saveparam_t.bin_chunk = 0;
 	g_saveparam_t.bin_size = size;
-	gsm_recv_init = 0;
 }
 
 /************************************************************
@@ -276,26 +258,13 @@ void my_modem_receive_one_pack_deal(MYMODEM *modem)
 	uint16_t	crc16	 = 0;
 	uint32_t 	write_addr =  UPDATA_SPIFLASH_ADDR;	
 	
-	if(update_get_mode_function() == UPDATE_MODE_LWIP)
-		write_addr = UPDATA_SPIFLASH_ADDR + (g_saveparam_t.bin_chunk) * LWIP_CHUNK_SIZE;
-	else if(update_get_mode_function() == UPDATE_MODE_GPRS)
-		write_addr = UPDATA_SPIFLASH_ADDR + (g_saveparam_t.bin_chunk) * GSM_CHUNK_SIZE;
+	write_addr = UPDATA_SPIFLASH_ADDR + (g_saveparam_t.bin_chunk) * LWIP_CHUNK_SIZE;
 
 	OS_ENTER_CRITICAL();// 关中断
-	if( update_get_mode_function() == UPDATE_MODE_LWIP )
-	{
-		W25QXX_Write(&modem->receive_buf[11],write_addr,modem->receive_pack_len);
-		OS_EXIT_CRITICAL();// 开中断
-		crc16 = usMBCRC16((u8*)&modem->receive_buf[11], modem->receive_pack_len);
-		g_saveparam_t.check_list_crc16[g_saveparam_t.bin_chunk] = crc16;
-	}
-	else
-	{
-		W25QXX_Write(&modem->receive_buf[0],write_addr,modem->receive_pack_len);
-		OS_EXIT_CRITICAL();// 开中断
-		crc16 = usMBCRC16((u8*)&modem->receive_buf[0], modem->receive_pack_len);
-		g_saveparam_t.check_list_crc16[g_saveparam_t.bin_chunk] = crc16;
-	}		
+	W25QXX_Write(&modem->receive_buf[11],write_addr,modem->receive_pack_len);
+	OS_EXIT_CRITICAL();// 开中断
+	crc16 = usMBCRC16((u8*)&modem->receive_buf[11], modem->receive_pack_len);
+	g_saveparam_t.check_list_crc16[g_saveparam_t.bin_chunk] = crc16;
 	/* 对数据包进行累加 */
 	g_saveparam_t.bin_chunk++; 										// 来一个数据包加一
 	g_saveparam_t.bin_last_chunk_size = modem->receive_pack_len;	// 记录本地数据包的长度
@@ -357,101 +326,9 @@ uint8_t my_modem_analaze_data(MYMODEM *modem)
 			error_state = ERROR_CHECK; //校验错误
 		}	
 	}
-	else if( update_get_mode_function() == UPDATE_MODE_GPRS )
-	{
-		count_crc = my_modem_crc(modem, 0, modem->receive_pack_len);  //计算数据包crc校验值
-		if(modem->receive_pack_crc == count_crc )//&& modem->packet_index_last == modem->packet_index-1)  //校验值正确
-		{
-			error_state = SUCCESS_ONE_PACKET;  //正确接收到一包数据
-			my_modem_receive_one_pack_deal(modem);  //处理一包数据
-		}
-		else //校验错误
-		{
-			modem->packet_index = modem->packet_index_last;
-			error_state = ERROR_CHECK; //校验错误
-			update_error_recv++;
-		}
-	}
 	return error_state;
 }
 uint16_t disconnect_cnt=0;
-/*------------------------------------------------------------------------------
-函数名称：my_modem_recieve_gprs_deal
-函数功能：无线数据接收处理
-入口参数: MYMODEM *modem：数据接收结构体
-出口参数：
-备注：
------------------------------------------------------------------------------*/
-void my_modem_recieve_gprs_deal(MYMODEM *modem)
-{
-	uint8_t error_state = 0;
-	static  uint8_t no_ack_cnt = 0;  //无数据接收计数
-	int8_t  queue_status = 0;
-
-	queue_status = update_queue_find_msg(modem);
-	if( queue_status >= 0)
-	{
-		disconnect_cnt = 0;
-		if (modem->buf_last_flag)
-		{
-			error_state = my_modem_analaze_data(modem);  //解析中间数据包
-			error_state = my_modem_receive_all_pack_deal(modem); //接收所有数据完成
-		} 
-		else 
-		{
-			error_state = my_modem_analaze_data(modem);  //解析中间数据包
-		} 		
-	}	
-	else if(queue_status == -1)
-	{
-		disconnect_cnt = 0;
-		error_state = ERROR_FRAME;  //帧头错误
-	}
-	else if(queue_status == -2)
-	{
-		no_ack_cnt++;
-		error_state = ERROR_NO_RECEIVE;  //无效数据		
-	}
-	switch(error_state)  //判断接收状态标志
-	{
-		case SUCCESS_ONE_PACKET:  //数据接收成功
-			modem->error_count = 0; //出错计数清零
-			modem->packet_index++; 
-			modem->receive_state = 0; //接收下一包数据
-			modem->receive_count = 0; //已接收数据量清零
-			modem->packet_index_last = modem->packet_index; //获取新一包数据
-		break;
-		case ERROR_ALL_CHECK:  //校验错误
-			OSTimeDlyHMSM(0,0,1,0);
-			OSTimeDlyHMSM(0,0,1,0);
-			OSTimeDlyHMSM(0,0,1,0);
-			OSTimeDlyHMSM(0,0,1,0);
-			OSTimeDlyHMSM(0,0,1,0);
-		break;
-		default: // 缺省值
-			if((modem->error_count++ >= 5))  //连续5次请求都出错了
-			{
-				modem->error_count = 5;  //出错次数保持在5次，以免溢出
-				modem->receive_state = 0; //接收下一包数据
-				modem->receive_count = 0; //已接收数据量清零
-				modem->packet_index = 0; //重新获取数据包
-				modem->packet_index_last = 0;
-				modem->buf_last_flag = 0;
-			}
-		break;
-	}
-
-	/* 5 分钟内未获取到数据，本次更新错误 */
-	if (disconnect_cnt++ >= 18000)  // 5min = 300000 ms/10ms = 30000
-	{
-		disconnect_cnt=0;
-		my_modem_receive_file_end(0);
-		update_error_occurred_in_function();
-	}
-	modem->error_count = 0;
-	modem->receive_state = 0;
-}
-
 /*------------------------------------------------------------------------------
 函数名称： my_modem_recieve_lwip_deal
 函数功能：有线数据接收处理
@@ -553,76 +430,3 @@ void my_modem_timer_task(void)
 	my_modem_receive_timeout(&my_modem);	//接收超时处理
 	my_modem_timer_stop;  					//关闭定时器，停止请求数据
 }
-
-
-/************************************************************
-*
-* Function name	: update_queue_find_msg
-* Description	: 获取缓存区中的数据
-* Parameter		: 
-* Return		: 
-*	
-************************************************************/
-int8_t update_queue_find_msg(MYMODEM *modem)
-{
-	static uint8_t	msg_head[5]  = {0}; // 包头
-	static uint8_t	msg_end[3]   = {0}; // 包尾
-	static uint16_t crc_data = 0;
-	static uint16_t data_num = 0;
-	static uint16_t data_length = 0;
-	uint8_t  msg_data[2]  = {0};
-		
-	if(Get_Queue_Count(&sg_queue_updata) >= 11) // 缓存中的数据大于 11
-	{
-		if(gsm_recv_init == 0)
-		{
-			for(uint8_t i=0;i<5;i++) // 取出包头
-			 msg_head[i] = Dequeue_One_Byte(&sg_queue_updata); 
-			
-			for(uint8_t i=0;i<2;i++) // 取出CRC16 校验值
-			 msg_data[i] = Dequeue_One_Byte(&sg_queue_updata); 		
-			crc_data = msg_data[0]<<8 | msg_data[1];
-			
-			for(uint8_t i=0;i<2;i++) // 取出当前包标签
-			 msg_data[i] = Dequeue_One_Byte(&sg_queue_updata); 		
-			data_num = msg_data[0]<<8 | msg_data[1];
-
-			for(uint8_t i=0;i<2;i++) // 取出数据包长度
-			 msg_data[i] = Dequeue_One_Byte(&sg_queue_updata); 		
-			data_length = msg_data[0]<<8 | msg_data[1];
-		}			
-	}
-	else
-		return -2;	
-	
-	// 判断
-	for(uint8_t i = 0; i < 5; i++) //判断帧头是否正确
-	{
-		if(msg_head[i] != DATA_HEAD[i]){gsm_recv_init = 0; return -1;}
-	}
-	modem->receive_pack_crc = crc_data;     // 获取数据包校验值
-	modem->packet_index     = data_num;     // 数据包数
-	modem->receive_pack_len = data_length;  // 数据包长度			
-	gsm_recv_init = 1;
-
-	if((Get_Queue_Count(&sg_queue_updata) >= data_length+3)&&(gsm_recv_init == 1)) // 缓存中的数据大于 11
-	{	
-		gsm_recv_init = 0;
-		Dequeue_Bytes_To_Buffer(&sg_queue_updata,modem->receive_buf,data_length);
-		
-		for(uint8_t i=0;i<3;i++) // 取出包尾
-		 msg_end[i] = sg_queue_updata.buf[sg_queue_updata.front+i]; 		
-		
-		if(msg_end[0]==DATA_END[0] &&msg_end[1]==DATA_END[1]&&msg_end[2]==DATA_END[2])  //最后一包数据
-		{
-			modem->buf_last_flag = 1;
-		}
-		else
-			modem->buf_last_flag = 0;	
-	}
-	return 0; 
-}
-
-
-
-

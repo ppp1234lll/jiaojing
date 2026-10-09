@@ -938,7 +938,6 @@ void *gprs_get_ip_addr_function(void)
 void gprs_get_receive_data_function(uint8_t *buff, uint16_t len)
 {
 	uint16_t index = 0; 
-	int8_t   ret   = 0;
 
 	if(len == 0 || buff == NULL) 
 		return;
@@ -951,12 +950,6 @@ void gprs_get_receive_data_function(uint8_t *buff, uint16_t len)
 		return;
 	}
 	
-	/* 更新数据检测 */
-	ret = update_gsm_recevie_data_function(buff,len);
-	if(ret == 0) {
-		return;
-	}
-		
 	/* 检测当前模块模式 */
 	if(sg_gprs_status_t.cmdon == 1) 
 	{
