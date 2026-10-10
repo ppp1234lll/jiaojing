@@ -1060,6 +1060,12 @@ RECONNECT:
 	{
 		connect_times++; // 连续连接失败的次数
 		if(connect_times > 10){ return(-1); }
+
+		/* 连接失败: 先断开模块内残留的连接, 等待网络恢复正常后继续升级 */
+		gprs_disconnect();
+		printf("\nOTA: connect server failed, wait network ready(10s) ...\n");
+		OSTimeDlyHMSM(0,0,0,10000);
+
 		goto RECONNECT;
 	}
 	connect_times = 0;
