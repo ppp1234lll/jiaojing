@@ -250,6 +250,11 @@
           <WinNumber>1</WinNumber>
           <ItemText>sg_gsmoperate_t</ItemText>
         </Ww>
+        <Ww>
+          <count>19</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>sg_updateparam_t</ItemText>
+        </Ww>
       </WatchWindow1>
       <WatchWindow2>
         <Ww>

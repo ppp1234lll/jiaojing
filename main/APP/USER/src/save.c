@@ -321,8 +321,8 @@ void save_read_default_remote_ip(struct remote_ip *remote)
 {
 	/* 远程服务器数据 */
 	memset(remote->outside_iporname,0,sizeof(remote->outside_iporname));
-	strcpy((char*)remote->outside_iporname,"test1.fnwlw.net");
-	remote->outside_port  = 6102;
+	strcpy((char*)remote->outside_iporname,"47.104.250.225");
+	remote->outside_port  = 6012;
 }
 
 
@@ -943,8 +943,8 @@ void save_read_default_backups(sys_backups_t *param)
 {
 	/* 远程服务器数据 */
 	memset(param->remote.outside_iporname,0,sizeof(param->remote.outside_iporname));
-	strcpy((char*)param->remote.outside_iporname,"test1.fnwlw.net");
-	param->remote.outside_port  = 6102;
+	strcpy((char*)param->remote.outside_iporname,"47.104.250.225");
+	param->remote.outside_port  = 6012;
 	
 	param->config_flag =0;
 }

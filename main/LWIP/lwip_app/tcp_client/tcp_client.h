@@ -4,40 +4,40 @@
 #include "sys.h"
 #include "includes.h" 
 
-#define TCP_CLIENT1_RX_BUFSIZE	 	1024		// ¶¨Òåtcp server×î´ó½ÓÊÕÊı¾İ³¤¶È
-#define TCP_CLIENT1_DATA					0x8000	// ¶¨ÒåÓĞÊı¾İ·¢ËÍ
+#define TCP_CLIENT1_RX_BUFSIZE	 	1024		// å®šä¹‰tcp serveræœ€å¤§æ¥æ”¶æ•°æ®é•¿åº¦
+#define TCP_CLIENT1_DATA					0x8000	// å®šä¹‰æœ‰æ•°æ®å‘é€
 
-#define TCP_CLIENT2_RX_BUFSIZE	 	512			// ¶¨Òåtcp server×î´ó½ÓÊÕÊı¾İ³¤¶È
-#define TCP_CLIENT2_DATA					0x8000	// ¶¨ÒåÓĞÊı¾İ·¢ËÍ
+#define TCP_CLIENT2_RX_BUFSIZE	 	512			// å®šä¹‰tcp serveræœ€å¤§æ¥æ”¶æ•°æ®é•¿åº¦
+#define TCP_CLIENT2_DATA					0x8000	// å®šä¹‰æœ‰æ•°æ®å‘é€
 
 
-#define TCP_CLIENT3_RX_BUFSIZE	 	512			// ¶¨Òåtcp server×î´ó½ÓÊÕÊı¾İ³¤¶È
-#define TCP_CLIENT3_DATA					0x8000	// ¶¨ÒåÓĞÊı¾İ·¢ËÍ
+#define TCP_CLIENT3_RX_BUFSIZE	 	512			// å®šä¹‰tcp serveræœ€å¤§æ¥æ”¶æ•°æ®é•¿åº¦
+#define TCP_CLIENT3_DATA					0x8000	// å®šä¹‰æœ‰æ•°æ®å‘é€
 
-#define TCP_CLIENT4_RX_BUFSIZE	 	512			// ¶¨Òåtcp server×î´ó½ÓÊÕÊı¾İ³¤¶È
-#define TCP_CLIENT4_DATA					0x8000	// ¶¨ÒåÓĞÊı¾İ·¢ËÍ
-#define CLIENTMAX   4 //×î´ó¿Í»§¶ËÁ¬½ÓÊıÁ¿
+#define TCP_CLIENT4_RX_BUFSIZE	 	512			// å®šä¹‰tcp serveræœ€å¤§æ¥æ”¶æ•°æ®é•¿åº¦
+#define TCP_CLIENT4_DATA					0x8000	// å®šä¹‰æœ‰æ•°æ®å‘é€
+#define CLIENTMAX   4 //æœ€å¤§å®¢æˆ·ç«¯è¿æ¥æ•°é‡
 
-//¿Í»§¶ËÈÎÎñ½á¹¹Ìå
+//å®¢æˆ·ç«¯ä»»åŠ¡ç»“æ„ä½“
 typedef struct  
 {
-	struct netconn *conn;//¿Í»§¶Ë(Á¬½Ó½á¹¹Ìå)
-	OS_STK    *clientSTK;//¿Í»§¶Ë(ÈÎÎñ¶ÑÕ»)
-	uint8_t   num;			 //¿Í»§¶Ë(±àºÅ)
+	struct netconn *conn;//å®¢æˆ·ç«¯(è¿æ¥ç»“æ„ä½“)
+	OS_STK    *clientSTK;//å®¢æˆ·ç«¯(ä»»åŠ¡å †æ ˆ)
+	uint8_t   num;			 //å®¢æˆ·ç«¯(ç¼–å·)
 }__attribute__((aligned(8)))tcp_client;
 
-//¿Í»§¶ËµØÖ·½á¹¹Ìå
+//å®¢æˆ·ç«¯åœ°å€ç»“æ„ä½“
 typedef struct  
 {
-	uint8_t   num;			 //¿Í»§¶Ë(±àºÅ)
-	uint8_t   state[CLIENTMAX];//¿Í»§¶ËÁ¬½Ó×´Ì¬
+	uint8_t   num;			 //å®¢æˆ·ç«¯(ç¼–å·)
+	uint8_t   state[CLIENTMAX];//å®¢æˆ·ç«¯è¿æ¥çŠ¶æ€
 }client_ad;
 
 
-int8_t tcp_client_init(void *arg);  //tcp¿Í»§¶Ë³õÊ¼»¯(´´½¨tcp¿Í»§¶ËÏß³Ì)
+int8_t tcp_client_init(void *arg);  //tcpå®¢æˆ·ç«¯åˆå§‹åŒ–(åˆ›å»ºtcpå®¢æˆ·ç«¯çº¿ç¨‹)
 
-void tcp_client_start_function(void); // tcp¿Í»§¶ËÆô¶¯º¯Êı
-void tcp_client_stop_function(void);  // tcp¿Í»§¶ËÍ£Ö¹º¯Êı
+void tcp_client_start_function(void); // tcpå®¢æˆ·ç«¯å¯åŠ¨å‡½æ•°
+void tcp_client_stop_function(void);  // tcpå®¢æˆ·ç«¯åœæ­¢å‡½æ•°
 
 void tcp_cilent_send_buff(uint8_t *buff, uint16_t len,uint8_t websocket);
 
@@ -45,9 +45,11 @@ void tcp_cilent1_send_buff(uint8_t *buff, uint16_t len);
 void tcp_client2_send_buff(uint8_t *buff, uint16_t len);
 void tcp_client3_send_buff(uint8_t *buff, uint16_t len);
 void tcp_client4_send_buff(uint8_t *buff, uint16_t len);
+void tcp_backup_send_buff(uint8_t *buff, uint16_t len); // å¤‡ç”¨æœåŠ¡å™¨å‘é€(ä»…HTTPåœºæ™¯)
 uint8_t tcp_cilent1_get_link_status(void);
 uint8_t tcp_client2_get_link_status(void);
 uint8_t tcp_client3_get_link_status(void);
+uint8_t tcp_backup_get_link_status(void);
 
 uint8_t tcp_cilent1_get_recv_status(void);
 uint8_t tcp_client2_get_recv_status(void);

@@ -8,39 +8,39 @@
 #define TEST_SERVER  ("DESKTOP-1VKLVMK")
 
 
-// websocket Êı¾İ½âÎö
-#define PAYLOAD_OTHER_DATA  	0x0   	// ¸½¼ÓÊı¾İÖ¡
-#define PAYLOAD_STRING   			0x1   	// ÎÄ±¾Êı¾İÖ¡
-#define PAYLOAD_BIN   				0x2    	// ¶ş½øÖÆÊı¾İÖ¡
-#define PAYLOAD_CLOSE   			0x8			// ¹Ø±ÕÁ¬½ÓÖ¡
+// websocket æ•°æ®è§£æ
+#define PAYLOAD_OTHER_DATA  	0x0   	// é™„åŠ æ•°æ®å¸§
+#define PAYLOAD_STRING   			0x1   	// æ–‡æœ¬æ•°æ®å¸§
+#define PAYLOAD_BIN   				0x2    	// äºŒè¿›åˆ¶æ•°æ®å¸§
+#define PAYLOAD_CLOSE   			0x8			// å…³é—­è¿æ¥å¸§
 #define PAYLOAD_PING   				0x9    	// ping
 #define PAYLOAD_PONG   				0xA  		// pong
 
-#define SUCCESS   							0x00000001   	// ³É¹¦
-#define NO_SUPPORT   						0x00000002   	// ¹¦ÄÜ²»Ö§³Ö
-#define WATER_OUT   						0x00000004    // Ë®½ş×´Ì¬
-#define DEV_REBOOT   						0x00000008		// Éè±¸ÖØÆô
-#define DEV_INFO   							0x00000010    // Éè±¸ĞÅÏ¢
-#define DEV_PRODUCE   					0x00000020  	// Éè±¸Éú²úĞÅÏ¢
-#define DEV_VERSION   					0x00000040 		// Éè±¸°æ±¾ĞÅÏ¢
-#define ANGLE_DATA   						0x00000080  	// ÇãĞ±¶È
-#define TEMPERATURE_DATA  			0x00000100  	// ÎÂ¶È
-#define HUMIDITY_DATA   				0x00000200    // Êª¶È
-#define FAN_TWO_STATUS  				0x00000400    // ·çÉÈ×´Ì¬
-#define BOX_STATUS   						0x00000800   	// »úÏäÃÅ×´Ì¬
-#define NETWORK_VERSION   			0x00001000  	// ÍøÂçĞÅÏ¢
-#define POWER_DATA   						0x00002000  	// µçÁ¦²ÎÊı
-#define HTTP_ATTESTATION				0x00004000  	// ÈÏÖ¤ÎÕÊÖ
-#define HTTP_CALCULATION_OK			0x00008000  	// ÈÏÖ¤¼ÆËãÕıÈ·
-#define HTTP_CALCULATION_ERROR	0x00010000  	// ÈÏÖ¤¼ÆËã´íÎó
+#define SUCCESS   							0x00000001   	// æˆåŠŸ
+#define NO_SUPPORT   						0x00000002   	// åŠŸèƒ½ä¸æ”¯æŒ
+#define WATER_OUT   						0x00000004    // æ°´æµ¸çŠ¶æ€
+#define DEV_REBOOT   						0x00000008		// è®¾å¤‡é‡å¯
+#define DEV_INFO   							0x00000010    // è®¾å¤‡ä¿¡æ¯
+#define DEV_PRODUCE   					0x00000020  	// è®¾å¤‡ç”Ÿäº§ä¿¡æ¯
+#define DEV_VERSION   					0x00000040 		// è®¾å¤‡ç‰ˆæœ¬ä¿¡æ¯
+#define ANGLE_DATA   						0x00000080  	// å€¾æ–œåº¦
+#define TEMPERATURE_DATA  			0x00000100  	// æ¸©åº¦
+#define HUMIDITY_DATA   				0x00000200    // æ¹¿åº¦
+#define FAN_TWO_STATUS  				0x00000400    // é£æ‰‡çŠ¶æ€
+#define BOX_STATUS   						0x00000800   	// æœºç®±é—¨çŠ¶æ€
+#define NETWORK_VERSION   			0x00001000  	// ç½‘ç»œä¿¡æ¯
+#define POWER_DATA   						0x00002000  	// ç”µåŠ›å‚æ•°
+#define HTTP_ATTESTATION				0x00004000  	// è®¤è¯æ¡æ‰‹
+#define HTTP_CALCULATION_OK			0x00008000  	// è®¤è¯è®¡ç®—æ­£ç¡®
+#define HTTP_CALCULATION_ERROR	0x00010000  	// è®¤è¯è®¡ç®—é”™è¯¯
 #define SERVER_ERROR   					0x10010000   	// 
 #define DOMINS   								0x00020000   
 #define BoxDevList   						0x00040000  
 #define POWER_PLAN_TIME					0x00080000  
 #define POWER_PORT_STATUS				0x00100000  
 
-#define OPERATE_SUCCESS   			0x10000001   	// ²Ù×÷³É¹¦
-#define OPERATE_ERROR     			0x10000002   	// ²Ù×÷Ê§°Ü
+#define OPERATE_SUCCESS   			0x10000001   	// æ“ä½œæˆåŠŸ
+#define OPERATE_ERROR     			0x10000002   	// æ“ä½œå¤±è´¥
 
 #define ADDEVENT_WATERRESET		0x80000001
 #define ADDEVENT_WATEROUT 		0x80000002
@@ -54,7 +54,7 @@
 #define ADDEVENT_POWER_ERROR  0x8000000A
 #define ADDEVENT_POWER_STATE  0x8000000B
 #define ADDEVENT_NONE         0x8000000F
-#define ADDEVENT_ALL          0xF0000001 // È«²¿Ìí¼Ó
+#define ADDEVENT_ALL          0xF0000001 // å…¨éƒ¨æ·»åŠ 
 
 #define DELE_EVENT_WATERRESET		0x40000001
 #define DELE_EVENT_WATEROUT 		0x40000002
@@ -68,176 +68,176 @@
 #define DELE_EVENT_POWER_ERROR  0x4000000A
 #define DELE_EVENT_POWER_STATE  0x4000000B
 #define DELE_EVENT_NONE         0x4000000F
-#define DELE_EVENT_ALL          0xF0000002 // È«²¿É¾³ı
+#define DELE_EVENT_ALL          0xF0000002 // å…¨éƒ¨åˆ é™¤
 
-#define HTTP_WEBSOCKET				0x80000000   	// ×ª»»Ğ­Òé
-#define HTTP_WEBSOCKET_PING		0xC0000000   	// pingÃüÁî
+#define HTTP_WEBSOCKET				0x80000000   	// è½¬æ¢åè®®
+#define HTTP_WEBSOCKET_PING		0xC0000000   	// pingå‘½ä»¤
 
 
-/* ÕªÒªÈÏÖ¤ */
-#define HTTP_CERTIFIED_HANDSHAKE	("Authentication/UserCheck") // ÈÏÖ¤ÎÕÊÖ
-#define HTTP_AUTHORIZATION	("Authorization") // ÈÏÖ¤ÇëÇó
+/* æ‘˜è¦è®¤è¯ */
+#define HTTP_CERTIFIED_HANDSHAKE	("Authentication/UserCheck") // è®¤è¯æ¡æ‰‹
+#define HTTP_AUTHORIZATION	("Authorization") // è®¤è¯è¯·æ±‚
 
-/* Ğ­Òé×ª»» */
+/* åè®®è½¬æ¢ */
 #define HTTP_UPGRATE_WEBSOCKET 			("Upgrade: websocket\r\nConnection: Upgrade") 
 #define HTTP_UPGRATE_WEBSOCKET1 		("Connection: Upgrade") 
 #define FUNCTION_HTTP_TO_WEBSOCKET 	("websocket")
 
-/* ²Ù×÷ */
-#define DynamicCapability_GetFunctions 	("GetFunctions") // »ñÈ¡ÁìÓòÔÚµÄ¹¦ÄÜµã
-#define DynamicCapability_GetDomains 		("GetDomains") // »ñÈ¡Ö§³ÖµÄÁìÓò
+/* æ“ä½œ */
+#define DynamicCapability_GetFunctions 	("GetFunctions") // è·å–é¢†åŸŸåœ¨çš„åŠŸèƒ½ç‚¹
+#define DynamicCapability_GetDomains 		("GetDomains") // è·å–æ”¯æŒçš„é¢†åŸŸ
 
-#define BoxSubModelMgr_GetSmartBoxDevList 	("GetSmartBoxDevList") // »ñÈ¡»úÏä¹ÜÀíµÄÉè±¸ÁĞ±í
+#define BoxSubModelMgr_GetSmartBoxDevList 	("GetSmartBoxDevList") // è·å–æœºç®±ç®¡ç†çš„è®¾å¤‡åˆ—è¡¨
 
-#define SystemMaintenance_ExportConfigurationFile 	("secretkey") // µ¼³öÅäÖÃÎÄ¼ş
-#define SystemMaintenance_SystemReset 							("SystemReset") // Éè±¸ÏµÍ³»Ö¸´³ö³§ÉèÖÃ
-#define SystemMaintenance_SystemBasicReset 					("SystemBasicReset") // Éè±¸ÏµÍ³»Ö¸´Ä¬ÈÏÉèÖÃ
-#define SystemMaintenance_ImportConfigurationFile 	("configurationFile") // µ¼ÈëÅäÖÃÎÄ¼ş
-#define SystemMaintenance_SystemReboot 							("SystemReboot") // Éè±¸ÏµÍ³ÖØÆô
+#define SystemMaintenance_ExportConfigurationFile 	("secretkey") // å¯¼å‡ºé…ç½®æ–‡ä»¶
+#define SystemMaintenance_SystemReset 							("SystemReset") // è®¾å¤‡ç³»ç»Ÿæ¢å¤å‡ºå‚è®¾ç½®
+#define SystemMaintenance_SystemBasicReset 					("SystemBasicReset") // è®¾å¤‡ç³»ç»Ÿæ¢å¤é»˜è®¤è®¾ç½®
+#define SystemMaintenance_ImportConfigurationFile 	("configurationFile") // å¯¼å…¥é…ç½®æ–‡ä»¶
+#define SystemMaintenance_SystemReboot 							("SystemReboot") // è®¾å¤‡ç³»ç»Ÿé‡å¯
 
-#define LogMgr_SearchLog 								("searchID") // ÈÕÖ¾ËÑË÷
-#define PortMgr_SearchPortStatus 				("SearchPortStatus") // ²éÑ¯¶Ë¿Ú»ù´¡×´Ì¬ĞÅÏ¢
+#define LogMgr_SearchLog 								("searchID") // æ—¥å¿—æœç´¢
+#define PortMgr_SearchPortStatus 				("SearchPortStatus") // æŸ¥è¯¢ç«¯å£åŸºç¡€çŠ¶æ€ä¿¡æ¯
 
-#define EventSubscription_DeleteEventSubscribeCfg 	("DeleteEventSubscribeCfg") // É¾³ıÊÂ¼ş¶©ÔÄÅäÖÃ
-#define EventSubscription_GetEventSubscribeCfg 			("GetEventSubscribeCfg") // »ñÈ¡ÊÂ¼ş¶©ÔÄÅäÖÃ
-#define EventSubscription_AddEventSubscribeCfg 			("AddEventSubscribeCfg") // Ìí¼ÓÊÂ¼ş¶©ÔÄÅäÖÃ
-#define EventSubscription_ModifyEventSubscribeCfg 	("ModifyEventSubscribeCfg") // ĞŞ¸ÄÊÂ¼ş¶©ÔÄÅäÖÃ
+#define EventSubscription_DeleteEventSubscribeCfg 	("DeleteEventSubscribeCfg") // åˆ é™¤äº‹ä»¶è®¢é˜…é…ç½®
+#define EventSubscription_GetEventSubscribeCfg 			("GetEventSubscribeCfg") // è·å–äº‹ä»¶è®¢é˜…é…ç½®
+#define EventSubscription_AddEventSubscribeCfg 			("AddEventSubscribeCfg") // æ·»åŠ äº‹ä»¶è®¢é˜…é…ç½®
+#define EventSubscription_ModifyEventSubscribeCfg 	("ModifyEventSubscribeCfg") // ä¿®æ”¹äº‹ä»¶è®¢é˜…é…ç½®
 
-#define PowerMgr_ModifyPowerPortWorkParamList 	("ModifyPowerPortWorkParamList") // ĞŞ¸Ä¹©µç¿Ú¹¤×÷²ÎÊıÁĞ±í
-#define PowerMgr_GetPowerPortStatusList 				("GetPowerPortStatusList") // »ñÈ¡¹©µç¿Ú×´Ì¬ÁĞ±í
+#define PowerMgr_ModifyPowerPortWorkParamList 	("ModifyPowerPortWorkParamList") // ä¿®æ”¹ä¾›ç”µå£å·¥ä½œå‚æ•°åˆ—è¡¨
+#define PowerMgr_GetPowerPortStatusList 				("GetPowerPortStatusList") // è·å–ä¾›ç”µå£çŠ¶æ€åˆ—è¡¨
 
-#define UserMgr_GetUserInfoCfg 			("GetUserInfoCfg") // »ñÈ¡Ö¸¶¨ÓÃ»§ĞÅÏ¢ÅäÖÃ
-#define UserMgr_ModifyUserInfoCfg 	("ModifyUserInfoCfg") // ĞŞ¸ÄÖ¸¶¨ÓÃ»§ĞÅÏ¢ÅäÖÃ
-
-
-/* ÊôĞÔ */
-#define WaterOutSense_WaterOutStatus	("WaterOutStatus") // Ë®½ş×´Ì¬
-#define LightningProtectionMgr_LightningProtectionStatus 					("LightningProtectionStatus") // ·ÀÀ××´Ì¬
-
-#define InfoMgr_DeviceLanguage 						("DeviceLanguage") // Éè±¸ÓïÑÔĞÅÏ¢
-#define InfoMgr_DeviceDescription 				("DeviceDescription") // Éè±¸ÃèÊöĞÅÏ¢
-#define InfoMgr_DeviceServiceDescription 	("DeviceServiceDescription") // Éú²ú·şÎñĞÅÏ¢
-#define InfoMgr_DeviceWebInfo 						("DeviceWebInfo") // Éè±¸WebĞÅÏ¢
-#define InfoMgr_DeviceVersion 						("DeviceVersion") // Éè±¸°æ±¾ĞÅÏ¢
-
-#define TimeMgr_TimeZone 				("TimeZone") // Ê±ÇøÅäÖÃ
-#define TimeMgr_DST 						("DST") // ÏÄÁîÊ±ÅäÖÃ
-#define TimeMgr_NTPCfg 					("NTPCfg") // NTPÅäÖÃ
-#define TimeMgr_NTPServiceCfg 	("NTPServiceCfg") // NTP·şÎñÅäÖÃ
-#define TimeMgr_SystemDateTime 	("SystemDateTime") // ÏµÍ³Ê±¼ä
-
-#define DeviceTiltDetection_DevRealtimeTiltData 			("DevRealtimeTiltData") // Éè±¸ÊµÊ±ÇãĞ±Êı¾İ
-#define DeviceTiltDetection_DevTiltDetectionParam 		("DevTiltDetectionParam") // Éè±¸ÇãĞ±¼ì²â²ÎÊı
-
-#define Humiture_HumidityAlarmThreshold 			("HumidityAlarmThreshold") // Êª¶È¸æ¾¯ãĞÖµ
-#define Humiture_Temperature 									("Temperature") // ÎÂ¶È
-#define Humiture_TemperatureAlarmThreshold 		("TemperatureAlarmThreshold") // ÎÂ¶È¸æ¾¯ãĞÖµ
-#define Humiture_Humidity 										("Humidity") // Êª¶È
-#define Humiture_TemperatureUnit 							("TemperatureUnit") // ²âÎÂµ¥Î»
-#define Fan_FanStatus 									("FanStatus") // ·çÉÈ×´Ì¬
-#define BoxDoorMgr_BoxDoorStatus 				("BoxDoorStatus") // »úÏäÃÅ×´Ì¬
-#define BoxDoorMgr_BoxDoorDetectionCfg 	("BoxDoorDetectionCfg") // ÏäÃÅ×´Ì¬¼ì²âÅäÖÃ
-
-#define NetworkAddress_IPAddressCfgList 	("IPAddressCfgList") // ÍøÂç½Ó¿ÚÍøÂçµØÖ·ÅäÖÃÁĞ±í
-
-#define PowerMgr_PowerPortSwitchTimePlan 				("PowerPortSwitchTimePlan") // µç¿Ú¿ª¹ØÊ±¼ä¼Æ»®
-#define PowerMgr_DeviceRealTimePowerParam 			("DeviceRealTimePowerParam") // Éè±¸ÊµÊ±µçÁ¦²ÎÊı
-#define PowerMgr_PowerPortDevLinkCfg 						("PowerPortDevLinkCfg") // µç¿ÚºÍÉè±¸¹ØÁªÅäÖÃ
-
-#define LocationMgr_LocateCfg 			("LocateCfg") // Éè±¸¶¨Î»¹æÔò²ÎÊı
-#define LocationMgr_LocateStatus 		("LocateStatus") // Éè±¸¶¨Î»ÔËĞĞ×´Ì¬
+#define UserMgr_GetUserInfoCfg 			("GetUserInfoCfg") // è·å–æŒ‡å®šç”¨æˆ·ä¿¡æ¯é…ç½®
+#define UserMgr_ModifyUserInfoCfg 	("ModifyUserInfoCfg") // ä¿®æ”¹æŒ‡å®šç”¨æˆ·ä¿¡æ¯é…ç½®
 
 
-/* ÊÂ¼ş */
-#define WaterOutSense_WaterOutReset 	("WaterOutReset") // Ë®½ş»Ö¸´
-#define WaterOutSense_WaterOut 				("WaterOut") // Ë®½ş¸æ¾¯
-#define LightningProtectionMgr_DevLightingProtectionStatusReport 	("DevLightingProtectionStatusReport") // Éè±¸·ÀÀ××´Ì¬ÉÏ±¨
+/* å±æ€§ */
+#define WaterOutSense_WaterOutStatus	("WaterOutStatus") // æ°´æµ¸çŠ¶æ€
+#define LightningProtectionMgr_LightningProtectionStatus 					("LightningProtectionStatus") // é˜²é›·çŠ¶æ€
 
-#define PortMgr_SwitchPortStatusReport 	("SwitchPortStatusReport") // ½»»»»ú¶Ë¿Ú×´Ì¬ÉÏ±¨
+#define InfoMgr_DeviceLanguage 						("DeviceLanguage") // è®¾å¤‡è¯­è¨€ä¿¡æ¯
+#define InfoMgr_DeviceDescription 				("DeviceDescription") // è®¾å¤‡æè¿°ä¿¡æ¯
+#define InfoMgr_DeviceServiceDescription 	("DeviceServiceDescription") // ç”Ÿäº§æœåŠ¡ä¿¡æ¯
+#define InfoMgr_DeviceWebInfo 						("DeviceWebInfo") // è®¾å¤‡Webä¿¡æ¯
+#define InfoMgr_DeviceVersion 						("DeviceVersion") // è®¾å¤‡ç‰ˆæœ¬ä¿¡æ¯
 
-#define DeviceTiltDetection_DeviceTiltAlarm 					("DeviceTiltAlarm") // Éè±¸ÇãĞ±±¨¾¯
+#define TimeMgr_TimeZone 				("TimeZone") // æ—¶åŒºé…ç½®
+#define TimeMgr_DST 						("DST") // å¤ä»¤æ—¶é…ç½®
+#define TimeMgr_NTPCfg 					("NTPCfg") // NTPé…ç½®
+#define TimeMgr_NTPServiceCfg 	("NTPServiceCfg") // NTPæœåŠ¡é…ç½®
+#define TimeMgr_SystemDateTime 	("SystemDateTime") // ç³»ç»Ÿæ—¶é—´
 
-#define Humiture_HumidityTooHigh 							("HumidityTooHigh") // Êª¶È¹ı¸ß¸æ¾¯
-#define Humiture_HumidityTooLow 							("HumidityTooLow") // Êª¶È¹ıµÍ¸æ¾¯
-#define Humiture_TemperatureTooLow 						("TemperatureTooLow") // ÎÂ¶È¹ıµÍ¸æ¾¯
-#define Humiture_TemperatureTooHigh 					("TemperatureTooHigh") // ÎÂ¶È¹ı¸ß¸æ¾¯
+#define DeviceTiltDetection_DevRealtimeTiltData 			("DevRealtimeTiltData") // è®¾å¤‡å®æ—¶å€¾æ–œæ•°æ®
+#define DeviceTiltDetection_DevTiltDetectionParam 		("DevTiltDetectionParam") // è®¾å¤‡å€¾æ–œæ£€æµ‹å‚æ•°
 
-#define BoxDoorMgr_BoxDoorStatusReport 	("BoxDoorStatusReport") // ÏäÃÅ×´Ì¬ÉÏ±¨
+#define Humiture_HumidityAlarmThreshold 			("HumidityAlarmThreshold") // æ¹¿åº¦å‘Šè­¦é˜ˆå€¼
+#define Humiture_Temperature 									("Temperature") // æ¸©åº¦
+#define Humiture_TemperatureAlarmThreshold 		("TemperatureAlarmThreshold") // æ¸©åº¦å‘Šè­¦é˜ˆå€¼
+#define Humiture_Humidity 										("Humidity") // æ¹¿åº¦
+#define Humiture_TemperatureUnit 							("TemperatureUnit") // æµ‹æ¸©å•ä½
+#define Fan_FanStatus 									("FanStatus") // é£æ‰‡çŠ¶æ€
+#define BoxDoorMgr_BoxDoorStatus 				("BoxDoorStatus") // æœºç®±é—¨çŠ¶æ€
+#define BoxDoorMgr_BoxDoorDetectionCfg 	("BoxDoorDetectionCfg") // ç®±é—¨çŠ¶æ€æ£€æµ‹é…ç½®
 
-#define Fan_FanStatusReport 						("FanStatusReport") // ·çÉÈ×´Ì¬ÉÏ±¨
+#define NetworkAddress_IPAddressCfgList 	("IPAddressCfgList") // ç½‘ç»œæ¥å£ç½‘ç»œåœ°å€é…ç½®åˆ—è¡¨
 
-#define PowerMgr_DevicePowerParamAlarm 					("DevicePowerParamAlarm") // Éè±¸µçÁ¦²ÎÊı±¨¾¯
-#define PowerMgr_DevPowerStatusReport 					("DevPowerStatusReport") // Éè±¸µçÔ´×´Ì¬ÉÏ±¨
+#define PowerMgr_PowerPortSwitchTimePlan 				("PowerPortSwitchTimePlan") // ç”µå£å¼€å…³æ—¶é—´è®¡åˆ’
+#define PowerMgr_DeviceRealTimePowerParam 			("DeviceRealTimePowerParam") // è®¾å¤‡å®æ—¶ç”µåŠ›å‚æ•°
+#define PowerMgr_PowerPortDevLinkCfg 						("PowerPortDevLinkCfg") // ç”µå£å’Œè®¾å¤‡å…³è”é…ç½®
 
-
-#define OTA_VERSION 					("ota/inform/operate") 					// »ñÈ¡¹Ì¼ş°æ±¾ĞÅÏ¢
-#define OTA_UPGRADE_VERSION 	("ota/upgradePackageInfo/operateoperate") // »ñÈ¡¿ÉÉı¼¶°æ±¾ĞÅÏ¢
-#define OTA_UPGRADE_CMD 			("ota/upgradeByBinary/operate") // ÏÂ·¢Éı¼¶ÃüÁî
-
-#define SERVER_INFO 					("service/operate") 	// ÁìÓò
-#define ATTRIBUTE_GET 				("attribute/get") 	// »ñÈ¡ÊôĞÔ
-#define ATTRIBUTE_SET 				("attribute/set") 	// ÉèÖÃÊôĞÔ
-#define EVENT_REPORT 					("event/report") 	// Ê±¼äÉÏ±¨
+#define LocationMgr_LocateCfg 			("LocateCfg") // è®¾å¤‡å®šä½è§„åˆ™å‚æ•°
+#define LocationMgr_LocateStatus 		("LocateStatus") // è®¾å¤‡å®šä½è¿è¡ŒçŠ¶æ€
 
 
-#define COM_HTTP_MALLOC_SIZE	 (1024)	   // ÄÚ´æÊı¾İÉêÇë
-#define WEBSOCKET_MALLOC_SIZE	 (512)	   // ÄÚ´æÊı¾İÉêÇë
+/* äº‹ä»¶ */
+#define WaterOutSense_WaterOutReset 	("WaterOutReset") // æ°´æµ¸æ¢å¤
+#define WaterOutSense_WaterOut 				("WaterOut") // æ°´æµ¸å‘Šè­¦
+#define LightningProtectionMgr_DevLightingProtectionStatusReport 	("DevLightingProtectionStatusReport") // è®¾å¤‡é˜²é›·çŠ¶æ€ä¸ŠæŠ¥
+
+#define PortMgr_SwitchPortStatusReport 	("SwitchPortStatusReport") // äº¤æ¢æœºç«¯å£çŠ¶æ€ä¸ŠæŠ¥
+
+#define DeviceTiltDetection_DeviceTiltAlarm 					("DeviceTiltAlarm") // è®¾å¤‡å€¾æ–œæŠ¥è­¦
+
+#define Humiture_HumidityTooHigh 							("HumidityTooHigh") // æ¹¿åº¦è¿‡é«˜å‘Šè­¦
+#define Humiture_HumidityTooLow 							("HumidityTooLow") // æ¹¿åº¦è¿‡ä½å‘Šè­¦
+#define Humiture_TemperatureTooLow 						("TemperatureTooLow") // æ¸©åº¦è¿‡ä½å‘Šè­¦
+#define Humiture_TemperatureTooHigh 					("TemperatureTooHigh") // æ¸©åº¦è¿‡é«˜å‘Šè­¦
+
+#define BoxDoorMgr_BoxDoorStatusReport 	("BoxDoorStatusReport") // ç®±é—¨çŠ¶æ€ä¸ŠæŠ¥
+
+#define Fan_FanStatusReport 						("FanStatusReport") // é£æ‰‡çŠ¶æ€ä¸ŠæŠ¥
+
+#define PowerMgr_DevicePowerParamAlarm 					("DevicePowerParamAlarm") // è®¾å¤‡ç”µåŠ›å‚æ•°æŠ¥è­¦
+#define PowerMgr_DevPowerStatusReport 					("DevPowerStatusReport") // è®¾å¤‡ç”µæºçŠ¶æ€ä¸ŠæŠ¥
+
+
+#define OTA_VERSION 					("ota/inform/operate") 					// è·å–å›ºä»¶ç‰ˆæœ¬ä¿¡æ¯
+#define OTA_UPGRADE_VERSION 	("ota/upgradePackageInfo/operateoperate") // è·å–å¯å‡çº§ç‰ˆæœ¬ä¿¡æ¯
+#define OTA_UPGRADE_CMD 			("ota/upgradeByBinary/operate") // ä¸‹å‘å‡çº§å‘½ä»¤
+
+#define SERVER_INFO 					("service/operate") 	// é¢†åŸŸ
+#define ATTRIBUTE_GET 				("attribute/get") 	// è·å–å±æ€§
+#define ATTRIBUTE_SET 				("attribute/set") 	// è®¾ç½®å±æ€§
+#define EVENT_REPORT 					("event/report") 	// æ—¶é—´ä¸ŠæŠ¥
+
+
+#define COM_HTTP_MALLOC_SIZE	 (1024)	   // å†…å­˜æ•°æ®ç”³è¯·
+#define WEBSOCKET_MALLOC_SIZE	 (512)	   // å†…å­˜æ•°æ®ç”³è¯·
 
 typedef struct
 {
-	char buffer[COM_HTTP_MALLOC_SIZE];  // »º´æÇø´óĞ¡ ÉêÇëÄÚ´æÊ±¸³Öµ
+	char buffer[COM_HTTP_MALLOC_SIZE];  // ç¼“å­˜åŒºå¤§å° ç”³è¯·å†…å­˜æ—¶èµ‹å€¼
 	uint16_t  flag;
 } com_http_t;
 
 typedef struct
 {
-	uint8_t  method;	 // ·½·¨
+	uint8_t  method;	 // æ–¹æ³•
 	uint8_t  *url;     // URL
-	uint8_t  length;	 // ³¤¶È
-	uint8_t  *type;	   // Êı¾İÀàĞÍ
-	uint8_t  *buff;	   // Êı¾İÄÚÈİ
-	uint8_t  *host;	   // Ö÷»úµØÖ·
+	uint8_t  length;	 // é•¿åº¦
+	uint8_t  *type;	   // æ•°æ®ç±»å‹
+	uint8_t  *buff;	   // æ•°æ®å†…å®¹
+	uint8_t  *host;	   // ä¸»æœºåœ°å€
 } com_http_data_t;
 
 typedef struct
 {
-	uint8_t  fin;	 		// ÏûÏ¢µÄ×îºóÒ»Ö¡
-	uint8_t  rsv;     // À©Õ¹¶¨Òå
-	uint8_t  opcode;	// ½âÊÍ Payload Êı¾İ
-	uint8_t  mask;	  // ÑÚÂë
-	uint16_t  len;	  	// Êı¾İÄÚÈİ
-	uint8_t  masking_key[4];// ÑÚÂë½âÃÜÃÜÔ¿
-	uint8_t  buf[WEBSOCKET_MALLOC_SIZE]; // ÈÎÒâ³¤¶ÈÊı¾İ
+	uint8_t  fin;	 		// æ¶ˆæ¯çš„æœ€åä¸€å¸§
+	uint8_t  rsv;     // æ‰©å±•å®šä¹‰
+	uint8_t  opcode;	// è§£é‡Š Payload æ•°æ®
+	uint8_t  mask;	  // æ©ç 
+	uint16_t  len;	  	// æ•°æ®å†…å®¹
+	uint8_t  masking_key[4];// æ©ç è§£å¯†å¯†é’¥
+	uint8_t  buf[WEBSOCKET_MALLOC_SIZE]; // ä»»æ„é•¿åº¦æ•°æ®
 } com_websocket_data_t;
 
 typedef struct
 {
-	char  cmd[40];	 		// ÃüÁî
-	char  host_ip[20];	// Ö÷»úµØÖ·
-	char  realm[20];		// ÏŞÖÆÓò	
-	char  nonce[64];		// Ëæ»úÊı		
+	char  cmd[40];	 		// å‘½ä»¤
+	char  host_ip[20];	// ä¸»æœºåœ°å€
+	char  realm[20];		// é™åˆ¶åŸŸ	
+	char  nonce[64];		// éšæœºæ•°		
 	char  uri[100];			// URI		
-	char  cnonce[50];		// ¿Í»§¶ËËæ»úÊı	
-	uint32_t nc;        // Ò»¸ö16½øÖÆµÄÊıÖµ
+	char  cnonce[50];		// å®¢æˆ·ç«¯éšæœºæ•°	
+	uint32_t nc;        // ä¸€ä¸ª16è¿›åˆ¶çš„æ•°å€¼
 	char  qop[10];			// 		
-	char  response[40];	// ÏìÓ¦		
-	char  algorithm[10];		// ¼ÓÃÜ·½Ê½
+	char  response[40];	// å“åº”		
+	char  algorithm[10];		// åŠ å¯†æ–¹å¼
 	char  opaque[10];		// 	
-	uint8_t http_cmd;		// ÃüÁî
-	char  method[5];		// ·½·¨	
-	uint8_t cilent_id;		// ¿Í»§¶Ë±àºÅ
-	uint8_t data_recving;		// ÊÇ·ñ½ÓÊÕÍê³É
+	uint8_t http_cmd;		// å‘½ä»¤
+	char  method[5];		// æ–¹æ³•	
+	uint8_t cilent_id;		// å®¢æˆ·ç«¯ç¼–å·
+	uint8_t data_recving;		// æ˜¯å¦æ¥æ”¶å®Œæˆ
 } com_http_cmd_t;
 
 typedef struct
 {
-	char  key[30];	 	 // Ëæ»úÖµ
-	char  accept[30];	 // ÑéÖ¤Öµ
+	char  key[30];	 	 // éšæœºå€¼
+	char  accept[30];	 // éªŒè¯å€¼
 } web_key_t;
 
 typedef struct
 {
-	char  id[40];		// ÊÂ¼şID
+	char  id[40];		// äº‹ä»¶ID
 	uint8_t  uri; 	// 
 	char  mode[8]; 	//
 	char  list[64];
@@ -245,17 +245,18 @@ typedef struct
 
 typedef struct
 {
-	char  		buf[256];	// »º´æ
-	uint16_t  len;		 	// ³¤¶È
+	char  		buf[256];	// ç¼“å­˜
+	uint16_t  len;		 	// é•¿åº¦
 } sys_json_t;
 
 extern web_key_t 		 web_key_data;
 extern sys_event_t   sg_event_param2;
 extern sys_event_t   sg_event_param3;
 
-/* º¯ÊıÉùÃ÷ */
+/* å‡½æ•°å£°æ˜ */
 void http_com_buff_init(void);
 void http_com_stroage_data(uint8_t *buff,uint16_t len);
+void http_com_reset_recv_function(void); // å¤ä½HTTPæ¥æ”¶é˜Ÿåˆ—ä¸è§£æçŠ¶æ€(åˆ‡æ¢è¿æ¥æ—¶æ¸…ç†æ®‹ç•™åŠåŒ…)
 int8_t com_deal_http_info_function(void);
 int com_http_queue_find_info(uint8_t *msg,uint16_t size);
 
@@ -277,13 +278,13 @@ int com_http_queue_find_info4(uint8_t *msg,uint16_t size);
 void http_com_ack_function(char *data, uint16_t *len, char *json_str,uint16_t jsonlen, uint8_t status_ID);
 void http_json_ack_status(char* buf,uint16_t *size,uint8_t status_ID);
 void http_json_ack_waterout(char* buf,uint16_t *size,uint8_t status_ID);
-void http_json_ack_devicedescription(char* buf,uint16_t *size,uint8_t status_ID); // Éè±¸ĞÅÏ¢
-void http_json_ack_deviceservicedescription(char* buf,uint16_t *size,uint8_t status_ID);  // Éè±¸Éú²úĞÅÏ¢
-void http_json_ack_deviceversion(char* buf,uint16_t *size,uint8_t status_ID); // Éè±¸°æ±¾ĞÅÏ¢
-void http_json_ack_angle(char* buf,uint16_t *size,uint8_t status_ID);  // ÇãĞ±¶È
-void http_json_ack_tempature(char* buf,uint16_t *size,uint8_t status_ID); // ÎÂ¶È
-void http_json_ack_humidity(char* buf,uint16_t *size,uint8_t status_ID);  // Êª¶È
-void http_json_ack_fanstatus(char* buf,uint16_t *size,uint8_t status_ID);  // ·çÉÈ×´Ì¬
+void http_json_ack_devicedescription(char* buf,uint16_t *size,uint8_t status_ID); // è®¾å¤‡ä¿¡æ¯
+void http_json_ack_deviceservicedescription(char* buf,uint16_t *size,uint8_t status_ID);  // è®¾å¤‡ç”Ÿäº§ä¿¡æ¯
+void http_json_ack_deviceversion(char* buf,uint16_t *size,uint8_t status_ID); // è®¾å¤‡ç‰ˆæœ¬ä¿¡æ¯
+void http_json_ack_angle(char* buf,uint16_t *size,uint8_t status_ID);  // å€¾æ–œåº¦
+void http_json_ack_tempature(char* buf,uint16_t *size,uint8_t status_ID); // æ¸©åº¦
+void http_json_ack_humidity(char* buf,uint16_t *size,uint8_t status_ID);  // æ¹¿åº¦
+void http_json_ack_fanstatus(char* buf,uint16_t *size,uint8_t status_ID);  // é£æ‰‡çŠ¶æ€
 void http_json_ack_doorstatus(char* buf,uint16_t *size,uint8_t status_ID);
 void http_json_ack_networkaddress(char* buf,uint16_t *size,uint8_t status_ID);
 void http_json_ack_devicerealtimepowerparam(char* buf,uint16_t *size,uint8_t status_ID);
@@ -319,7 +320,7 @@ int http_com_deal_configure_humiture(char* buf);
 int http_com_deal_configure_temperature(char* buf);
 int http_com_deal_configure_powerport(char* buf);
 
-// HTTP ÕªÒªÈÏÖ¤
+// HTTP æ‘˜è¦è®¤è¯
 void http_ack_authentication_algorithms(char* buf,uint16_t *size,uint8_t id);
 void http_com_certified_handshake_ack_function(char *data, uint16_t *len, char *json_str,uint16_t jsonlen,uint8_t flag);
 

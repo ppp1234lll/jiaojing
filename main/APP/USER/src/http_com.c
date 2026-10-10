@@ -68,6 +68,21 @@ void http_com_stroage_data(uint8_t *buff,uint16_t len)
 
 /************************************************************
 *
+* Function name	: http_com_reset_recv_function
+* Description	: 复位HTTP接收队列与解析状态
+* Parameter		:
+* Return		:
+*	强制关闭旧连接并切换到备用连接时调用: 清理上一个连接遗留的半包数据与解析状态,
+*	避免新连接的请求被当作旧请求的续包而解析错乱。
+************************************************************/
+void http_com_reset_recv_function(void)
+{
+	Clear_Queue(&sg_queue_http);
+	memset(&com_http_cmd, 0, sizeof(com_http_cmd_t));
+}
+
+/************************************************************
+*
 * Function name	: com_deal_http_info_function
 * Description	: HTTP数据处理
 * Parameter		: 

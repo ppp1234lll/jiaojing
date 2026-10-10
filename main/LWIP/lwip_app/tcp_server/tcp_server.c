@@ -66,7 +66,8 @@ static void tcp_server_thread(void *arg)
 			{ 		
 				if(TCP_SERVER_DEBUG) printf("netconn_accept\n");			
 				tcp_server_newconn->recv_timeout = 10;
-				// 创建客户端任务(单连接槽; 槽位占用或创建失败时, 新连接已在 tcp_client_init 内关闭)
+				// 创建客户端任务(主槽/备用槽; 主槽被未及时断开的HTTP连接占用时, 由备用槽承接并在
+				// tcp_client_init 内立即强制关闭旧HTTP连接; WebSocket占用或创建失败时新连接已关闭)
 				osres = tcp_client_init((void *)tcp_server_newconn);
 				if(TCP_SERVER_DEBUG) printf("tcp_server:%d\n",osres);
 				if(osres != OS_ERR_NONE)

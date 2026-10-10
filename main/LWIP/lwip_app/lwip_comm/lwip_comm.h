@@ -3,54 +3,55 @@
 #include "sys.h"
 #include "bsp.h"
 
-#define LWIP_MAX_DHCP_TRIES		4   //DHCP·şÎñÆ÷×î´óÖØÊÔ´ÎÊı
+#define LWIP_MAX_DHCP_TRIES		4   //DHCPæœåŠ¡å™¨æœ€å¤§é‡è¯•æ¬¡æ•°
    
-/* TCP¿Í»§¶ËÏà¹Ø²ÎÊı */
-#define LWIP_TCP_NO_CONNECT   (0) // TCP»¹Î´Á¬½Ó
-#define LWIP_TCP_INIT_CONNECT (1) // TCP³õÊ¼»¯ÖĞ
-#define LWIP_TCP_CONNECT	  	(2) // TCPÁ¬½Ó³É¹¦
-#define LWIP_TCP_SERVER_LINK  (3) // TCP³õÊ¼»¯ÖĞ
+/* TCPå®¢æˆ·ç«¯ç›¸å…³å‚æ•° */
+#define LWIP_TCP_NO_CONNECT   (0) // TCPè¿˜æœªè¿æ¥
+#define LWIP_TCP_INIT_CONNECT (1) // TCPåˆå§‹åŒ–ä¸­
+#define LWIP_TCP_CONNECT	  	(2) // TCPè¿æ¥æˆåŠŸ
+#define LWIP_TCP_SERVER_LINK  (3) // TCPåˆå§‹åŒ–ä¸­
 
-#define LWIP_TCP_CONNECT_NUM  (5) // TCPÁ¬½Ó³¢ÊÔ´ÎÊı
+#define LWIP_TCP_CONNECT_NUM  (5) // TCPè¿æ¥å°è¯•æ¬¡æ•°
 
-/* UDP¿Í»§¶ËÏà¹Ø²ÎÊı */
-#define LWIP_UDP_NO_CONNECT   0 // UDP»¹Î´Á¬½Ó
-#define LWIP_UDP_INIT_CONNECT 1 // UDP³õÊ¼»¯ÖĞ
-#define LWIP_UDP_CONNECT	  	2 // UDPÁ¬½Ó³É¹¦
-//lwip¿ØÖÆ½á¹¹Ìå
+/* UDPå®¢æˆ·ç«¯ç›¸å…³å‚æ•° */
+#define LWIP_UDP_NO_CONNECT   0 // UDPè¿˜æœªè¿æ¥
+#define LWIP_UDP_INIT_CONNECT 1 // UDPåˆå§‹åŒ–ä¸­
+#define LWIP_UDP_CONNECT	  	2 // UDPè¿æ¥æˆåŠŸ
+//lwipæ§åˆ¶ç»“æ„ä½“
 typedef struct  
 {
-	uint8_t init;		   // ÍøÂç³õÊ¼»¯£º0£º»¹Î´³õÊ¼»¯ 1£º³õÊ¼»¯¹ıÁË
-	uint8_t netif_state;   // Íø¿Ú×´Ì¬:0Î´´´½¨Íø¿¨ 1ÒÑ¾­´´½¨ÁËÍø¿¨
-	uint8_t tcp_status;	   // ÍøÂç×´Ì¬£º0£ºtcp»¹Î´Á¬½Ó 1£ºtcpÁ¬½Ó³É¹¦
-	uint8_t udp_multicast_status;	 // ÍøÂç×´Ì¬£º0£ºudp»¹Î´Á¬½Ó 1£ºudpÁ¬½Ó³É¹¦
+	uint8_t init;		   // ç½‘ç»œåˆå§‹åŒ–ï¼š0ï¼šè¿˜æœªåˆå§‹åŒ– 1ï¼šåˆå§‹åŒ–è¿‡äº†
+	uint8_t netif_state;   // ç½‘å£çŠ¶æ€:0æœªåˆ›å»ºç½‘å¡ 1å·²ç»åˆ›å»ºäº†ç½‘å¡
+	uint8_t tcp_status;	   // ç½‘ç»œçŠ¶æ€ï¼š0ï¼štcpè¿˜æœªè¿æ¥ 1ï¼štcpè¿æ¥æˆåŠŸ
+	uint8_t udp_multicast_status;	 // ç½‘ç»œçŠ¶æ€ï¼š0ï¼šudpè¿˜æœªè¿æ¥ 1ï¼šudpè¿æ¥æˆåŠŸ
 	uint8_t tcp_server_status;
-	uint8_t iporname;	   // ip»òÔòÓòÃû 0-Ö±½ÓÊ¹ÓÃIP 1-ĞèÒªÍ¨¹ıÓòÃû»ñÈ¡ip
-	uint8_t domename;	   // ÓòÃû»ñÈ¡×´Ì¬
-	uint8_t tcp_server_link;// tcpÁ¬½Ó×´Ì¬
-	uint8_t mac[6];        // MACµØÖ·
-	uint8_t remoteip[4];   // Ô¶¶ËÖ÷»úIPµØÖ· 
-	uint8_t ip[4];         // ±¾»úIPµØÖ·
-	uint8_t netmask[4];    // ×ÓÍøÑÚÂë
-	uint8_t gateway[4];    // Ä¬ÈÏÍø¹ØµÄIPµØÖ·
-	uint32_t remoteport;   // Ô¶¶ËÖ÷»ú¶Ë¿Ú
+	uint8_t iporname;	   // ipæˆ–åˆ™åŸŸå 0-ç›´æ¥ä½¿ç”¨IP 1-éœ€è¦é€šè¿‡åŸŸåè·å–ip
+	uint8_t domename;	   // åŸŸåè·å–çŠ¶æ€
+	uint8_t tcp_server_link;// tcpè¿æ¥çŠ¶æ€
+	uint8_t mac[6];        // MACåœ°å€
+	uint8_t remoteip[4];   // è¿œç«¯ä¸»æœºIPåœ°å€ 
+	uint8_t ip[4];         // æœ¬æœºIPåœ°å€
+	uint8_t netmask[4];    // å­ç½‘æ©ç 
+	uint8_t gateway[4];    // é»˜è®¤ç½‘å…³çš„IPåœ°å€
+	uint32_t remoteport;   // è¿œç«¯ä¸»æœºç«¯å£
 	uint8_t dns[4];		   // dns
 	
 	uint8_t udp_multicast_reset;
-	uint8_t reset;		   // ÍøÂç¸´Î»£º¼ì²âµ½1¶ÔÍø¿Ú½øĞĞ¸´Î»
-	uint8_t tcp_reset;	   // tcp¸´Î»: ¼ì²âµ½1¶Ôtcp¿Í»§¶Ë½øĞĞ¸´Î»
-	uint8_t tcp_server_reset; // TCP·şÎñÆ÷
+	uint8_t reset;		   // ç½‘ç»œå¤ä½ï¼šæ£€æµ‹åˆ°1å¯¹ç½‘å£è¿›è¡Œå¤ä½
+	uint8_t tcp_reset;	   // tcpå¤ä½: æ£€æµ‹åˆ°1å¯¹tcpå®¢æˆ·ç«¯è¿›è¡Œå¤ä½
+	uint8_t tcp_server_reset; // TCPæœåŠ¡å™¨
 	uint8_t tcp_client1;
 	uint8_t tcp_client2;
 	uint8_t tcp_client3;
 	uint8_t tcp_client4;
-	uint8_t client1_id;  // ¿Í»§¶Ë±àºÅ
+	uint8_t tcp_client_backup; // å¤‡ç”¨æœåŠ¡å™¨è¿æ¥(ä»…HTTP): ä¸»æ§½è¢«æœªåŠæ—¶æ–­å¼€çš„HTTPè¿æ¥å ç”¨æ—¶å¯ç”¨
+	uint8_t client1_id;  // å®¢æˆ·ç«¯ç¼–å·
 	uint8_t client2_id;
 	uint8_t client3_id;
 	uint8_t client4_id;
-	uint8_t client_websocket_id; // ÄÇ¸ö¿Í»§¶ËÊÇwebsocket
+	uint8_t client_websocket_id; // é‚£ä¸ªå®¢æˆ·ç«¯æ˜¯websocket
 }__lwip_dev;
-extern __lwip_dev lwipdev; // lwip¿ØÖÆ½á¹¹Ìå
+extern __lwip_dev lwipdev; // lwipæ§åˆ¶ç»“æ„ä½“
 
 
 void lwip_pkt_handle(void);
