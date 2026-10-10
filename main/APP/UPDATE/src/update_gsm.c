@@ -7,7 +7,7 @@
 /************************************************************
 *
 * Function name	: update_mobile_task_function
-* Description	: ¸üĞÂº¯Êı - Mobile network
+* Description	: æ›´æ–°å‡½æ•° - Mobile network
 * Parameter		: 
 * Return		: 
 *	
@@ -20,11 +20,11 @@ int8_t update_mobile_task_function(void)
 	uint16_t  server_port;
 	////
 
-	/* ¶Ï¿ªµ±Ç°4GÁ¬½Ó, ×¼±¸Éı¼¶ */
+	/* æ–­å¼€å½“å‰4Gè¿æ¥, å‡†å¤‡å‡çº§ */
 	gprs_disconnect();
 	led_control_function(LD_GPRS, LD_OFF);
 
-	/* Ã¿´ÎÉı¼¶Ç°È¡×îĞÂÉı¼¶·şÎñÆ÷µØÖ·/¶Ë¿Ú */
+	/* æ¯æ¬¡å‡çº§å‰å–æœ€æ–°å‡çº§æœåŠ¡å™¨åœ°å€/ç«¯å£ */
 	updateparam = update_get_infor_data_function();
 	server_port = updateparam->port;
 	IP4_ADDR(&server_ipaddr, updateparam->ip[0], updateparam->ip[1], updateparam->ip[2], updateparam->ip[3]);
@@ -32,33 +32,33 @@ int8_t update_mobile_task_function(void)
 	sg_http_update_param.section_len = (UPDATE_CHUNK_SIZE - 2);
 	sg_http_update_param.http_response_recv_size = 0;
 
-	/* 1: »ñÈ¡ info.txt, ±È½Ï°æ±¾ºÅ */
+	/* 1: è·å– info.txt, æ¯”è¾ƒç‰ˆæœ¬å· */
 	ret = http_update_get_info_txt_by_gprs(&server_ipaddr, server_port);
 	if( (ret < 0) || (ret == 2) )
 	{
-		if(ret < 0){ printf("\n»ñµÃinfo.txtĞÅÏ¢,Ê§°Ü! ret: %d\n", ret); }
-		else{ printf("\n°æ±¾ÊÇ×îĞÂ°æ±¾,ÎŞĞè¸üĞÂ!\n"); }
+		if(ret < 0){ printf("\nè·å¾—info.txtä¿¡æ¯,å¤±è´¥! ret: %d\n", ret); }
+		else{ printf("\nç‰ˆæœ¬æ˜¯æœ€æ–°ç‰ˆæœ¬,æ— éœ€æ›´æ–°!\n"); }
 		goto UPDATE_END;
 	}
 
-	/* 2: »ñÈ¡Éı¼¶ÎÄ¼ş´óĞ¡ */
+	/* 2: è·å–å‡çº§æ–‡ä»¶å¤§å° */
 	ret = http_update_get_crc_bin_file_size_by_gprs();
 	if(ret < 0)
 	{
-		printf("\n»ñµÃcrc_binÎÄ¼ş´óĞ¡,Ê§°Ü! ret: %d\n", ret);
+		printf("\nè·å¾—crc_binæ–‡ä»¶å¤§å°,å¤±è´¥! ret: %d\n", ret);
 		goto UPDATE_END;
 	}
 
-	/* 3: ·Ö¿é(Range)ÏÂÔØÉı¼¶ÎÄ¼ş */
+	/* 3: åˆ†å—(Range)ä¸‹è½½å‡çº§æ–‡ä»¶ */
 	ret = http_update_get_crc_bin_file_data_by_gprs();
 	if(ret < 0)
 	{
-		printf("\n»ñµÃcrc_binÎÄ¼şÄÚÈİ,Ê§°Ü! ret: %d\n", ret);
+		printf("\nè·å¾—crc_binæ–‡ä»¶å†…å®¹,å¤±è´¥! ret: %d\n", ret);
 		goto UPDATE_END;
 	}
 
-	/* Éı¼¶Íê³É, Ğ´Éı¼¶²ÎÊı²¢ÖØÆôÉè±¸ */
-	printf("\nÉı¼¶Íê³É,ÖØÆôÉè±¸...\n");
+	/* å‡çº§å®Œæˆ, å†™å‡çº§å‚æ•°å¹¶é‡å¯è®¾å¤‡ */
+	printf("\nå‡çº§å®Œæˆ,é‡å¯è®¾å¤‡...\n");
 	http_update_success_reboot();
 
 	ret = 0;
@@ -67,20 +67,20 @@ UPDATE_END:
 	updateparam->error = 0;
 	if(ret < 0)
 	{
-		printf("\nÉı¼¶Ê§°Ü, ret: %d\n", ret);
+		printf("\nå‡çº§å¤±è´¥, ret: %d\n", ret);
 		updateparam->success = 0;
-		http_update_failed();     // Ğ´Flash¼ÇÂ¼Ê§°Ü×´Ì¬
+		http_update_failed();     // å†™Flashè®°å½•å¤±è´¥çŠ¶æ€
 	}
 	else{ updateparam->success = 1; }
 	updateparam->end  = 1;
-	updateparam->mode = UPDATE_MODE_NULL;  // Éı¼¶½áÊø, ÍË³öÉı¼¶Ä£Ê½
+	updateparam->mode = UPDATE_MODE_NULL;  // å‡çº§ç»“æŸ, é€€å‡ºå‡çº§æ¨¡å¼
 
 	led_control_function(LD_GPRS, LD_OFF);
 
-	/* ÊÍ·ÅÉı¼¶¹ı³ÌÖĞÉêÇëµÄHTTPÓ¦´ğ»º³å */
+	/* é‡Šæ”¾å‡çº§è¿‡ç¨‹ä¸­ç”³è¯·çš„HTTPåº”ç­”ç¼“å†² */
 	http_update_free_response();
 
-	/* Éı¼¶½áÊø, ´¥·¢4GÒµÎñÁ´Â·ÖØĞÂÁ¬½Ó */
+	/* å‡çº§ç»“æŸ, è§¦å‘4Gä¸šåŠ¡é“¾è·¯é‡æ–°è¿æ¥ */
 	gsm_set_network_reset_function();
 
 	if(ret < 0){ return(-1); }
