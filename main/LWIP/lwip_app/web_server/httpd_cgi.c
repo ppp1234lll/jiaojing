@@ -800,6 +800,9 @@ int8_t httpd_cgi_set_camera_ip_function(int iNumParams, char *pcParam[], char *p
 * Return		: 
 *	
 ************************************************************/
+/* 本轮服务器设置表单是否已同步设备当前升级地址(避免只改一项时把另一项清掉) */
+static uint8_t sg_remote_setting_synced = 0;
+
 static int8_t Setting_remote_network_function(char *pcParam[], char *pcValue[],uint8_t i)
 {
 	static struct remote_ip param 	  = {0};
@@ -808,6 +811,15 @@ static int8_t Setting_remote_network_function(char *pcParam[], char *pcValue[],u
 	static uint32_t			port	  = 0;
 	int	   					temp[4]   = {0};
 	int8_t 					ret 	  = 0;
+	update_param_t		   *updateparam = NULL;
+
+	/* 首次处理升级IP/端口时用设备当前值补全, 支持只修改其中一项(与参数先后顺序无关) */
+	if( (!sg_remote_setting_synced) && ( (strcmp(pcParam[i],"H")==0) || (strcmp(pcParam[i],"I")==0) ) )
+	{
+		updateparam = (update_param_t *)update_get_infor_data_function();
+		if(updateparam){ ip[0]=updateparam->ip[0]; ip[1]=updateparam->ip[1]; ip[2]=updateparam->ip[2]; ip[3]=updateparam->ip[3]; port=updateparam->port; }
+		sg_remote_setting_synced = 1;
+	}
 	if (strcmp(pcParam[i] , "F")==0) // 外网Ip
 	{
 		memset(param.outside_iporname,0,sizeof(param.outside_iporname));
@@ -832,6 +844,7 @@ static int8_t Setting_remote_network_function(char *pcParam[], char *pcValue[],u
 		ip[1] = temp[1];
 		ip[2] = temp[2];
 		ip[3] = temp[3];
+		update_set_update_addr(ip,port);
 		return ret;
 	}
 	
@@ -861,6 +874,7 @@ int8_t httpd_cgi_set_remote_ip_function(int iNumParams, char *pcParam[], char *p
 	
 	if (strcmp(pcValue[0] , "remote_save")==0)
 	{
+		sg_remote_setting_synced = 0;
 		for (i=1; i< (iNumParams); i++)
 		{
 			ret = Setting_remote_network_function(pcParam,pcValue,i);
