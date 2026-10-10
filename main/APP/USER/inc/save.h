@@ -77,7 +77,6 @@
 #define SAVE_DEVICE_PARAM  (4) // 系统数据
 #define SAVE_COM_PARAMETER (5) // 通信数据
 #define SAVE_UPDATE		     (6) // 更新参数
-#define SAVE_REPORT_SW	   (7) // 上报开关参数
 #define SAVE_ONLY_SEND_IP  (8) // 只发送服务器
 #define SAVE_CAREMA        (9) // 摄像机参数
 #define SAVE_THRESHOLD     (10) // 阈值
@@ -93,7 +92,6 @@ int8_t save_stroage_comparision_parameter(comparision_parameter_t *param);
 int8_t save_storage_device_parameter_function(struct device_param *param);
 int8_t save_stroage_com_param_function(com_param_t *param);
 int8_t save_stroage_update_addr(uint8_t *ip,uint32_t port) ;
-int8_t save_stroage_report_switch(struct report_status *param);
 
 // 读取
 int8_t save_read_local_network(struct local_ip_t *local);
@@ -102,7 +100,6 @@ int8_t save_read_comparision_parameter(comparision_parameter_t *param);
 int8_t save_read_device_paramter_function(struct device_param *param);
 int8_t save_read_com_param_function(com_param_t *param);
 int8_t save_read_update_addr(uint8_t *ip,uint32_t *port);
-int8_t save_read_report_switch(struct report_status *param);
 
 // 默认参数
 void save_read_default_local_network(struct local_ip_t *local);

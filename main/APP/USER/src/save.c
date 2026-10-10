@@ -29,9 +29,6 @@
 /* 更新地址 */
 #define SAVE_UPDATE_FILE_NAME ("updateaddr")
 
-/* 上报开关状态 */
-#define SAVE_REPORT_SWITCH_NAME ("report_switch")
-
 /* 新增服务器信息 */
 #define SAVE_ONLY_SEND_IP_NAME ("only_send_ip")
 
@@ -74,7 +71,6 @@ void save_clear_file_function(uint8_t mode)
 		lfs_remove(&g_lfs_t,SAVE_COMPARISION_PARAMETER);
 		lfs_remove(&g_lfs_t,SAVE_COM_PARAMETER_NAME);
 		lfs_remove(&g_lfs_t,SAVE_UPDATE_FILE_NAME);
-		lfs_remove(&g_lfs_t,SAVE_REPORT_SWITCH_NAME);
 		lfs_remove(&g_lfs_t,SAVE_CAREMA_PARAMETER);  		//	20230712
 		lfs_remove(&g_lfs_t,SAVE_THRESHOLD_PARAMETER);  //	20230720
 		
@@ -688,78 +684,6 @@ int8_t save_read_update_addr(uint8_t *ip,uint32_t *port)
 	
 	return ret;
 
-}
-
-
-
-/************************************************************
-*
-* Function name	: save_stroage_report_switch
-* Description	: 存储上报开关参数
-* Parameter		: 
-* Return		: 
-*	
-************************************************************/
-int8_t save_stroage_report_switch(struct report_status *param)
-{
-	int8_t		ret      = 0;
- 	int 		err 	 = 0;
-	lfs_file_t  lfs_fp   = {0};
-	
-	/* 数据保存 */
-	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_REPORT_SWITCH_NAME, LFS_O_RDWR | LFS_O_CREAT);
-	if(err == 0)
-	{
-		err = lfs_file_rewind(&g_lfs_t, &lfs_fp);
-		err = lfs_file_write(&g_lfs_t, &lfs_fp, (uint8_t*)param, sizeof(struct report_status));
-		if(err != sizeof(struct report_status)) {
-			err = lfs_file_write(&g_lfs_t, &lfs_fp, (uint8_t*)param, sizeof(struct report_status));
-		}
-	}
-	else
-	{
-		ret = -1;
-	}
-	err = lfs_file_close(&g_lfs_t, &lfs_fp);
-	
-	return ret;
-
-}
-
-/************************************************************
-*
-* Function name	: save_read_report_switch
-* Description	: 读取上报开关参数
-* Parameter		: 
-* Return		: 
-*	
-************************************************************/
-int8_t save_read_report_switch(struct report_status *param)
-{
-	int8_t		ret      = 0;
-	int 		err 	 = 0;
-	lfs_file_t  lfs_fp   = {0};
-	
-	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_REPORT_SWITCH_NAME, LFS_O_RDWR);
-	if(SAVE_DEBUG)  printf("save_read_report_switch:%d\r\n",err);
-	if(err == 0)
-	{
-		err = lfs_file_rewind(&g_lfs_t, &lfs_fp);
-		err = lfs_file_read(&g_lfs_t, &lfs_fp, param,sizeof(struct report_status));
-	}
-	else
-	{
-		err = lfs_file_close(&g_lfs_t, &lfs_fp);
-		/* 默认数据 */
-		param->report_allowed = FLAG_WATER_ERROR|FLAG_WATER_NOEMAL|FLAG_SPD|FLAG_ANGLE|FLAG_TEMP_HIGH|FLAG_TEMP_LOW|\
-														FLAG_HUMI_HIGH|FLAG_HUMI_LOW|FLAG_DOOR|FLAG_POWER|FLAG_AC_STATUS|FLAG_FAN;
-		/* 存储 */
-		save_stroage_report_switch(param);
-		ret = -1;
-	}
-	err = lfs_file_close(&g_lfs_t, &lfs_fp);
-	
-	return ret;
 }
 
 /************************************************************

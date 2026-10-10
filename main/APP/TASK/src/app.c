@@ -60,7 +60,6 @@ typedef struct
 		uint8_t save_remote_network; 	// 保存远端网络参数
 		uint8_t save_update_addr;    	// 保存更新地址
 		uint8_t com_parameter;			 	// 通信相关参数
-		uint8_t save_report_sw;		 		// 存储上报开关参数
     uint8_t save_carema;       		// 摄像头参数 20230712
 		uint8_t save_threshold;       // 阈值
 		uint8_t save_reset;		     		// 恢复出厂化
@@ -1292,7 +1291,9 @@ void app_get_storage_param_function(void)
 	save_read_comparision_parameter(&sg_comparisionparam_t);
 	save_read_device_paramter_function(&sg_sysparam_t.device);
 	save_read_com_param_function(&sg_comparam_t);
-	save_read_report_switch(&sg_sysparam_t.report);
+	/* 上报开关参数不存储, 使用默认值: 全部允许上报 */
+	sg_sysparam_t.report.report_allowed = FLAG_WATER_ERROR|FLAG_WATER_NOEMAL|FLAG_SPD|FLAG_ANGLE|FLAG_TEMP_HIGH|FLAG_TEMP_LOW|\
+													FLAG_HUMI_HIGH|FLAG_HUMI_LOW|FLAG_DOOR|FLAG_POWER|FLAG_AC_STATUS|FLAG_FAN;
 	save_read_carema_parameter(&sg_carema_param_t);   //20230712
 	save_read_threshold_parameter(&sg_sysparam_t.threshold); // 20230720
 	update_read_addr();
@@ -1361,11 +1362,6 @@ void app_task_save_function(void)
 		if(SAVE_DEBUG)  printf("save_stroage_com_param_function\r\n");
 	}
 	
-	if(sg_sysoperate_t.save_flag.save_report_sw == 1) {
-		sg_sysoperate_t.save_flag.save_report_sw = 0;
-		save_stroage_report_switch(&sg_sysparam_t.report);
-		if(SAVE_DEBUG)  printf("save_stroage_report_switch\r\n");
-	}
 	
 	if(sg_sysoperate_t.save_flag.save_update_addr == 1) 
 	{
@@ -1550,9 +1546,6 @@ void app_set_save_infor_function(uint8_t mode)
 			break;
 		case SAVE_UPDATE:
 			sg_sysoperate_t.save_flag.save_update_addr = 1;
-			break;
-		case SAVE_REPORT_SW:
-			sg_sysoperate_t.save_flag.save_report_sw = 1;
 			break;
 		case SAVE_CAREMA:
 			sg_sysoperate_t.save_flag.save_carema = 1;
@@ -2613,8 +2606,6 @@ void app_set_report_switch_status(uint8_t sw,REPORT_FLAG sel)
 				sg_sysparam_t.report.report_allowed &=~FLAG_FAN;
 			break;
 	}
-	/* 存储 */
-	app_set_save_infor_function(SAVE_REPORT_SW);
 }
 
 
