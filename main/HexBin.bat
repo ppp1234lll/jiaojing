@@ -102,9 +102,9 @@ ren "%output_path%\%output_name%.hex" "%rename_name%.hex" >nul
 ::将bin文件重命名
 ren "%output_path%\%output_name%.bin" "%rename_name%.bin" >nul
 
-::---------------- OTA 服务器地址(固定值, 与 main/APP/UPDATE/src/update.c 中 sg_updateparam_t 保持一致) ----------------
-set OTA_IP=114.115.219.15
-set OTA_PORT=54323
+::---------------- OTA 服务器地址(固定值) ----------------
+set OTA_IP=47.104.98.214
+set OTA_PORT=8989
 
 ::---------------- 生成 OTA 升级包 _crc.bin ----------------
 ::每块 = 1024 字节数据 + 2 字节 CRC16-MODBUS(高字节在前), 不足 1024 整数倍用 0xFF 补齐
