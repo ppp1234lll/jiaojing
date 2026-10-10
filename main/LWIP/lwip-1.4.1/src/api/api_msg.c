@@ -842,6 +842,13 @@ do_delconn(struct api_msg_msg *msg)
     /* this only happens for TCP netconns */
     LWIP_ASSERT("msg->conn->type == NETCONN_TCP", msg->conn->type == NETCONN_TCP);
     msg->err = ERR_INPROGRESS;
+    /* 修补(本地): 该 netconn 即将由 netconn_free() 删除, 但本分支原实现不释放邮箱。
+       当连接处于 NETCONN_CLOSE(上一次 close 因 tcp_close() 返回 ERR_MEM 未完成,
+       例如对端不读取导致发送缓冲未清空)时, recvmbox 会被泄漏 —— 在 uCOS 下 recvmbox
+       是一个 OS_Q 队列(OS_MAX_QS 仅 10 个), 长期反复会耗尽队列池, 使 accept 分配的
+       netconn 失败、新连接被 RST(表现为"设备不再接受连接")。
+       此处补做 drain + 释放邮箱, 使 netconn_free() 不再泄漏队列/信号量资源。 */
+    netconn_drain(msg->conn);
   } else {
     LWIP_ASSERT("blocking connect in progress",
       (msg->conn->state != NETCONN_CONNECT) || IN_NONBLOCKING_CONNECT(msg->conn));

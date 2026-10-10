@@ -52,57 +52,99 @@ struct netbuf *sg_backup_recvbuf = NULL;
 u8 *tcp_backup_sendbuf;
 uint16_t tcp_backup_flag;								// 备用服务器数据发送标志位
 
+/*
+ * 协作式关闭请求标志(方案1):
+ *   由服务器线程置位, 对应的连接任务在自己的循环里检测到后"自行关闭连接并删除自己"。
+ *   避免服务器线程直接 netconn_delete + OSTaskDel 一个正阻塞在 netconn_recv 中的任务
+ *   ——那会先释放该任务仍挂在等待链上的 mailbox/OS_EVENT, 随后 OSTaskDel 再从已(可能被)
+ *   复用的对象上摘链, 长期反复(数千次)会破坏 uCOS 事件对象/LwIP 邮箱, 导致服务器线程
+ *   不再 accept(accept 邮箱填满后 LwIP 对新连接回 RST)。
+ */
+static volatile uint8_t tcp_client1_close_req = 0;
+static volatile uint8_t tcp_backup_close_req  = 0;
+
 /************************************************************
 * Function name	: tcp_client1_force_close
-* Description	: 立即强制关闭主槽(client1)连接
+* Description	: 关闭主槽(client1)旧连接(协作式)
 * Parameter		:
 * Return		:
-*	用于"主槽被未及时断开的HTTP连接占用"时, 释放旧连接与残留接收状态。
+*	用于"主槽被未及时断开的HTTP连接占用"时, 释放旧连接与残留接收状态:
+*	仅置请求标志, 由 client1 任务自身完成 netconn_close/delete + OSTaskDel;
+*	本函数等待其释放。client1 任务优先级(6)高于调用者(服务器线程10), 通常很快完成。
 ************************************************************/
 static void tcp_client1_force_close(void)
 {
 	OS_CPU_SR cpu_sr;
+	uint32_t wait = 0;
 
-	if(tcp_cilent1_conn != NULL)
+	tcp_client1_close_req = 1;
+	/* 等待 client1 任务自行关闭连接并退出(最多约 500ms 兜底) */
+	while((lwipdev.tcp_client1 != 0) && (wait < 100))
 	{
-		netconn_close(tcp_cilent1_conn);                            //关闭连接
-		netconn_delete(tcp_cilent1_conn);                           //删除连接
-		tcp_cilent1_conn = NULL;
+		OSTimeDly(1);
+		wait++;
 	}
-	lwipdev.tcp_client1 = 0;
+
+	if(lwipdev.tcp_client1 != 0)
+	{
+		/* 兜底: 任务未按预期退出。先删任务(使其脱离各等待链), 再释放连接对象。 */
+		OS_ENTER_CRITICAL();		// 关中断
+		OSTaskDel(TCP_CLIENT1_PRIO);
+		OS_EXIT_CRITICAL();			// 开中断
+		if(tcp_cilent1_conn != NULL)
+		{
+			netconn_close(tcp_cilent1_conn);                            //关闭连接
+			netconn_delete(tcp_cilent1_conn);                           //删除连接
+			tcp_cilent1_conn = NULL;
+		}
+		lwipdev.tcp_client1 = 0;
+	}
+	tcp_client1_close_req = 0;
+
 	if(lwipdev.client_websocket_id == 1)
 		lwipdev.client_websocket_id = 0;
-	OS_ENTER_CRITICAL();		// 关中断
-	OSTaskDel(TCP_CLIENT1_PRIO);	// 删除旧的任务
-	OS_EXIT_CRITICAL();			// 开中断
 	http_com_reset_recv_function(); // 清理旧连接可能遗留的半包/解析状态
 }
 
 /************************************************************
 * Function name	: tcp_backup_force_close
-* Description	: 立即强制关闭备用槽连接
+* Description	: 关闭备用槽旧连接(协作式)
 * Parameter		:
 * Return		:
 ************************************************************/
 static void tcp_backup_force_close(void)
 {
 	OS_CPU_SR cpu_sr;
+	uint32_t wait = 0;
 
-	if(tcp_backup_conn != NULL)
+	tcp_backup_close_req = 1;
+	/* 等待备用任务自行关闭连接并退出(最多约 500ms 兜底) */
+	while((lwipdev.tcp_client_backup != 0) && (wait < 100))
 	{
-		netconn_close(tcp_backup_conn);                             //关闭连接
-		netconn_delete(tcp_backup_conn);                            //删除连接
-		tcp_backup_conn = NULL;
+		OSTimeDly(1);
+		wait++;
 	}
-	lwipdev.tcp_client_backup = 0;
+
+	if(lwipdev.tcp_client_backup != 0)
+	{
+		OS_ENTER_CRITICAL();		// 关中断
+		OSTaskDel(TCP_BACKUP_PRIO);
+		OS_EXIT_CRITICAL();			// 开中断
+		if(tcp_backup_conn != NULL)
+		{
+			netconn_close(tcp_backup_conn);                             //关闭连接
+			netconn_delete(tcp_backup_conn);                            //删除连接
+			tcp_backup_conn = NULL;
+		}
+		lwipdev.tcp_client_backup = 0;
+	}
+	tcp_backup_close_req = 0;
+
 	if(lwipdev.client_websocket_id == 1)
 	{
 		lwipdev.client_websocket_id = 0;
 		eth_set_network_reset();
 	}
-	OS_ENTER_CRITICAL();		// 关中断
-	OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
-	OS_EXIT_CRITICAL();			// 开中断
 	http_com_reset_recv_function(); // 清理旧连接可能遗留的半包/解析状态
 }
 
@@ -137,6 +179,8 @@ static void tcp_cilent1_thread(void *arg)
 	netconn_getaddr(tcp_cilent1_conn,&ip,&port,0);   //获取远端IP地址和端口号	
 	while (1) 
 	{
+		if(tcp_client1_close_req)		// 服务器请求协作式关闭: 由本任务自行收尾
+			goto CLIENT1_ERROR;
 		link_count++;
 		if(link_count > 1000)
 		{
@@ -212,6 +256,8 @@ static void tcp_backup_thread(void *arg)
 	netconn_getaddr(tcp_backup_conn,&ip,&port,0);   //获取远端IP地址和端口号
 	while (1)
 	{
+		if(tcp_backup_close_req)		// 服务器请求协作式关闭: 由本任务自行收尾
+			goto BACKUP_ERROR;
 		link_count++;
 		if(link_count > 1000)
 		{
@@ -551,6 +597,14 @@ void tcp_client_stop_function(void)
 {	
 	OS_CPU_SR cpu_sr;
 
+	tcp_client1_close_req = 0;
+	tcp_backup_close_req  = 0;
+
+	/* 先删任务(使其脱离 mbox/事件等待链), 再释放连接对象, 避免"先释放 mailbox 后摘链" */
+	OS_ENTER_CRITICAL();		// 关中断
+	OSTaskDel(TCP_CLIENT1_PRIO);	// 删除TCP任务
+	OS_EXIT_CRITICAL();			// 开中断
+
 	if(tcp_cilent1_conn != NULL)
 	{
 		netconn_close(tcp_cilent1_conn);                            //关闭连接
@@ -561,11 +615,11 @@ void tcp_client_stop_function(void)
 	if(lwipdev.client_websocket_id == 1)
 		lwipdev.client_websocket_id = 0;
 
+	/* 备用服务器连接同步关闭(仅HTTP场景) */
 	OS_ENTER_CRITICAL();		// 关中断
-	OSTaskDel(TCP_CLIENT1_PRIO);	// 删除TCP任务
+	OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
 	OS_EXIT_CRITICAL();			// 开中断
 
-	/* 备用服务器连接同步关闭(仅HTTP场景) */
 	if(tcp_backup_conn != NULL)
 	{
 		netconn_close(tcp_backup_conn);                             //关闭连接
@@ -573,8 +627,4 @@ void tcp_client_stop_function(void)
 		tcp_backup_conn = NULL;
 	}
 	lwipdev.tcp_client_backup = 0;
-
-	OS_ENTER_CRITICAL();		// 关中断
-	OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
-	OS_EXIT_CRITICAL();			// 开中断
 }

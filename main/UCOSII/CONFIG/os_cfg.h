@@ -15,7 +15,7 @@
 * LICENSING TERMS:
 * ---------------
 *   uC/OS-II is provided in source form for FREE evaluation, for educational use or for peaceful research.
-* If you plan on using  uC/OS-II  in a commercial product you need to contact Micriµm to properly license
+* If you plan on using  uC/OS-II  in a commercial product you need to contact Micriç¥„ to properly license
 * its use in your product. We provide ALL the source code for your convenience and to help you experience
 * uC/OS-II.   The fact that the  source is provided does  NOT  mean that you can use it without  paying a
 * licensing fee.
@@ -34,22 +34,22 @@
 #define OS_DEBUG_EN               0u   /* Enable(1) debug variables                                    */
 
 #define OS_EVENT_MULTI_EN         0u   /* Include code for OSEventPendMulti()                          */
-#define OS_EVENT_NAME_EN          1u   /* Ê¹ÄÜ¸øĞÅºÅÁ¿,»¥³âĞÅºÅÁ¿,ÏûÏ¢¶ÓÁĞµÄÃüÃûEnable names for Sem, Mutex, Mbox and Q                      */
+#define OS_EVENT_NAME_EN          1u   /* ä½¿èƒ½ç»™ä¿¡å·é‡,äº’æ–¥ä¿¡å·é‡,æ¶ˆæ¯é˜Ÿåˆ—çš„å‘½åEnable names for Sem, Mutex, Mbox and Q                      */
 
-#define OS_LOWEST_PRIO           63u   /*ÏµÍ³×îµÍÓÅÏÈ¼¶ Defines the lowest priority that can be assigned ...         */
+#define OS_LOWEST_PRIO           63u   /*ç³»ç»Ÿæœ€ä½ä¼˜å…ˆçº§ Defines the lowest priority that can be assigned ...         */
                                        /* ... MUST NEVER be higher than 254!                           */
 
-#define OS_MAX_EVENTS            30   /*ÏµÍ³×î´óÊÂ¼şÊı Max. number of event control blocks in your application      */
-#define OS_MAX_FLAGS             10u   /*ÏµÍ³×î´óµÄĞÅºÅÁ¿¼¯ÊıMax. number of Event Flag Groups    in your application      */
-#define OS_MAX_MEM_PART          10u   /*ÄÚ´æ¿éÊıÄ¿ Max. number of memory partitions                             */
-#define OS_MAX_QS                10u   /* Max. number of queue control blocks in your application      */
+#define OS_MAX_EVENTS            30   /*ç³»ç»Ÿæœ€å¤§äº‹ä»¶æ•° Max. number of event control blocks in your application      */
+#define OS_MAX_FLAGS             10u   /*ç³»ç»Ÿæœ€å¤§çš„ä¿¡å·é‡é›†æ•°Max. number of Event Flag Groups    in your application      */
+#define OS_MAX_MEM_PART          10u   /*å†…å­˜å—æ•°ç›® Max. number of memory partitions                             */
+#define OS_MAX_QS                30u   /* Max. number of queue control blocks in your application      */
 #define OS_MAX_TASKS             15u   /* Max. number of tasks in your application, MUST be >= 2       */
 
 
 #define OS_SCHED_LOCK_EN          1u   /* Include code for OSSchedLock() and OSSchedUnlock()           */
 
 #define OS_TICK_STEP_EN           1u   /* Enable tick stepping feature for uC/OS-View                  */
-#define OS_TICKS_PER_SEC       	200u   /* ÉèÖÃ1sÊ±¼äµÄ½ÚÅÄÊı Set the number of ticks in one second                        */
+#define OS_TICKS_PER_SEC       	200u   /* è®¾ç½®1sæ—¶é—´çš„èŠ‚æ‹æ•° Set the number of ticks in one second                        */
 
 
                                        /* --------------------- TASK STACK SIZE ---------------------- */
@@ -80,7 +80,7 @@
 #define OS_FLAG_NAME_EN           1u   /*     Enable names for event flag group                        */
 #define OS_FLAG_QUERY_EN          1u   /*     Include code for OSFlagQuery()                           */
 #define OS_FLAG_WAIT_CLR_EN       1u   /* Include code for Wait on Clear EVENT FLAGS                   */
-#define OS_FLAGS_NBITS           16u   /* ĞÅºÅÁĞ±í ĞÅºÅÁ¿¼¯ÖĞÊ¹ÓÃ Ä¬ÈÏ16Î» Size in #bits of OS_FLAGS data type (8, 16 or 32)            */
+#define OS_FLAGS_NBITS           16u   /* ä¿¡å·åˆ—è¡¨ ä¿¡å·é‡é›†ä¸­ä½¿ç”¨ é»˜è®¤16ä½ Size in #bits of OS_FLAGS data type (8, 16 or 32)            */
 
 
                                        /* -------------------- MESSAGE MAILBOXES --------------------- */
@@ -135,11 +135,11 @@
 
 
                                        /* --------------------- TIMER MANAGEMENT --------------------- */
-#define OS_TMR_EN                 1u   /* Ê¹ÄÜÈí¼ş¶¨Ê±Æ÷ Enable (1) or Disable (0) code generation for TIMERS         */
-#define OS_TMR_CFG_MAX           16u   /* ×î´ó¶¨Ê±Æ÷ÊıÄ¿ Maximum number of timers                                 */
-#define OS_TMR_CFG_NAME_EN        1u   /* È·¶¨¶¨Ê±Æ÷Ãû×Ö Determine timer names                                    */
-#define OS_TMR_CFG_WHEEL_SIZE     8u   /* ¶¨Ê±Æ÷ÂÖÊıÎª8  Size of timer wheel (#Spokes)                            */
+#define OS_TMR_EN                 1u   /* ä½¿èƒ½è½¯ä»¶å®šæ—¶å™¨ Enable (1) or Disable (0) code generation for TIMERS         */
+#define OS_TMR_CFG_MAX           16u   /* æœ€å¤§å®šæ—¶å™¨æ•°ç›® Maximum number of timers                                 */
+#define OS_TMR_CFG_NAME_EN        1u   /* ç¡®å®šå®šæ—¶å™¨åå­— Determine timer names                                    */
+#define OS_TMR_CFG_WHEEL_SIZE     8u   /* å®šæ—¶å™¨è½®æ•°ä¸º8  Size of timer wheel (#Spokes)                            */
 #define OS_TMR_CFG_TICKS_PER_SEC 100u  /* Rate at which timer management task runs (Hz)            */
-#define OS_TASK_TMR_PRIO					3u   //Èí¼ş¶¨Ê±Æ÷µÄÓÅÏÈ¼¶ÉèÎª×î¸ß,3
+#define OS_TASK_TMR_PRIO					3u   //è½¯ä»¶å®šæ—¶å™¨çš„ä¼˜å…ˆçº§è®¾ä¸ºæœ€é«˜,3
 #endif
 	 	   	  		 			 	    		   		 		 	 	 			 	    		   	 			 	  	 		 				 		  			 		 					 	  	  		      		  	   		      		  	 		 	      		   		 		  	 		 	      		  		  		  
