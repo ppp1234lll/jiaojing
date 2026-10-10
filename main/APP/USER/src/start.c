@@ -23,7 +23,6 @@
 #include "com.h"
 #include "rtc.h"
 #include "update.h"
-#include "bootload.h"
 #include "save.h"
 #include "iwdg.h"
 #include "BL0910.h"
@@ -155,7 +154,6 @@ void start_system_init_function(void)
 	com_recevie_function_init();			// 初始化接收缓冲区
 	http_com_buff_init();
 	app_get_storage_param_function();	// 获取本地存储的数据
-	my_modem_init();									// 更新检测
 	update_status_detection();				// 检测上次升级结果并上报平台
 	my_app_run_param_init();
 	IWDG_Feed();

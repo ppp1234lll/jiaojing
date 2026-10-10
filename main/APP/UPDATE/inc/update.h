@@ -11,7 +11,6 @@
 #define UPDATE_REC_BUFF_MAX (1280) 
 
 uint8_t update_get_mode_function(void);
-int8_t update_tcp_send_function(uint8_t *buff, uint16_t len) ;
 void update_error_occurred_in_function(void);
 uint8_t *update_addr_ip(void);
 uint32_t update_addr_port(void);
@@ -49,7 +48,5 @@ void update_status_detection(void);
 /* 无线模块对应的更新函数 */
 int8_t update_mobile_task_function(void);
 
-/* 有线更新函数 */
-int8_t update_lwip_task_function(void);
 
 #endif

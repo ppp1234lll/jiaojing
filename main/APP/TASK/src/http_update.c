@@ -1,7 +1,8 @@
 #include "http_update.h"
 ////
 
-extern struct netconn *tcp_update;
+/* å‡çº§ç”¨TCPè¿æ¥(åŸå®šä¹‰åœ¨å·²åˆ é™¤çš„ update_lwip.c ä¸­, ç°ç”±æœ¬æ¨¡å—æŒæœ‰) */
+struct netconn *tcp_update = NULL;
 ////
 
 static int http_update_connect_server_by_lwip(ip_addr_t *ip, unsigned short port);
@@ -24,16 +25,16 @@ static int http_update_parse_crc_bin_data(void);
 static int http_update_recv_reponse_by_gprs(int *out_recv_size);
 ////
 
-// http ¸üĞÂÊ±,Êı¾İ¶ÓÁĞ,Æ´½ÓÍêÕûµÄhttpÄÚÈİ
+// http æ›´æ–°æ—¶,æ•°æ®é˜Ÿåˆ—,æ‹¼æ¥å®Œæ•´çš„httpå†…å®¹
 //struct queue sg_http_update_queue = {0};
 
-// httpÉı¼¶ĞÅÏ¢
+// httpå‡çº§ä¿¡æ¯
 struct IAPStruct sg_http_update_param = {0};
 
-// Éı¼¶ĞÅÏ¢ÎÄ¼ş url(¿ÉÅäÖÃ): /<HARD_NO_STR>/info.txt
+// å‡çº§ä¿¡æ¯æ–‡ä»¶ url(å¯é…ç½®): /<HARD_NO_STR>/info.txt
 char http_info_txt_url[64] = {0};
 
-// °´Ó²¼şĞÍºÅÆ´½Ó info.txt ÇëÇóÂ·¾¶
+// æŒ‰ç¡¬ä»¶å‹å·æ‹¼æ¥ info.txt è¯·æ±‚è·¯å¾„
 static void http_update_info_url_init(void)
 {
 	if(http_info_txt_url[0] == 0)
@@ -43,9 +44,9 @@ static void http_update_info_url_init(void)
 }
 ////
 
-// 1: »ñµÃinfo.txtĞÅÏ¢
+// 1: è·å¾—info.txtä¿¡æ¯
 // {"version":"1.5.6.20240905";"url":"http://47.104.98.214:8989/gajc/FN-ZJGD-QG-1.5.6.20240905.bin";}
-// ·µ»ØÖµ: 1: °æ±¾ºÅ²»Í¬,¸üĞÂ; 2:°æ±¾ºÅÏàÍ¬,ÎŞĞè¸üĞÂ; <0: ³ö´í
+// è¿”å›å€¼: 1: ç‰ˆæœ¬å·ä¸åŒ,æ›´æ–°; 2:ç‰ˆæœ¬å·ç›¸åŒ,æ— éœ€æ›´æ–°; <0: å‡ºé”™
 int http_update_get_info_txt_by_lwip(ip_addr_t *server_ipaddr, uint16_t server_port)
 {
 	int ret = 0, res;
@@ -54,13 +55,13 @@ int http_update_get_info_txt_by_lwip(ip_addr_t *server_ipaddr, uint16_t server_p
 	unsigned int begin_ticks = 0, end_ticks = 0;
 	////
 
-	// Á¬½Ó·şÎñÆ÷
-	printf("\nÓĞÏßÁ¬½Ó·şÎñÆ÷ %s:%d ...\n", ipaddr_ntoa(server_ipaddr), server_port);
+	// è¿æ¥æœåŠ¡å™¨
+	printf("\næœ‰çº¿è¿æ¥æœåŠ¡å™¨ %s:%d ...\n", ipaddr_ntoa(server_ipaddr), server_port);
 	ret = http_update_connect_server_by_lwip(server_ipaddr, server_port);
 	if(ret){ return(-1); }
 	led_control_function(LD_LAN, LD_FLICKER);
 
-	// ·¢ËÍhttpÇëÇó
+	// å‘é€httpè¯·æ±‚
 	ret = http_update_send_request_for_info_txt_by_lwip(server_ipaddr, server_port);
 	if(ret)
 	{
@@ -68,62 +69,62 @@ int http_update_get_info_txt_by_lwip(ip_addr_t *server_ipaddr, uint16_t server_p
 		return(-2);
 	}
 
-	// ½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ
+	// æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®
 	sg_http_update_param.http_response_recv_size = 0;
 	while(true)
 	{
-		// ½ÓÊÕÊı¾İ
+		// æ¥æ”¶æ•°æ®
 		ret = http_update_recv_reponse_by_lwip(&cur_recv_size);
-		//printf("\n½ÓÊÕÊı¾İ: %d ×Ö½Ú\n", cur_recv_size);
+		//printf("\næ¥æ”¶æ•°æ®: %d å­—èŠ‚\n", cur_recv_size);
 		if(ret)
 		{
 			http_update_close_connect_by_lwip();
 			return(-3);
 		}
 
-		// ÔİÊ±ÎŞÊı¾İ
+		// æš‚æ—¶æ— æ•°æ®
 		if(!cur_recv_size)
 		{
-			if(!be_timing) // ·Ç¼ÆÊ±×´Ì¬
+			if(!be_timing) // éè®¡æ—¶çŠ¶æ€
 			{
-				be_timing = true; // ¿ªÊ¼¼ÆÊ±
+				be_timing = true; // å¼€å§‹è®¡æ—¶
 				begin_ticks = OSTimeGet();
 			}
-			else // ¼ÆÊ±×´Ì¬
+			else // è®¡æ—¶çŠ¶æ€
 			{
 				end_ticks = OSTimeGet();
-				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // ³¬Ê±10Ãë
+				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // è¶…æ—¶10ç§’
 				{
-					//printf("\nhttp¸üĞÂ,ÎŞÊı¾İ½ÓÊÕ³¬Ê±....\n");
+					//printf("\nhttpæ›´æ–°,æ— æ•°æ®æ¥æ”¶è¶…æ—¶....\n");
 					http_update_close_connect_by_lwip();
 					return(-4);
 				}
 			}
 			OSTimeDlyHMSM(0,0,0,10); continue;
 		}
-		else{ be_timing = false; } // Í£Ö¹¼ÆÊ±
+		else{ be_timing = false; } // åœæ­¢è®¡æ—¶
 
-		// ÅĞ¶ÏhttpÓ¦´ğÍêÕûĞÔ
+		// åˆ¤æ–­httpåº”ç­”å®Œæ•´æ€§
 		ret = http_update_check_response_completed();
 		if(ret != 2){ /*OSTimeDlyHMSM(0,0,0,10);*/ continue; }
 		else
 		{
-			//printf("\nhttpÓ¦´ğ:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
+			//printf("\nhttpåº”ç­”:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
 			break;
 		}
 	} //while()
 	////
 
-	// ÏÈ¹Ø±ÕÁ¬½Ó
+	// å…ˆå…³é—­è¿æ¥
 	http_update_close_connect_by_lwip();
 	led_control_function(LD_LAN, LD_OFF);
 
-	// ÅĞ¶Ï°æ±¾
+	// åˆ¤æ–­ç‰ˆæœ¬
 	ret = http_update_chack_version();
 	if(ret < 0){ return(-5); }
 
-	// ÌáÈ¡url
-	if(ret == 1) // ĞèÒª¸üĞÂ
+	// æå–url
+	if(ret == 1) // éœ€è¦æ›´æ–°
 	{
 		res = http_update_get_url();
 		if(res){ return(-6); }
@@ -133,9 +134,9 @@ int http_update_get_info_txt_by_lwip(ip_addr_t *server_ipaddr, uint16_t server_p
 }
 /////////////////////
 
-// 1: »ñµÃinfo.txtĞÅÏ¢
+// 1: è·å¾—info.txtä¿¡æ¯
 // {"version":"1.5.6.20240905";"url":"http://47.104.98.214:8989/gajc/FN-ZJGD-QG-1.5.6.20240905.bin";}
-// ·µ»ØÖµ: 1: °æ±¾ºÅ²»Í¬,¸üĞÂ; 2:°æ±¾ºÅÏàÍ¬,ÎŞĞè¸üĞÂ; <0: ³ö´í
+// è¿”å›å€¼: 1: ç‰ˆæœ¬å·ä¸åŒ,æ›´æ–°; 2:ç‰ˆæœ¬å·ç›¸åŒ,æ— éœ€æ›´æ–°; <0: å‡ºé”™
 int http_update_get_info_txt_by_gprs(ip_addr_t *server_ipaddr, uint16_t server_port)
 {
 	int ret = 0, res;
@@ -144,14 +145,14 @@ int http_update_get_info_txt_by_gprs(ip_addr_t *server_ipaddr, uint16_t server_p
 	unsigned int begin_ticks = 0, end_ticks = 0;
 	////
 
-	// Á¬½Ó·şÎñÆ÷
-	printf("\nÎŞÏßÁ¬½Ó·şÎñÆ÷ %s:%d ...\n", ipaddr_ntoa(server_ipaddr), server_port);
+	// è¿æ¥æœåŠ¡å™¨
+	printf("\næ— çº¿è¿æ¥æœåŠ¡å™¨ %s:%d ...\n", ipaddr_ntoa(server_ipaddr), server_port);
 	ret = http_update_connect_server_by_gprs(server_ipaddr, server_port);
 	if(ret){ return(-1); }
 
 	led_control_function(LD_GPRS, LD_FLICKER);
 
-	// ·¢ËÍhttpÇëÇó
+	// å‘é€httpè¯·æ±‚
 	ret = http_update_send_request_for_info_txt_by_gprs(server_ipaddr, server_port);
 	if(ret != GPRS_SEND_OK)
 	{
@@ -159,11 +160,11 @@ int http_update_get_info_txt_by_gprs(ip_addr_t *server_ipaddr, uint16_t server_p
 		return(-2);
 	}
 
-	// ½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ
+	// æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®
 	sg_http_update_param.http_response_recv_size = 0;
 	while(true)
 	{
-		// ½ÓÊÕÊı¾İ
+		// æ¥æ”¶æ•°æ®
 		ret = http_update_recv_reponse_by_gprs(&cur_recv_size);
 		if(ret)
 		{
@@ -171,20 +172,20 @@ int http_update_get_info_txt_by_gprs(ip_addr_t *server_ipaddr, uint16_t server_p
 			return(-3);
 		}
 
-		// ÔİÊ±ÎŞÊı¾İ
+		// æš‚æ—¶æ— æ•°æ®
 		if(!cur_recv_size)
 		{
-			if(!be_timing) // ·Ç¼ÆÊ±×´Ì¬
+			if(!be_timing) // éè®¡æ—¶çŠ¶æ€
 			{
-				be_timing = true; // ¿ªÊ¼¼ÆÊ±
+				be_timing = true; // å¼€å§‹è®¡æ—¶
 				begin_ticks = OSTimeGet();
 			}
-			else // ¼ÆÊ±×´Ì¬
+			else // è®¡æ—¶çŠ¶æ€
 			{
 				end_ticks = OSTimeGet();
-				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // ³¬Ê±10Ãë
+				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // è¶…æ—¶10ç§’
 				{
-					//printf("\nhttp¸üĞÂ,ÎŞÊı¾İ½ÓÊÕ³¬Ê±....\n");
+					//printf("\nhttpæ›´æ–°,æ— æ•°æ®æ¥æ”¶è¶…æ—¶....\n");
 					http_update_close_connect_by_gprs();
 					return(-4);
 				}
@@ -193,29 +194,29 @@ int http_update_get_info_txt_by_gprs(ip_addr_t *server_ipaddr, uint16_t server_p
 			OSTimeDlyHMSM(0,0,0,10);
 			continue;
 		}
-		else{ be_timing = false; } // Í£Ö¹¼ÆÊ±
+		else{ be_timing = false; } // åœæ­¢è®¡æ—¶
 
-		// ÅĞ¶ÏhttpÓ¦´ğÍêÕûĞÔ
+		// åˆ¤æ–­httpåº”ç­”å®Œæ•´æ€§
 		ret = http_update_check_response_completed();
 		if(ret != 2){ /*OSTimeDlyHMSM(0,0,0,10);*/ continue; }
 		else
 		{
-			//printf("\nhttpÓ¦´ğ:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
+			//printf("\nhttpåº”ç­”:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
 			break;
 		}
 	} //while()
 	////
 
-	// ÏÈ¹Ø±ÕÁ¬½Ó
+	// å…ˆå…³é—­è¿æ¥
 	http_update_close_connect_by_gprs();
 	led_control_function(LD_LAN, LD_OFF);
 
-	// ÅĞ¶Ï°æ±¾
+	// åˆ¤æ–­ç‰ˆæœ¬
 	ret = http_update_chack_version();
 	if(ret < 0){ return(-5); }
 
-	// ÌáÈ¡url
-	if(ret == 1) // ĞèÒª¸üĞÂ
+	// æå–url
+	if(ret == 1) // éœ€è¦æ›´æ–°
 	{
 		res = http_update_get_url();
 		if(res){ return(-6); }
@@ -253,7 +254,7 @@ static int http_update_connect_server_by_lwip(ip_addr_t *ip, unsigned short port
 		}
 	} //for()
 
-	/* tcpÁ¬½ÓÊ§°Ü */
+	/* tcpè¿æ¥å¤±è´¥ */
 	eth_set_network_reset();
 	
 	return(-1);
@@ -312,7 +313,7 @@ static int http_update_connect_server_by_gprs2(const char *host, unsigned short 
 }
 ////////////////////
 
-// info.txt, ·¢ËÍhttpÇëÇó
+// info.txt, å‘é€httpè¯·æ±‚
 static int http_update_send_request_for_info_txt_by_lwip(ip_addr_t *server_ipaddr, uint16_t server_port)
 {
 	char send_buf[256]={0};
@@ -324,13 +325,13 @@ static int http_update_send_request_for_info_txt_by_lwip(ip_addr_t *server_ipadd
 	sprintf(append_pt, "GET %s HTTP/1.1\r\n", http_info_txt_url); append_pt += strlen(append_pt);
 	sprintf(append_pt, "Host: %s:%d\r\n\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt);
 
-	//printf("\nhttpÇëÇó:\n%s\n", send_buf);
+	//printf("\nhttpè¯·æ±‚:\n%s\n", send_buf);
 	ret = netconn_write(tcp_update, send_buf, (append_pt - send_buf), NETCONN_COPY);
 	return(ret);
 }
 /////////////////////
 
-// info.txt, ·¢ËÍhttpÇëÇó
+// info.txt, å‘é€httpè¯·æ±‚
 static int http_update_send_request_for_info_txt_by_gprs(ip_addr_t *server_ipaddr, uint16_t server_port)
 {
 	char send_buf[256]={0};
@@ -342,14 +343,14 @@ static int http_update_send_request_for_info_txt_by_gprs(ip_addr_t *server_ipadd
 	sprintf(append_pt, "GET %s HTTP/1.1\r\n", http_info_txt_url); append_pt += strlen(append_pt);
 	sprintf(append_pt, "Host: %s:%d\r\n\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt);
 
-	//printf("\nhttpÇëÇó:\n%s\n", send_buf);
+	//printf("\nhttpè¯·æ±‚:\n%s\n", send_buf);
 	ret = gprs_send_data( (uint8_t *)send_buf, (append_pt - send_buf), 1000 );
 
 	return(ret);
 }
 /////////////////////
 
-// ¹Ø±ÕÁ¬½Ó
+// å…³é—­è¿æ¥
 void http_update_close_connect_by_lwip(void)
 {
 	update_param_t *updateparam = NULL;
@@ -380,8 +381,8 @@ void http_update_close_connect_by_gprs(void)
 }
 /////////////////
 
-// ½ÓÊÕhttpÓ¦´ğ
-// 0:³É¹¦, -1:Î´Á¬½Ó, -2:ÄÚÈİ³¬´ó, -3:Á¬½Ó¶Ï¿ª
+// æ¥æ”¶httpåº”ç­”
+// 0:æˆåŠŸ, -1:æœªè¿æ¥, -2:å†…å®¹è¶…å¤§, -3:è¿æ¥æ–­å¼€
 static int http_update_recv_reponse_by_lwip(int *out_recv_size)
 {
 	err_t recv_err = 0;
@@ -397,34 +398,34 @@ static int http_update_recv_reponse_by_lwip(int *out_recv_size)
 	recv_err = netconn_recv(tcp_update, &recvbuf);
 	switch(recv_err)
 	{
-		case ERR_OK: // ½ÓÊÕµ½Êı¾İ
-			OS_ENTER_CRITICAL(); //¹ØÖĞ¶Ï
+		case ERR_OK: // æ¥æ”¶åˆ°æ•°æ®
+			OS_ENTER_CRITICAL(); //å…³ä¸­æ–­
 			{
-				for(q = recvbuf->p; q != NULL; q = q->next)  //±éÀúÍêÕû¸öpbufÁ´±í
+				for(q = recvbuf->p; q != NULL; q = q->next)  //éå†å®Œæ•´ä¸ªpbufé“¾è¡¨
 				{
-					// ±£´æµ½ http Ó¦´ğbuuf ÖĞ 
+					// ä¿å­˜åˆ° http åº”ç­”buuf ä¸­ 
 					ret = http_update_save_response( (unsigned char *)(q->payload), q->len );
 					if(ret){ break; }
 
 					recv_size += q->len;
 				} // for()
 			}
-			OS_EXIT_CRITICAL();  //¿ªÖĞ¶Ï
+			OS_EXIT_CRITICAL();  //å¼€ä¸­æ–­
 
 			netbuf_delete(recvbuf); recvbuf = NULL;
-			if(ret){ return(-2); } // Ó¦¸ÃÊÇ»º³åÈİÄÉ²»ÁËÁË
+			if(ret){ return(-2); } // åº”è¯¥æ˜¯ç¼“å†²å®¹çº³ä¸äº†äº†
 
 			if(out_recv_size){ (*out_recv_size) = recv_size; }
 		return(0);
 		////
 
-		case ERR_TIMEOUT: // ÔİÎŞÊı¾İ
+		case ERR_TIMEOUT: // æš‚æ— æ•°æ®
 			if(recvbuf){ netbuf_delete(recvbuf); recvbuf = NULL; }
 			//OSTimeDlyHMSM(0,0,0,10);
 		return(0);
 		////
 
-		case ERR_CLSD: // ¶Ô¶ËÒÑ¾­¹Ø±Õ
+		case ERR_CLSD: // å¯¹ç«¯å·²ç»å…³é—­
 		default:
 			if(recvbuf){ netbuf_delete(recvbuf); recvbuf = NULL; }
 		return(-3);
@@ -432,8 +433,8 @@ static int http_update_recv_reponse_by_lwip(int *out_recv_size)
 }
 //////////////////
 
-// ½ÓÊÕhttpÓ¦´ğ
-// 0:³É¹¦, -1:Î´Á¬½Ó, -2:ÄÚÈİ³¬´ó, -3:Á¬½Ó¶Ï¿ª
+// æ¥æ”¶httpåº”ç­”
+// 0:æˆåŠŸ, -1:æœªè¿æ¥, -2:å†…å®¹è¶…å¤§, -3:è¿æ¥æ–­å¼€
 static int http_update_recv_reponse_by_gprs(int *out_recv_size)
 {
 	int ret = 0;
@@ -446,11 +447,11 @@ static int http_update_recv_reponse_by_gprs(int *out_recv_size)
 	ret = gprs_recv_data(&recv_data, &recv_data_size);
 	if(ret != GPRS_SEND_OK){ return(-3); }
 
-	// ±£´æÊı¾İ
+	// ä¿å­˜æ•°æ®
 	if(!recv_data || !recv_data_size){ return(0); }
 
-	// ±£´æµ½ http Ó¦´ğbuff ÖĞ
-	//printf("\nÌáÈ¡:\n%s\n", (const char *)recv_data);
+	// ä¿å­˜åˆ° http åº”ç­”buff ä¸­
+	//printf("\næå–:\n%s\n", (const char *)recv_data);
 	ret = http_update_save_response(recv_data, recv_data_size);
 	if(ret){ return(-2); }
 
@@ -460,21 +461,21 @@ static int http_update_recv_reponse_by_gprs(int *out_recv_size)
 }
 //////////////////
 
-// ±£´æµ½ http Ó¦´ğbuufÖĞ 
+// ä¿å­˜åˆ° http åº”ç­”buufä¸­ 
 static int http_update_save_response(const unsigned char *src_data, int src_data_size)
 {
-	// ¿ª±Ù¿Õ¼ä
+	// å¼€è¾Ÿç©ºé—´
 	if(!sg_http_update_param.http_response_buff)
 	{
-		sg_http_update_param.http_response_buff_size = (2*1024); // ³õÊ¼»¯Îª2k,×¢Òâ!¶¯Ì¬¿ª±ÙÄÚÈİ²»ÄÜ³¬¹ı2k,·ñÔòÓ°ÏìflashµÄ´æ´¢,ÊÇ¸öÒş»¼.
+		sg_http_update_param.http_response_buff_size = (2*1024); // åˆå§‹åŒ–ä¸º2k,æ³¨æ„!åŠ¨æ€å¼€è¾Ÿå†…å®¹ä¸èƒ½è¶…è¿‡2k,å¦åˆ™å½±å“flashçš„å­˜å‚¨,æ˜¯ä¸ªéšæ‚£.
 		sg_http_update_param.http_response_buff = (unsigned char *)mymalloc(SRAMIN, sg_http_update_param.http_response_buff_size);
 		sg_http_update_param.http_response_recv_size = 0;
 	}
 
-	// À©Õ¹¿Õ¼ä
-	if( (sg_http_update_param.http_response_recv_size + src_data_size) > (2*1024) ){ return(-1); } // ²»ÄÜ¿ª±Ù >2k µÄ¿Õ¼ä
+	// æ‰©å±•ç©ºé—´
+	if( (sg_http_update_param.http_response_recv_size + src_data_size) > (2*1024) ){ return(-1); } // ä¸èƒ½å¼€è¾Ÿ >2k çš„ç©ºé—´
 
-	#if 0 // À©Õ¹Ã»ÓÃ,´øÀ´Òş»¼
+	#if 0 // æ‰©å±•æ²¡ç”¨,å¸¦æ¥éšæ‚£
 	if( (sg_http_update_param.http_response_recv_size + src_data_size) > sg_http_update_param.http_response_buff_size )
 	{
 		sg_http_update_param.http_response_buff_size = (sg_http_update_param.http_response_recv_size + src_data_size + 1024);
@@ -482,19 +483,19 @@ static int http_update_save_response(const unsigned char *src_data, int src_data
 	}
 	#endif
 
-	// ×·¼ÓÊı¾İ
+	// è¿½åŠ æ•°æ®
 	memcpy( (void *)(sg_http_update_param.http_response_buff + sg_http_update_param.http_response_recv_size), (void *)src_data, src_data_size );
 	sg_http_update_param.http_response_recv_size += src_data_size;
-	sg_http_update_param.http_response_buff[ sg_http_update_param.http_response_recv_size ] = 0; // ½áÎ²Çå0
+	sg_http_update_param.http_response_buff[ sg_http_update_param.http_response_recv_size ] = 0; // ç»“å°¾æ¸…0
 
 	return(0);
 }
 /////////////////
 
-// httpÓ¦´ğÊÇ·ñÍêÕû
-// 0:Í·Ã»½ÓÊÕÍê
-// 1:bodyÃ»ÊÕÍê
-// 2:È«²¿½ÓÊÕÍê
+// httpåº”ç­”æ˜¯å¦å®Œæ•´
+// 0:å¤´æ²¡æ¥æ”¶å®Œ
+// 1:bodyæ²¡æ”¶å®Œ
+// 2:å…¨éƒ¨æ¥æ”¶å®Œ
 static int http_update_check_response_completed(void)
 {
 	int http_head_size=0;
@@ -502,40 +503,40 @@ static int http_update_check_response_completed(void)
 	int body_size = 0;
 	////
 
-	// httpÍ·
+	// httpå¤´
 	pt = strstr((char *)(sg_http_update_param.http_response_buff), "\r\n\r\n");
 	if(!pt)
 	{
-		if(sg_http_update_param.http_response_recv_size >= 1024){ return(-1); } // ³¬´óµÄÍ·
+		if(sg_http_update_param.http_response_recv_size >= 1024){ return(-1); } // è¶…å¤§çš„å¤´
 		return(0);
 	}
 	pt += 4;
 	http_head_size = ( pt - (char*)(sg_http_update_param.http_response_buff) );
 
-	// "Content-Length:"×Ö¶Î
+	// "Content-Length:"å­—æ®µ
 	pt = strstr((char *)(sg_http_update_param.http_response_buff), "Content-Length:");
 	if( !pt || (pt >= (char *)(sg_http_update_param.http_response_buff) + http_head_size) ){ return(-1); }
 	pt+=15;
 	while( ((*pt) == ' ') || ((*pt) == '\t') ){ pt++; }
 	body_size = atoi(pt);
-	if( body_size >= (8*1024) ){ return(-2); } // ³¬´óbody
+	if( body_size >= (8*1024) ){ return(-2); } // è¶…å¤§body
 
-	// bodyÊÇ·ñÍêÕû
+	// bodyæ˜¯å¦å®Œæ•´
 	if( (sg_http_update_param.http_response_recv_size - http_head_size) < body_size){ return(1); }
 
 	return(2);
 }
 /////////////////////////////
 
-// ²éÑ¯°æ±¾ºÅ
-// 1: °æ±¾ºÅ²»Í¬,¸üĞÂ; 2:°æ±¾ºÅÏàÍ¬,ÎŞĞè¸üĞÂ; <0: ³ö´í
+// æŸ¥è¯¢ç‰ˆæœ¬å·
+// 1: ç‰ˆæœ¬å·ä¸åŒ,æ›´æ–°; 2:ç‰ˆæœ¬å·ç›¸åŒ,æ— éœ€æ›´æ–°; <0: å‡ºé”™
 static int http_update_chack_version(void)
 {
 	char *str, *pt1, *pt2, *http_body = NULL;
 	int ret = 0, version_str_len = 0, url_len = 0;
 	////
 
-	// httpÓ¦´ğÂë
+	// httpåº”ç­”ç 
 	ret = strncmp( (char*)(sg_http_update_param.http_response_buff), "HTTP/1.1 200 OK\r\n", 17);
 	if(ret){ return(-1); }
 
@@ -543,8 +544,8 @@ static int http_update_chack_version(void)
 	if(!http_body){ return(-2); }
 	http_body += 4;
 
-	// »ñÈ¡°æ±¾ºÅ
-	str = strstr(http_body, "\"version\":"); //»ñÈ¡°æ±¾ºÅ
+	// è·å–ç‰ˆæœ¬å·
+	str = strstr(http_body, "\"version\":"); //è·å–ç‰ˆæœ¬å·
 	if(!str){ return(-3); }
 
 	pt1 = str + 10;
@@ -561,7 +562,7 @@ static int http_update_chack_version(void)
 	memset( sg_http_update_param.update_version, 0, sizeof(sg_http_update_param.update_version) );
 	memcpy(sg_http_update_param.update_version, pt1, version_str_len);
 
-	// »ñÈ¡url
+	// è·å–url
 	str = strstr(http_body, "\"url\":");
 	if(!str){ return(-6); }
 	
@@ -579,7 +580,7 @@ static int http_update_chack_version(void)
 	memset(sg_http_update_param.update_url, 0, sizeof(sg_http_update_param.update_url));
 	memcpy(sg_http_update_param.update_url, pt1, url_len);
 
-	// ±È½Ï°æ±¾ºÅ
+	// æ¯”è¾ƒç‰ˆæœ¬å·
 	ret = strcmp(SOFT_NO_STR, sg_http_update_param.update_version);
 	if(ret){ return(1); }
 	else if(!ret){ return(2); }
@@ -588,8 +589,8 @@ static int http_update_chack_version(void)
 }
 ////////////////////////
 
-// 2: »ñµÃcrc_binÎÄ¼ş´óĞ¡
-// ·µ»ØÖµ: 0: ³É¹¦, <0: ³ö´í 
+// 2: è·å¾—crc_binæ–‡ä»¶å¤§å°
+// è¿”å›å€¼: 0: æˆåŠŸ, <0: å‡ºé”™ 
 int http_update_get_crc_bin_file_size_by_lwip(void)
 {
 	int ret = 0;
@@ -612,13 +613,13 @@ int http_update_get_crc_bin_file_size_by_lwip(void)
 	}
 	memcpy( &(sg_http_update_param.http_server_addr),  &server_addr, sizeof(struct ip_addr) );
 
-	// Á¬½Ó·şÎñÆ÷
-	printf("\nÓĞÏßÁ¬½Ó·şÎñÆ÷ %s:%d ...\n", ipaddr_ntoa(&(sg_http_update_param.http_server_addr)), sg_http_update_param.http_port);
+	// è¿æ¥æœåŠ¡å™¨
+	printf("\næœ‰çº¿è¿æ¥æœåŠ¡å™¨ %s:%d ...\n", ipaddr_ntoa(&(sg_http_update_param.http_server_addr)), sg_http_update_param.http_port);
 	ret = http_update_connect_server_by_lwip( &(sg_http_update_param.http_server_addr), sg_http_update_param.http_port );
 	if(ret){ return(-3); }
 	led_control_function(LD_LAN, LD_FLICKER);
 
-	// ·¢ËÍhttpÇëÇó(HEADÇëÇó)
+	// å‘é€httpè¯·æ±‚(HEADè¯·æ±‚)
 	ret = http_update_send_request_for_crcbin_file_size_by_lwip( &(sg_http_update_param.http_server_addr), sg_http_update_param.http_port );
 	if(ret != ERR_OK)
 	{
@@ -626,11 +627,11 @@ int http_update_get_crc_bin_file_size_by_lwip(void)
 		return(-4);
 	}
 
-	// ½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ
+	// æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®
 	sg_http_update_param.http_response_recv_size = 0;
 	while(true)
 	{
-		// ½ÓÊÕÊı¾İ
+		// æ¥æ”¶æ•°æ®
 		ret = http_update_recv_reponse_by_lwip(&cur_recv_size);
 		if(ret)
 		{
@@ -638,44 +639,44 @@ int http_update_get_crc_bin_file_size_by_lwip(void)
 			return(-5);
 		}
 
-		// ÔİÊ±ÎŞÊı¾İ
+		// æš‚æ—¶æ— æ•°æ®
 		if(!cur_recv_size)
 		{
-			if(!be_timing) // ·Ç¼ÆÊ±×´Ì¬
+			if(!be_timing) // éè®¡æ—¶çŠ¶æ€
 			{
-				be_timing = true; // ¿ªÊ¼¼ÆÊ±
+				be_timing = true; // å¼€å§‹è®¡æ—¶
 				begin_ticks = OSTimeGet();
 			}
-			else // ¼ÆÊ±×´Ì¬
+			else // è®¡æ—¶çŠ¶æ€
 			{
 				end_ticks = OSTimeGet();
-				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // ³¬Ê±10Ãë
+				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // è¶…æ—¶10ç§’
 				{
-					printf("\nhttp¸üĞÂ,ÎŞÊı¾İ½ÓÊÕ³¬Ê±....\n");
+					printf("\nhttpæ›´æ–°,æ— æ•°æ®æ¥æ”¶è¶…æ—¶....\n");
 					http_update_close_connect_by_lwip();
 					return(-6);
 				}
 			}
 			OSTimeDlyHMSM(0,0,0,10); continue;
 		}
-		else{ be_timing = false; } // Í£Ö¹¼ÆÊ±
+		else{ be_timing = false; } // åœæ­¢è®¡æ—¶
 
-		// ÅĞ¶ÏhttpÓ¦´ğÍêÕûĞÔ
+		// åˆ¤æ–­httpåº”ç­”å®Œæ•´æ€§
 		ret = http_update_check_response_completed();
-		if(ret == 0){ OSTimeDlyHMSM(0,0,0,10); continue; } // Ö»½ÓÊÕhttpÍ·
+		if(ret == 0){ OSTimeDlyHMSM(0,0,0,10); continue; } // åªæ¥æ”¶httpå¤´
 		else
 		{
-			//printf("\nhttpÓ¦´ğ:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
+			//printf("\nhttpåº”ç­”:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
 			break;
 		}
 	} //while()
 	////
 
-	// ÏÈ¹Ø±ÕÁ¬½Ó
+	// å…ˆå…³é—­è¿æ¥
 	http_update_close_connect_by_lwip();
 	led_control_function(LD_LAN, LD_OFF);
 
-	// »ñµÃ crc_bin ÎÄ¼şµÄ´óĞ¡
+	// è·å¾— crc_bin æ–‡ä»¶çš„å¤§å°
 	ret = http_update_get_crc_bin_size(NULL);
 	if(ret < 0){ return(-7); }
 
@@ -683,8 +684,8 @@ int http_update_get_crc_bin_file_size_by_lwip(void)
 }
 ////////////////////////
 
-// 2: »ñµÃcrc_binÎÄ¼ş´óĞ¡
-// ·µ»ØÖµ: 0: ³É¹¦, <0: ³ö´í 
+// 2: è·å¾—crc_binæ–‡ä»¶å¤§å°
+// è¿”å›å€¼: 0: æˆåŠŸ, <0: å‡ºé”™ 
 int http_update_get_crc_bin_file_size_by_gprs(void)
 {
 	int ret = 0;
@@ -693,13 +694,13 @@ int http_update_get_crc_bin_file_size_by_gprs(void)
 	unsigned int begin_ticks = 0, end_ticks = 0;
 	////
 
-	// Á¬½Ó·şÎñÆ÷
-	printf("\nÎŞÏßÁ¬½Ó·şÎñÆ÷ %s:%d ...\n", sg_http_update_param.http_host, sg_http_update_param.http_port);
+	// è¿æ¥æœåŠ¡å™¨
+	printf("\næ— çº¿è¿æ¥æœåŠ¡å™¨ %s:%d ...\n", sg_http_update_param.http_host, sg_http_update_param.http_port);
 	ret = http_update_connect_server_by_gprs2(sg_http_update_param.http_host, sg_http_update_param.http_port);
 	if(ret){ return(-1); }
 	led_control_function(LD_GPRS, LD_FLICKER);
 
-	// ·¢ËÍhttpÇëÇó(HEADÇëÇó)
+	// å‘é€httpè¯·æ±‚(HEADè¯·æ±‚)
 	ret = http_update_send_request_for_crcbin_file_size_by_gprs( sg_http_update_param.http_host, sg_http_update_param.http_port );
 	if(ret != GPRS_SEND_OK)
 	{
@@ -707,11 +708,11 @@ int http_update_get_crc_bin_file_size_by_gprs(void)
 		return(-4);
 	}
 
-	// ½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ
+	// æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®
 	sg_http_update_param.http_response_recv_size = 0;
 	while(true)
 	{
-		// ½ÓÊÕÊı¾İ
+		// æ¥æ”¶æ•°æ®
 		ret = http_update_recv_reponse_by_gprs(&cur_recv_size);
 		if(ret)
 		{
@@ -719,44 +720,44 @@ int http_update_get_crc_bin_file_size_by_gprs(void)
 			return(-5);
 		}
 
-		// ÔİÊ±ÎŞÊı¾İ
+		// æš‚æ—¶æ— æ•°æ®
 		if(!cur_recv_size)
 		{
-			if(!be_timing) // ·Ç¼ÆÊ±×´Ì¬
+			if(!be_timing) // éè®¡æ—¶çŠ¶æ€
 			{
-				be_timing = true; // ¿ªÊ¼¼ÆÊ±
+				be_timing = true; // å¼€å§‹è®¡æ—¶
 				begin_ticks = OSTimeGet();
 			}
-			else // ¼ÆÊ±×´Ì¬
+			else // è®¡æ—¶çŠ¶æ€
 			{
 				end_ticks = OSTimeGet();
-				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // ³¬Ê±10Ãë
+				if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // è¶…æ—¶10ç§’
 				{
-					//printf("\nhttp¸üĞÂ,ÎŞÊı¾İ½ÓÊÕ³¬Ê±....\n");
+					//printf("\nhttpæ›´æ–°,æ— æ•°æ®æ¥æ”¶è¶…æ—¶....\n");
 					http_update_close_connect_by_gprs();
 					return(-6);
 				}
 			}
 			OSTimeDlyHMSM(0,0,0,10); continue;
 		}
-		else{ be_timing = false; } // Í£Ö¹¼ÆÊ±
+		else{ be_timing = false; } // åœæ­¢è®¡æ—¶
 
-		// ÅĞ¶ÏhttpÓ¦´ğÍêÕûĞÔ
+		// åˆ¤æ–­httpåº”ç­”å®Œæ•´æ€§
 		ret = http_update_check_response_completed();
-		if(ret == 0){ OSTimeDlyHMSM(0,0,0,10); continue; } // Ö»½ÓÊÕhttpÍ·
+		if(ret == 0){ OSTimeDlyHMSM(0,0,0,10); continue; } // åªæ¥æ”¶httpå¤´
 		else
 		{
-			//printf("\nhttpÓ¦´ğ:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
+			//printf("\nhttpåº”ç­”:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
 			break;
 		}
 	} //while()
 	////
 	
-	// ÏÈ¹Ø±ÕÁ¬½Ó
+	// å…ˆå…³é—­è¿æ¥
 	http_update_close_connect_by_gprs();
 	led_control_function(LD_LAN, LD_OFF);
 
-	// »ñµÃ crc_bin ÎÄ¼şµÄ´óĞ¡
+	// è·å¾— crc_bin æ–‡ä»¶çš„å¤§å°
 	ret = http_update_get_crc_bin_size(NULL);
 	if(ret < 0){ return(-7); }
 
@@ -764,7 +765,7 @@ int http_update_get_crc_bin_file_size_by_gprs(void)
 }
 ////////////////////////
 
-// ·¢ËÍhttpÇëÇó(HEADÇëÇó)
+// å‘é€httpè¯·æ±‚(HEADè¯·æ±‚)
 static int http_update_send_request_for_crcbin_file_size_by_lwip(ip_addr_t *server_ipaddr, uint16_t server_port)
 {
 	char send_buf[256]={0};
@@ -773,15 +774,15 @@ static int http_update_send_request_for_crcbin_file_size_by_lwip(ip_addr_t *serv
 	////
 
 	sprintf(append_pt, "HEAD %s HTTP/1.1\r\n", sg_http_update_param.http_url); append_pt += strlen(append_pt);
-	sprintf(append_pt, "Host: %s:%d\r\n\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt); // ÌîĞ´IPµØÖ·(×îºÃ²»ÒªÌîĞ´ÓòÃû )
+	sprintf(append_pt, "Host: %s:%d\r\n\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt); // å¡«å†™IPåœ°å€(æœ€å¥½ä¸è¦å¡«å†™åŸŸå )
 
-	//printf("\nhttpÇëÇó:\n%s\n", send_buf);
+	//printf("\nhttpè¯·æ±‚:\n%s\n", send_buf);
 	ret = netconn_write(tcp_update, send_buf, (append_pt - send_buf), NETCONN_COPY);
 	return(ret);
 }
 ////////////////////
 
-// ·¢ËÍhttpÇëÇó(HEADÇëÇó)
+// å‘é€httpè¯·æ±‚(HEADè¯·æ±‚)
 static int http_update_send_request_for_crcbin_file_size_by_gprs(const char *host, uint16_t server_port)
 {
 	char send_buf[256]={0};
@@ -790,16 +791,16 @@ static int http_update_send_request_for_crcbin_file_size_by_gprs(const char *hos
 	////
 
 	sprintf(append_pt, "HEAD %s HTTP/1.1\r\n", sg_http_update_param.http_url); append_pt += strlen(append_pt);
-	sprintf(append_pt, "Host: %s:%d\r\n\r\n", host, server_port); append_pt += strlen(append_pt); // ÌîĞ´IPµØÖ·(×îºÃ²»ÒªÌîĞ´ÓòÃû )
+	sprintf(append_pt, "Host: %s:%d\r\n\r\n", host, server_port); append_pt += strlen(append_pt); // å¡«å†™IPåœ°å€(æœ€å¥½ä¸è¦å¡«å†™åŸŸå )
 
-	//printf("\nhttpÇëÇó:\n%s\n", send_buf);
+	//printf("\nhttpè¯·æ±‚:\n%s\n", send_buf);
 	ret = gprs_send_data( (uint8_t *)send_buf, (append_pt - send_buf), 1000 );
 
 	return(ret);
 }
 ////////////////////
 
-// ÌáÈ¡url
+// æå–url
 static int http_update_get_url(void)
 {
 	char *scan_pt = NULL;
@@ -810,19 +811,19 @@ static int http_update_get_url(void)
 
 	// http://
 	if(!strncmp(sg_http_update_param.update_url, "http://", 7)){ scan_pt = sg_http_update_param.update_url + 7; }
-	else if(!strncmp(sg_http_update_param.update_url, "https://", 8)){ return(-1); } // ²»Ö§³Ö https
+	else if(!strncmp(sg_http_update_param.update_url, "https://", 8)){ return(-1); } // ä¸æ”¯æŒ https
 	else{ scan_pt = sg_http_update_param.update_url; }
 
 	// host
 	pt1 = scan_pt;
 	pt2 = strchr(pt1, ':');
-	if(!pt2) // ÎŞ¶Ë¿ÚºÅ
+	if(!pt2) // æ— ç«¯å£å·
 	{
 		pt2 = strchr(pt1, '/');
 		if(!pt2){ return(-2); }
 
-		len = (unsigned int)(pt2 - pt1); // host ³¤¶È
-		if(!len) // host È±Ê¡
+		len = (unsigned int)(pt2 - pt1); // host é•¿åº¦
+		if(!len) // host ç¼ºçœ
 		{
 			updateparam = update_get_infor_data_function();
 			sprintf(sg_http_update_param.http_host, "%d.%d.%d.%d", updateparam->ip[0], updateparam->ip[1], updateparam->ip[2], updateparam->ip[3]);
@@ -834,13 +835,13 @@ static int http_update_get_url(void)
 			memcpy(sg_http_update_param.http_host, pt1, len);
 		}
 
-		sg_http_update_param.http_port = 80; // Ä¬ÈÏ80¶Ë¿Ú
+		sg_http_update_param.http_port = 80; // é»˜è®¤80ç«¯å£
 		scan_pt = pt2;
 	}
-	else // ÓĞ¶Ë¿ÚºÅ
+	else // æœ‰ç«¯å£å·
 	{
-		len = (unsigned int)(pt2 - pt1); // host ³¤¶È
-		if(!len) // host È±Ê¡
+		len = (unsigned int)(pt2 - pt1); // host é•¿åº¦
+		if(!len) // host ç¼ºçœ
 		{
 			updateparam = update_get_infor_data_function();
 			sprintf(sg_http_update_param.http_host, "%d.%d.%d.%d", updateparam->ip[0], updateparam->ip[1], updateparam->ip[2], updateparam->ip[3]);
@@ -854,16 +855,16 @@ static int http_update_get_url(void)
 
 		port_val = atoi(pt2 + 1);
 		if(!port_val || (port_val >= 0xFFFF)){ return(-5); }
-		sg_http_update_param.http_port = (unsigned short)port_val; // Ö¸¶¨¶Ë¿ÚºÅ
+		sg_http_update_param.http_port = (unsigned short)port_val; // æŒ‡å®šç«¯å£å·
 
-		pt1 = pt2 + 1; // Ã°ºÅºó
+		pt1 = pt2 + 1; // å†’å·å
 		pt1 = strchr(pt1, '/');
 		if(!pt1){ return(-6); }
 		scan_pt = pt1;
 	}
 
 	// url
-	pt1 = scan_pt; // url¿ªÊ¼Î»ÖÃ'/'
+	pt1 = scan_pt; // urlå¼€å§‹ä½ç½®'/'
 	len = (unsigned int)strlen(pt1);
 	if( !len || (len >= sizeof(sg_http_update_param.http_url)) ){ return(-8); }
 	memset(sg_http_update_param.http_url, 0, sizeof(sg_http_update_param.http_url));
@@ -873,7 +874,7 @@ static int http_update_get_url(void)
 }
 ///////////////////////
 
-// DNS½âÎö»Øµ÷
+// DNSè§£æå›è°ƒ
 static void http_update_cb_server_ip(const char *name, struct ip_addr *ipaddr, void *arg)
 {
 	struct ip_addr *out_addr = (struct ip_addr *)arg;
@@ -885,7 +886,7 @@ static void http_update_cb_server_ip(const char *name, struct ip_addr *ipaddr, v
 }
 ///////////////////////
 
-// »ñµÃ crc_bin ÎÄ¼şµÄ´óĞ¡
+// è·å¾— crc_bin æ–‡ä»¶çš„å¤§å°
 static int http_update_get_crc_bin_size(unsigned int *file_size)
 {
 	char *str;
@@ -893,11 +894,11 @@ static int http_update_get_crc_bin_size(unsigned int *file_size)
 	unsigned int len = 0;
 	////
 
-	// httpÓ¦´ğÂë
+	// httpåº”ç­”ç 
 	ret = strncmp( (char*)(sg_http_update_param.http_response_buff), "HTTP/1.1 200 OK\r\n", 17);
 	if(ret){ return(-1); }
 
-	// "Content-Length:" ×Ö¶Î
+	// "Content-Length:" å­—æ®µ
 	str = strstr( (char*)(sg_http_update_param.http_response_buff), "Content-Length:" );
 	if(!str){ return(-2); }
 	str += 15;
@@ -909,8 +910,8 @@ static int http_update_get_crc_bin_size(unsigned int *file_size)
 	if(file_size){ (*file_size) = len; }
 
 	sg_http_update_param.crcfile_length = len;
-	sg_http_update_param.section_len = (UPDATE_CHUNK_SIZE - 2); // ¿é´óĞ¡Í³Ò»Îª 1024 ×Ö½Ú
-	if(len % UPDATE_CHUNK_SIZE){ return(-3); } // ÎÄ¼ş´óĞ¡²»ÊÇ¿éµÄÕûÊı±¶
+	sg_http_update_param.section_len = (UPDATE_CHUNK_SIZE - 2); // å—å¤§å°ç»Ÿä¸€ä¸º 1024 å­—èŠ‚
+	if(len % UPDATE_CHUNK_SIZE){ return(-3); } // æ–‡ä»¶å¤§å°ä¸æ˜¯å—çš„æ•´æ•°å€
 	sg_http_update_param.section_total = (len / UPDATE_CHUNK_SIZE);
 	sg_http_update_param.section_current = 0;
 
@@ -918,7 +919,7 @@ static int http_update_get_crc_bin_size(unsigned int *file_size)
 }
 //////////////////////
 
-// 3: »ñµÃcrc_binÎÄ¼şÊı¾İ
+// 3: è·å¾—crc_binæ–‡ä»¶æ•°æ®
 int http_update_get_crc_bin_file_data_by_lwip(void)
 {
 	int ret = 0;
@@ -932,22 +933,22 @@ int http_update_get_crc_bin_file_data_by_lwip(void)
 
 RECONNECT:
 
-	// Á¬½Ó·şÎñÆ÷
-	printf("\nÓĞÏßÁ¬½Ó·şÎñÆ÷ %s:%d ...\n", ipaddr_ntoa(&(sg_http_update_param.http_server_addr)), sg_http_update_param.http_port);
+	// è¿æ¥æœåŠ¡å™¨
+	printf("\næœ‰çº¿è¿æ¥æœåŠ¡å™¨ %s:%d ...\n", ipaddr_ntoa(&(sg_http_update_param.http_server_addr)), sg_http_update_param.http_port);
 	ret = http_update_connect_server_by_lwip( &(sg_http_update_param.http_server_addr), sg_http_update_param.http_port );
 	if(ret)
 	{
-		connect_times++; // Á¬ĞøÁ¬½ÓÊ§°ÜµÄ´ÎÊı
+		connect_times++; // è¿ç»­è¿æ¥å¤±è´¥çš„æ¬¡æ•°
 		if(connect_times > 10){ return(-1); }
 		goto RECONNECT;
 	}
 	connect_times = 0;
 	led_control_function(LD_LAN, LD_FLICKER);
 
-	// Ñ­»·ÇëÇó¡¢½ÓÊÕÊı¾İ¿é
+	// å¾ªç¯è¯·æ±‚ã€æ¥æ”¶æ•°æ®å—
 	while(sg_http_update_param.section_current < sg_http_update_param.section_total)
 	{
-		// ·¢ËÍhttpÇëÇó(GETÇëÇó)
+		// å‘é€httpè¯·æ±‚(GETè¯·æ±‚)
 		ret = http_update_send_request_for_crcbin_data_by_lwip( &(sg_http_update_param.http_server_addr), sg_http_update_param.http_port );
 		if(ret == ERR_CLSD)
 		{
@@ -960,66 +961,66 @@ RECONNECT:
 			return(-2);
 		}
 
-		// ½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ
+		// æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®
 		sg_http_update_param.http_response_recv_size = 0;
 		be_timing = false;
 		begin_ticks = 0;
 		end_ticks = 0;
 		while(true)
 		{
-			// ½ÓÊÕÊı¾İ
+			// æ¥æ”¶æ•°æ®
 			ret = http_update_recv_reponse_by_lwip(&cur_recv_size);
-			if(ret == -3) // ·şÎñÆ÷¶Ï¿ª,ĞèÒªÖØĞÂÁ¬½Ó
+			if(ret == -3) // æœåŠ¡å™¨æ–­å¼€,éœ€è¦é‡æ–°è¿æ¥
 			{
 				http_update_close_connect_by_lwip();
 				goto RECONNECT;
 			}
-			else if(ret) // ÆäËüÒì³£
+			else if(ret) // å…¶å®ƒå¼‚å¸¸
 			{
 				http_update_close_connect_by_lwip();
 				return(-3);
 			}
 
-			// ÔİÊ±ÎŞÊı¾İ
+			// æš‚æ—¶æ— æ•°æ®
 			if(!cur_recv_size)
 			{
-				if(!be_timing) // ·Ç¼ÆÊ±×´Ì¬
+				if(!be_timing) // éè®¡æ—¶çŠ¶æ€
 				{
-					be_timing = true; // ¿ªÊ¼¼ÆÊ±
+					be_timing = true; // å¼€å§‹è®¡æ—¶
 					begin_ticks = OSTimeGet();
 				}
-				else // ¼ÆÊ±×´Ì¬
+				else // è®¡æ—¶çŠ¶æ€
 				{
 					end_ticks = OSTimeGet();
-					if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // ³¬Ê±10Ãë
+					if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // è¶…æ—¶10ç§’
 					{
-						//printf("\nhttp¸üĞÂ,ÎŞÊı¾İ½ÓÊÕ³¬Ê±,ÖØĞÂ·¢ÆğÁ¬½Ó ....\n");
+						//printf("\nhttpæ›´æ–°,æ— æ•°æ®æ¥æ”¶è¶…æ—¶,é‡æ–°å‘èµ·è¿æ¥ ....\n");
 						http_update_close_connect_by_lwip();
 						goto RECONNECT;
 					}
 				}
 				OSTimeDlyHMSM(0,0,0,10); continue;
 			}
-			else{ be_timing = false; } // Í£Ö¹¼ÆÊ±
+			else{ be_timing = false; } // åœæ­¢è®¡æ—¶
 
-			// ÅĞ¶ÏhttpÓ¦´ğÍêÕûĞÔ
+			// åˆ¤æ–­httpåº”ç­”å®Œæ•´æ€§
 			ret = http_update_check_response_completed();
 			if(ret != 2){ OSTimeDlyHMSM(0,0,0,10); continue; }
 			else
 			{
-				//printf("\nhttpÓ¦´ğ:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
-				printf("\n¶Î: %u/%u\n", sg_http_update_param.section_current, sg_http_update_param.section_total);
+				//printf("\nhttpåº”ç­”:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
+				printf("\næ®µ: %u/%u\n", sg_http_update_param.section_current, sg_http_update_param.section_total);
 				break;
 			}
-		} //while(½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ)
+		} //while(æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®)
 
-		// ½âÎö¡¢±£´æÊı¾İ
+		// è§£æã€ä¿å­˜æ•°æ®
 		ret = http_update_parse_crc_bin_data();
 		if(ret)
 		{
-			if(ret == -5) // Å¼¶û»á³öÏÖĞ£Ñé´íÎó,´ËÊ±ÖØĞÂÏÂÔØ¼´¿É
+			if(ret == -5) // å¶å°”ä¼šå‡ºç°æ ¡éªŒé”™è¯¯,æ­¤æ—¶é‡æ–°ä¸‹è½½å³å¯
 			{
-				crc_check_err_times++; // Á¬ĞøĞ£Ñé´íÎóµÄ´ÎÊı
+				crc_check_err_times++; // è¿ç»­æ ¡éªŒé”™è¯¯çš„æ¬¡æ•°
 				if(crc_check_err_times > 10){ return(-3); }
 				continue;
 			}
@@ -1027,10 +1028,10 @@ RECONNECT:
 		}
 
 		crc_check_err_times = 0;
-	} // while(Ñ­»·ÇëÇó¡¢½ÓÊÕÊı¾İ¿é)
+	} // while(å¾ªç¯è¯·æ±‚ã€æ¥æ”¶æ•°æ®å—)
 	////
 
-	// ÏÈ¹Ø±ÕÁ¬½Ó
+	// å…ˆå…³é—­è¿æ¥
 	http_update_close_connect_by_lwip();
 	led_control_function(LD_LAN, LD_OFF);
 
@@ -1038,7 +1039,7 @@ RECONNECT:
 }
 /////////////////////
 
-// 3: »ñµÃcrc_binÎÄ¼şÊı¾İ
+// 3: è·å¾—crc_binæ–‡ä»¶æ•°æ®
 int http_update_get_crc_bin_file_data_by_gprs(void)
 {
 	int ret = 0;
@@ -1052,22 +1053,22 @@ int http_update_get_crc_bin_file_data_by_gprs(void)
 
 RECONNECT:
 
-	// Á¬½Ó·şÎñÆ÷
-	printf("\nÎŞÏßÁ¬½Ó·şÎñÆ÷ %s:%d ...\n", sg_http_update_param.http_host, sg_http_update_param.http_port);
+	// è¿æ¥æœåŠ¡å™¨
+	printf("\næ— çº¿è¿æ¥æœåŠ¡å™¨ %s:%d ...\n", sg_http_update_param.http_host, sg_http_update_param.http_port);
 	ret = http_update_connect_server_by_gprs2(sg_http_update_param.http_host, sg_http_update_param.http_port);
 	if(ret)
 	{
-		connect_times++; // Á¬ĞøÁ¬½ÓÊ§°ÜµÄ´ÎÊı
+		connect_times++; // è¿ç»­è¿æ¥å¤±è´¥çš„æ¬¡æ•°
 		if(connect_times > 10){ return(-1); }
 		goto RECONNECT;
 	}
 	connect_times = 0;
 	led_control_function(LD_GPRS, LD_FLICKER);
 
-	// Ñ­»·ÇëÇó¡¢½ÓÊÕÊı¾İ¿é
+	// å¾ªç¯è¯·æ±‚ã€æ¥æ”¶æ•°æ®å—
 	while(sg_http_update_param.section_current < sg_http_update_param.section_total)
 	{
-		// ·¢ËÍhttpÇëÇó(GETÇëÇó)
+		// å‘é€httpè¯·æ±‚(GETè¯·æ±‚)
 		ret = http_update_send_request_for_crcbin_data_by_gprs( sg_http_update_param.http_host, sg_http_update_param.http_port );
 		if(ret != GPRS_SEND_OK)
 		{
@@ -1075,66 +1076,66 @@ RECONNECT:
 			goto RECONNECT;
 		}
 
-		// ½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ
+		// æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®
 		sg_http_update_param.http_response_recv_size = 0;
 		be_timing = false;
 		begin_ticks = 0;
 		end_ticks = 0;
 		while(true)
 		{
-			// ½ÓÊÕÊı¾İ
+			// æ¥æ”¶æ•°æ®
 			ret = http_update_recv_reponse_by_gprs(&cur_recv_size);
-			if(ret == -3) // ·şÎñÆ÷¶Ï¿ª,ĞèÒªÖØĞÂÁ¬½Ó
+			if(ret == -3) // æœåŠ¡å™¨æ–­å¼€,éœ€è¦é‡æ–°è¿æ¥
 			{
 				http_update_close_connect_by_gprs();
 				goto RECONNECT;
 			}
-			else if(ret) // ÆäËüÒì³£
+			else if(ret) // å…¶å®ƒå¼‚å¸¸
 			{
 				http_update_close_connect_by_gprs();
 				return(-2);
 			}
 
-			// ÔİÊ±ÎŞÊı¾İ
+			// æš‚æ—¶æ— æ•°æ®
 			if(!cur_recv_size)
 			{
-				if(!be_timing) // ·Ç¼ÆÊ±×´Ì¬
+				if(!be_timing) // éè®¡æ—¶çŠ¶æ€
 				{
-					be_timing = true; // ¿ªÊ¼¼ÆÊ±
+					be_timing = true; // å¼€å§‹è®¡æ—¶
 					begin_ticks = OSTimeGet();
 				}
-				else // ¼ÆÊ±×´Ì¬
+				else // è®¡æ—¶çŠ¶æ€
 				{
 					end_ticks = OSTimeGet();
-					if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // ³¬Ê±10Ãë
+					if( (end_ticks - begin_ticks) >= (10 * OS_TICKS_PER_SEC) ) // è¶…æ—¶10ç§’
 					{
-						//printf("\nhttp¸üĞÂ,ÎŞÊı¾İ½ÓÊÕ³¬Ê±,ÖØĞÂ·¢ÆğÁ¬½Ó ....\n");
+						//printf("\nhttpæ›´æ–°,æ— æ•°æ®æ¥æ”¶è¶…æ—¶,é‡æ–°å‘èµ·è¿æ¥ ....\n");
 						http_update_close_connect_by_gprs();
 						goto RECONNECT;
 					}
 				}
 				OSTimeDlyHMSM(0,0,0,10); continue;
 			}
-			else{ be_timing = false; } // Í£Ö¹¼ÆÊ±
+			else{ be_timing = false; } // åœæ­¢è®¡æ—¶
 
-			// ÅĞ¶ÏhttpÓ¦´ğÍêÕûĞÔ
+			// åˆ¤æ–­httpåº”ç­”å®Œæ•´æ€§
 			ret = http_update_check_response_completed();
 			if(ret != 2){ OSTimeDlyHMSM(0,0,0,10); continue; }
 			else
 			{
-				//printf("\nhttpÓ¦´ğ:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
-				printf("\n¶Î: %u/%u\n", sg_http_update_param.section_current, sg_http_update_param.section_total);
+				//printf("\nhttpåº”ç­”:\n%s\n", (char *)(sg_http_update_param.http_response_buff));
+				printf("\næ®µ: %u/%u\n", sg_http_update_param.section_current, sg_http_update_param.section_total);
 				break;
 			}
-		} //while(½ÓÊÕÍêÕûµÄhttpÓ¦´ğÊı¾İ)
+		} //while(æ¥æ”¶å®Œæ•´çš„httpåº”ç­”æ•°æ®)
 
-		// ½âÎö¡¢±£´æÊı¾İ
+		// è§£æã€ä¿å­˜æ•°æ®
 		ret = http_update_parse_crc_bin_data();
 		if(ret)
 		{
-			if(ret == -5) // Å¼¶û»á³öÏÖĞ£Ñé´íÎó,´ËÊ±ÖØĞÂÏÂÔØ¼´¿É
+			if(ret == -5) // å¶å°”ä¼šå‡ºç°æ ¡éªŒé”™è¯¯,æ­¤æ—¶é‡æ–°ä¸‹è½½å³å¯
 			{
-				crc_check_err_times++; // Á¬ĞøĞ£Ñé´íÎóµÄ´ÎÊı
+				crc_check_err_times++; // è¿ç»­æ ¡éªŒé”™è¯¯çš„æ¬¡æ•°
 				if(crc_check_err_times > 10){ return(-3); }
 				continue;
 			}
@@ -1142,10 +1143,10 @@ RECONNECT:
 		}
 
 		crc_check_err_times = 0;
-	} // while(Ñ­»·ÇëÇó¡¢½ÓÊÕÊı¾İ¿é)
+	} // while(å¾ªç¯è¯·æ±‚ã€æ¥æ”¶æ•°æ®å—)
 	////
 
-	// ÏÈ¹Ø±ÕÁ¬½Ó
+	// å…ˆå…³é—­è¿æ¥
 	http_update_close_connect_by_gprs();
 	led_control_function(LD_GPRS, LD_OFF);
 
@@ -1153,7 +1154,7 @@ RECONNECT:
 }
 /////////////////////
 
-// ·¢ËÍhttpÇëÇó(GETÇëÇó)
+// å‘é€httpè¯·æ±‚(GETè¯·æ±‚)
 static int http_update_send_request_for_crcbin_data_by_lwip(ip_addr_t *server_ipaddr, uint16_t server_port)
 {
 	char send_buf[256]={0};
@@ -1163,19 +1164,19 @@ static int http_update_send_request_for_crcbin_data_by_lwip(ip_addr_t *server_ip
 	////
 
 	sprintf(append_pt, "GET %s HTTP/1.1\r\n", sg_http_update_param.http_url); append_pt += strlen(append_pt);
-	sprintf(append_pt, "Host: %s:%d\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt); // ÌîĞ´IPµØÖ·(×îºÃ²»ÒªÌîĞ´ÓòÃû )
+	sprintf(append_pt, "Host: %s:%d\r\n", ipaddr_ntoa(server_ipaddr), server_port); append_pt += strlen(append_pt); // å¡«å†™IPåœ°å€(æœ€å¥½ä¸è¦å¡«å†™åŸŸå )
 
 	download_start = (sg_http_update_param.section_current * UPDATE_CHUNK_SIZE);
 	download_end = (download_start + UPDATE_CHUNK_SIZE - 1);
 	sprintf(append_pt, "Range: bytes=%d-%d\r\n\r\n", download_start, download_end); append_pt += strlen(append_pt);
 
-	//printf("\nhttpÇëÇó:\n%s\n", send_buf);
+	//printf("\nhttpè¯·æ±‚:\n%s\n", send_buf);
 	ret = netconn_write(tcp_update, send_buf, (append_pt - send_buf), NETCONN_COPY);
 	return(ret);
 }
 ////////////////////
 
-// ·¢ËÍhttpÇëÇó(GETÇëÇó)
+// å‘é€httpè¯·æ±‚(GETè¯·æ±‚)
 static int http_update_send_request_for_crcbin_data_by_gprs(const char *host, uint16_t server_port)
 {
 	char send_buf[256]={0};
@@ -1191,14 +1192,14 @@ static int http_update_send_request_for_crcbin_data_by_gprs(const char *host, ui
 	download_end = (download_start + UPDATE_CHUNK_SIZE - 1);
 	sprintf(append_pt, "Range: bytes=%d-%d\r\n\r\n", download_start, download_end); append_pt += strlen(append_pt);
 
-	//printf("\nhttpÇëÇó:\n%s\n", send_buf);
-	ret = gprs_send_data( (uint8_t *)send_buf, (append_pt - send_buf), 5000 ); // Õâ¸öµØ·½¶àµÈ´ıÒ»»á¶ù
+	//printf("\nhttpè¯·æ±‚:\n%s\n", send_buf);
+	ret = gprs_send_data( (uint8_t *)send_buf, (append_pt - send_buf), 5000 ); // è¿™ä¸ªåœ°æ–¹å¤šç­‰å¾…ä¸€ä¼šå„¿
 
 	return(ret);
 }
 ////////////////////
 
-// ½âÎö¡¢±£´æÊı¾İ
+// è§£æã€ä¿å­˜æ•°æ®
 static int http_update_parse_crc_bin_data(void)
 {
 	char *pt = NULL;
@@ -1210,11 +1211,11 @@ static int http_update_parse_crc_bin_data(void)
 	OS_CPU_SR cpu_sr;
 	////
 
-	// http×´Ì¬Âë
+	// httpçŠ¶æ€ç 
 	ret = strncmp( (char*)(sg_http_update_param.http_response_buff), "HTTP/1.1 206 Partial Content", 28);
 	if(ret){ return(-1); }
 
-	// "Content-Length:" ×Ö¶Î
+	// "Content-Length:" å­—æ®µ
 	pt = strstr( (char*)(sg_http_update_param.http_response_buff), "Content-Length:" );
 	if(!pt){ return(-2); }
 	pt += 15;
@@ -1224,22 +1225,22 @@ static int http_update_parse_crc_bin_data(void)
 	len = (unsigned int)atol(pt);
 	if(len != UPDATE_CHUNK_SIZE){ return(-3); }
 
-	// ÑéÖ¤Ğ£ÑéºÍ
+	// éªŒè¯æ ¡éªŒå’Œ
 	pt = strstr(pt, "\r\n\r\n");
 	if(!pt){ return(-4); }
 	body_pt = (unsigned char *)(pt + 4);
 
-	count_crc = usMBCRC16(body_pt, (UPDATE_CHUNK_SIZE-2));  //¼ÆËãÊı¾İ°ücrcĞ£ÑéÖµ(CRC16-MODBUS)
-	section_crc = ( (body_pt[UPDATE_CHUNK_SIZE - 2] << 8) | (body_pt[UPDATE_CHUNK_SIZE - 1]) ); // ¿éÎ²µÄĞ£ÑéÖµ
-	if(count_crc != section_crc){ return(-5); } // Ğ£ÑéÊ§°Ü
+	count_crc = usMBCRC16(body_pt, (UPDATE_CHUNK_SIZE-2));  //è®¡ç®—æ•°æ®åŒ…crcæ ¡éªŒå€¼(CRC16-MODBUS)
+	section_crc = ( (body_pt[UPDATE_CHUNK_SIZE - 2] << 8) | (body_pt[UPDATE_CHUNK_SIZE - 1]) ); // å—å°¾çš„æ ¡éªŒå€¼
+	if(count_crc != section_crc){ return(-5); } // æ ¡éªŒå¤±è´¥
 
-	// ±£´æÕâ¿éÊı¾İ
+	// ä¿å­˜è¿™å—æ•°æ®
 	write_addr = UPDATA_SPIFLASH_ADDR + (sg_http_update_param.section_current * sg_http_update_param.section_len);
-	OS_ENTER_CRITICAL();// ¹ØÖĞ¶Ï
+	OS_ENTER_CRITICAL();// å…³ä¸­æ–­
 	{
 		W25QXX_Write(body_pt, write_addr, sg_http_update_param.section_len);
 	}
-	OS_EXIT_CRITICAL();// ¿ªÖĞ¶Ï
+	OS_EXIT_CRITICAL();// å¼€ä¸­æ–­
 
 	(sg_http_update_param.section_current)++;
 
@@ -1247,33 +1248,33 @@ static int http_update_parse_crc_bin_data(void)
 }
 ////////////////////
 
-// Éı¼¶Íê³É,ÖØÆôÉè±¸
+// å‡çº§å®Œæˆ,é‡å¯è®¾å¤‡
 void http_update_success_reboot(void)
 {
 	struct BOOT_UPDATE_PARAM boot_update_param = {0};
 	OS_CPU_SR cpu_sr = 0;
 	////
 
-	// ±£´æÉı¼¶²ÎÊı
+	// ä¿å­˜å‡çº§å‚æ•°
 	boot_update_param.is_update = true;
 	boot_update_param.section_count = sg_http_update_param.section_total;
 	boot_update_param.section_size = sg_http_update_param.section_len;
 	boot_update_param.update_status = BOOT_UPDATE_SUCCESS;
 
-	OS_ENTER_CRITICAL();// ¹ØÖĞ¶Ï
+	OS_ENTER_CRITICAL();// å…³ä¸­æ–­
 	{
 		W25QXX_Write((uint8_t *)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
 		//STMFLASH_Write(UPDATA_PARAM_ADDR, (u16 *)(&boot_update_param), sizeof(struct BOOT_UPDATE_PARAM)/2);
 	}
-	OS_EXIT_CRITICAL();// ¿ªÖĞ¶Ï
+	OS_EXIT_CRITICAL();// å¼€ä¸­æ–­
 
 	lfs_unmount(&g_lfs_t);
 
-	System_SoftReset(); // ÖØÆôÏµÍ³
+	System_SoftReset(); // é‡å¯ç³»ç»Ÿ
 }
 ////////////////////
 
-/* Éı¼¶Ê§°Ü: ¼ÇÂ¼Ê§°Ü×´Ì¬µ½Flash */
+/* å‡çº§å¤±è´¥: è®°å½•å¤±è´¥çŠ¶æ€åˆ°Flash */
 void http_update_failed(void)
 {
 	struct BOOT_UPDATE_PARAM boot_update_param = {0};
@@ -1283,15 +1284,15 @@ void http_update_failed(void)
 	W25QXX_Read((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
 	boot_update_param.update_status = BOOT_UPDATE_FAILED;
 
-	OS_ENTER_CRITICAL();// ¹ØÖĞ¶Ï
+	OS_ENTER_CRITICAL();// å…³ä¸­æ–­
 	{
 		W25QXX_Write((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
 	}
-	OS_EXIT_CRITICAL();// ¿ªÖĞ¶Ï
+	OS_EXIT_CRITICAL();// å¼€ä¸­æ–­
 }
 ////////////////////
 
-/* ÊÍ·ÅHTTPÓ¦´ğ»º³å(Éı¼¶½áÊø/Ê§°ÜÊ±µ÷ÓÃ, ±ÜÃâ2KB³£×¤) */
+/* é‡Šæ”¾HTTPåº”ç­”ç¼“å†²(å‡çº§ç»“æŸ/å¤±è´¥æ—¶è°ƒç”¨, é¿å…2KBå¸¸é©») */
 void http_update_free_response(void)
 {
 	if(sg_http_update_param.http_response_buff)
@@ -1304,7 +1305,7 @@ void http_update_free_response(void)
 }
 ////////////////////
 
-/* Çå³ıÉı¼¶²ÎÊı(×´Ì¬ÖÃÎªNONE) */
+/* æ¸…é™¤å‡çº§å‚æ•°(çŠ¶æ€ç½®ä¸ºNONE) */
 void http_update_clear_param(void)
 {
 	struct BOOT_UPDATE_PARAM boot_update_param = {0};
@@ -1315,15 +1316,15 @@ void http_update_clear_param(void)
 	boot_update_param.is_update = 0;
 	boot_update_param.update_status = BOOT_UPDATE_NONE;
 
-	OS_ENTER_CRITICAL();// ¹ØÖĞ¶Ï
+	OS_ENTER_CRITICAL();// å…³ä¸­æ–­
 	{
 		W25QXX_Write((uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
 	}
-	OS_EXIT_CRITICAL();// ¿ªÖĞ¶Ï
+	OS_EXIT_CRITICAL();// å¼€ä¸­æ–­
 }
 ////////////////////
 
-#if 0 // ×·×Ù²âÊÔÓÃµÄ
+#if 0 // è¿½è¸ªæµ‹è¯•ç”¨çš„
 void trace_update_param(const char *trace_flag)
 {
 	struct BOOT_UPDATE_PARAM boot_update_param = {0};
@@ -1331,7 +1332,7 @@ void trace_update_param(const char *trace_flag)
 
 	W25QXX_Read( (uint8_t*)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM) );
 	//STMFLASH_Read(UPDATA_PARAM_ADDR, (u16 *)(&boot_update_param), sizeof(struct BOOT_UPDATE_PARAM)/2);
-	printf("\n×·×Ù¶ÁÈ¡ %s, is_update: %d, section_count: %u, section_size: %u \n", trace_flag, boot_update_param.is_update, boot_update_param.section_count, boot_update_param.section_size);
+	printf("\nè¿½è¸ªè¯»å– %s, is_update: %d, section_count: %u, section_size: %u \n", trace_flag, boot_update_param.is_update, boot_update_param.section_count, boot_update_param.section_size);
 }
 ///////////////////
 
@@ -1341,17 +1342,17 @@ void trace_update_param_save(void)
 	OS_CPU_SR cpu_sr = 0;
 	////
 
-	// ±£´æÉı¼¶±êÖ¾
+	// ä¿å­˜å‡çº§æ ‡å¿—
 	boot_update_param.is_update = 0;
 	boot_update_param.section_count = 174;
 	boot_update_param.section_size = 1024;
-	printf("\n×·×Ù±£´æ, is_update: %d, section_count: %u, section_size: %u\n", boot_update_param.is_update, boot_update_param.section_count, boot_update_param.section_size);
-	OS_ENTER_CRITICAL();// ¹ØÖĞ¶Ï
+	printf("\nè¿½è¸ªä¿å­˜, is_update: %d, section_count: %u, section_size: %u\n", boot_update_param.is_update, boot_update_param.section_count, boot_update_param.section_size);
+	OS_ENTER_CRITICAL();// å…³ä¸­æ–­
 	{
 		W25QXX_Write((uint8_t *)(&boot_update_param), UPDATA_PARAM_ADDR, sizeof(struct BOOT_UPDATE_PARAM));
 		//STMFLASH_Write(UPDATA_PARAM_ADDR, (u16 *)(&boot_update_param), sizeof(struct BOOT_UPDATE_PARAM)/2);
 	}
-	OS_EXIT_CRITICAL();// ¿ªÖĞ¶Ï
+	OS_EXIT_CRITICAL();// å¼€ä¸­æ–­
 }
 ////////////////////
 #endif

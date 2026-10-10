@@ -18,7 +18,4 @@ typedef struct
 
 /* º¯ÊıÉùÃ÷ */
 
-void save_write_run_param(run_result_t param);
-void save_read_run_param(run_result_t *param);
-
 #endif

@@ -3,14 +3,14 @@
 
 #include "bsp.h"
 #include "app.h"
-#include "bootload.h"
+#include "stmflash.h"
 
 #define LITTLFS_MODE (0)
 
 #define SAVE_FLIE_MODE LITTLFS_MODE
 
-/* ²ÎÊı */
-/* Ä¬ÈÏ²ÎÊı */
+/* å‚æ•° */
+/* é»˜è®¤å‚æ•° */
 #define DEFALUT_LOCAL_IP0 (192)
 #define DEFALUT_LOCAL_IP1 (168)
 #define DEFALUT_LOCAL_IP2 (1)
@@ -63,30 +63,30 @@
 
 #define DEFALUT_HEART			(90*1000)
 #define DEFALUT_REPORT		(180*1000)
-#define DEFALUT_PING			(20*1000)   // Ã¿ÂÖpingµÄ¼ä¸ôÊ±¼ä
-#define DEFALUT_DEV_PING	(10*1000) // ÏÂÒ»´ÎpingµÄÊ±¼ä
-#define DEFALUT_NETWORK_DELAY	(200) // ÍøÂçÑÓÊ±Ê±¼ä  20220308
-#define DEFALUT_ONVIF_TIME  	(120) // ONVIFËÑË÷Ê±¼ä  20230811
-#define DEFALUT_RELOAD_TIME  	(48*60*60)  // ÖØÆôÊ±¼ä       20240904
+#define DEFALUT_PING			(20*1000)   // æ¯è½®pingçš„é—´éš”æ—¶é—´
+#define DEFALUT_DEV_PING	(10*1000) // ä¸‹ä¸€æ¬¡pingçš„æ—¶é—´
+#define DEFALUT_NETWORK_DELAY	(200) // ç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
+#define DEFALUT_ONVIF_TIME  	(120) // ONVIFæœç´¢æ—¶é—´  20230811
+#define DEFALUT_RELOAD_TIME  	(48*60*60)  // é‡å¯æ—¶é—´       20240904
 
-/* ´æ´¢Ïà¹Ø */
-#define SAVE_OTHER_PARAM   (0) // ÆäÓàÊı¾İ
-#define SAVE_LOCAL_NETWORK (1) // ±¾µØÍøÂçĞÅÏ¢
-#define SAVE_REMOTE_IP     (2) // Ô¶¶ËÍøÂçĞÅÏ¢
-#define SAVE_COMPARISION   (3) // ÍâÉèÏà¹ØÊı¾İ
-#define SAVE_DEVICE_PARAM  (4) // ÏµÍ³Êı¾İ
-#define SAVE_COM_PARAMETER (5) // Í¨ĞÅÊı¾İ
-#define SAVE_UPDATE		     (6) // ¸üĞÂ²ÎÊı
-#define SAVE_REPORT_SW	   (7) // ÉÏ±¨¿ª¹Ø²ÎÊı
-#define SAVE_ONLY_SEND_IP  (8) // Ö»·¢ËÍ·şÎñÆ÷
-#define SAVE_CAREMA        (9) // ÉãÏñ»ú²ÎÊı
-#define SAVE_THRESHOLD     (10) // ãĞÖµ
+/* å­˜å‚¨ç›¸å…³ */
+#define SAVE_OTHER_PARAM   (0) // å…¶ä½™æ•°æ®
+#define SAVE_LOCAL_NETWORK (1) // æœ¬åœ°ç½‘ç»œä¿¡æ¯
+#define SAVE_REMOTE_IP     (2) // è¿œç«¯ç½‘ç»œä¿¡æ¯
+#define SAVE_COMPARISION   (3) // å¤–è®¾ç›¸å…³æ•°æ®
+#define SAVE_DEVICE_PARAM  (4) // ç³»ç»Ÿæ•°æ®
+#define SAVE_COM_PARAMETER (5) // é€šä¿¡æ•°æ®
+#define SAVE_UPDATE		     (6) // æ›´æ–°å‚æ•°
+#define SAVE_REPORT_SW	   (7) // ä¸ŠæŠ¥å¼€å…³å‚æ•°
+#define SAVE_ONLY_SEND_IP  (8) // åªå‘é€æœåŠ¡å™¨
+#define SAVE_CAREMA        (9) // æ‘„åƒæœºå‚æ•°
+#define SAVE_THRESHOLD     (10) // é˜ˆå€¼
 
-/* º¯ÊıÉùÃ÷ */
+/* å‡½æ•°å£°æ˜ */
 void save_init_function(void);
 void save_clear_file_function(uint8_t mode);
 
-// ´æ´¢
+// å­˜å‚¨
 int8_t save_stroage_local_network(struct local_ip_t *local);
 int8_t save_stroage_remote_ip_function(struct remote_ip *remote);
 int8_t save_stroage_comparision_parameter(comparision_parameter_t *param);
@@ -95,7 +95,7 @@ int8_t save_stroage_com_param_function(com_param_t *param);
 int8_t save_stroage_update_addr(uint8_t *ip,uint32_t port) ;
 int8_t save_stroage_report_switch(struct report_status *param);
 
-// ¶ÁÈ¡
+// è¯»å–
 int8_t save_read_local_network(struct local_ip_t *local);
 int8_t save_read_remote_ip_function(struct remote_ip *remote);
 int8_t save_read_comparision_parameter(comparision_parameter_t *param);
@@ -104,24 +104,24 @@ int8_t save_read_com_param_function(com_param_t *param);
 int8_t save_read_update_addr(uint8_t *ip,uint32_t *port);
 int8_t save_read_report_switch(struct report_status *param);
 
-// Ä¬ÈÏ²ÎÊı
+// é»˜è®¤å‚æ•°
 void save_read_default_local_network(struct local_ip_t *local);
 void save_read_default_comparision_parameter(comparision_parameter_t *param);
 void save_read_default_device_paramter_function(struct device_param *param);
 void save_read_default_remote_ip(struct remote_ip *remote);
 void save_read_default_com_param_function(com_param_t *param);
 
-// 20230712 ÉãÏñ»úÏà¹Ø²ÎÊı
+// 20230712 æ‘„åƒæœºç›¸å…³å‚æ•°
 int8_t save_read_carema_parameter(carema_t *param);
 void save_read_default_carema_parameter(carema_t *param);
 int8_t save_stroage_carema_parameter(carema_t *param);
 
-// 20230723 ãĞÖµ
+// 20230723 é˜ˆå€¼
 int8_t save_stroage_threshold_parameter(struct threshold_params *param);
 void save_read_default_threshold_parameter(struct threshold_params *param);
 int8_t save_read_threshold_parameter(struct threshold_params *param);	
 
-// 20231022 ±¸·İĞÅÏ¢
+// 20231022 å¤‡ä»½ä¿¡æ¯
 int8_t save_stroage_backups_function(sys_backups_t *param);
 int8_t save_read_backups_function(sys_backups_t *param);
 void save_read_default_backups(sys_backups_t *param);

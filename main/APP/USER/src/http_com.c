@@ -4,6 +4,7 @@
 #include "relay.h"
 #include "eth.h"
 #include "rtc.h"
+#include "timer.h"
 #include "malloc.h"
 #include "save.h"
 #include "lwip_comm.h"

@@ -77,6 +77,10 @@ typedef struct
 	uint32_t jump_addr;    // 跳转地址
 }run_result_t;
 
+/* 程序运行参数(W25Q128 APP_RUN_PARAM_ADDR)读写: 原 iap.c, 现并入 app.c */
+void save_write_run_param(run_result_t param);
+void save_read_run_param(run_result_t *param);
+
 
 struct report_status {
 	uint32_t report_allowed;  // 是否允许上报 

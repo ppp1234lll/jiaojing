@@ -6,7 +6,6 @@
 #include "adc.h"
 #include "eth.h"
 #include "key.h"
-#include "bootload.h"
 #include "BL0910.h"
 #include "gsm.h"
 #include "lfs_port.h"
@@ -129,7 +128,7 @@ void TIM2_IRQHandler(void)
 //			printf("time2 test\n");
 //		}			
 		TIM_ClearITPendingBit(TIM2, TIM_IT_Update  );  //清除TIM5更新中断标志    
-		my_modem_timer_task();
+		/* 有线升级已移除 */
 	}	   
 
 }

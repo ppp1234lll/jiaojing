@@ -902,7 +902,7 @@ int8_t httpd_cgi_update_function(int iNumParams, char *pcParam[], char *pcValue[
 		} 
 		else 
 		{
-			update_set_update_mode(UPDATE_MODE_LWIP);
+			update_set_update_mode(UPDATE_MODE_GPRS);  // 有线升级已移除, 网页按钮改走无线HTTP升级
 			set_return_status_function(0,(uint8_t*)"\"SUCCESS!\"");
 		}
 		return 0;

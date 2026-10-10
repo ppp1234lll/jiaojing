@@ -12,9 +12,11 @@
 #include "tcp_client.h"
 #include "tcp_server.h"
 #include "rtc.h"
+#include "timer.h"
 #include "gsm.h"
 #include "update.h"
-#include "bootload.h"
+#include "stmflash.h"
+#include "w25qxx.h"
 #include "lfs_port.h"
 #include "onvif.h"
 #include "IWDG.h"
@@ -182,7 +184,6 @@ void app_task_function(void)
 		{
 			get_time_cnt = 0;
 			RTC_Get_Time(&sg_rtctime_t);		/* 时间获取 */
-			my_modem_detcet_update_status_function();
 			sg_sysparam_t.mem = mem_perused(SRAMIN);
 		}
 		IWDG_Feed();	
@@ -2981,6 +2982,32 @@ void my_app_run_param_init(void)
 	save_read_run_param(&sg_run_param);
 	sg_run_param.JumpResult = 1; // 跳转成功
 	save_write_run_param(sg_run_param);
+}
+
+/************************************************************
+*
+* Function name	: save_write_run_param
+* Description	: 存储程序运行信息(原 iap.c)
+* Parameter		: 
+* Return		: 
+*	
+************************************************************/
+void save_write_run_param(run_result_t param)
+{
+	W25QXX_Write((uint8_t *)&param, APP_RUN_PARAM_ADDR, sizeof(run_result_t));
+}
+
+/************************************************************
+*
+* Function name	: save_read_run_param
+* Description	: 读取程序运行信息(原 iap.c)
+* Parameter		: 
+* Return		: 
+*	
+************************************************************/
+void save_read_run_param(run_result_t *param)
+{
+	W25QXX_Read((uint8_t*)param, APP_RUN_PARAM_ADDR, sizeof(run_result_t));
 }
 
 

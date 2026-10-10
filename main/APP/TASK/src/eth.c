@@ -61,19 +61,6 @@ void eth_network_line_status_detection_function(void)
 		else
 			led_out_control_function(LD_LAN_LED,LD_OFF);
 	
-		/* 更新检测 */
-		if( lwipdev.netif_state == 1) 
-		{
-			if( update_get_mode_function() == UPDATE_MODE_LWIP ) 
-			{
-				if (lwipdev.tcp_status != LWIP_TCP_NO_CONNECT) 
-				{
-					eth_set_tcp_connect_reset();
-					OSTimeDlyHMSM(0,0,0,200);
-				}
-				update_lwip_task_function();			/* 更新 */
-			}
-		}
 		IWDG_Feed();
 		OSTimeDlyHMSM(0,0,0,10);  // 延时20ms
 	}
