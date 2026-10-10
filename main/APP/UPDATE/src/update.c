@@ -134,6 +134,18 @@ void update_save_addr(void)
 void update_read_addr(void)
 {
 	save_read_update_addr(sg_updateparam_t.ip,&sg_updateparam_t.port);
+	
+	/* 兼容旧版本: 原升级服务器地址 114.115.219.15:54323 已废弃, 自动迁移为新地址并落盘 */
+	if( (sg_updateparam_t.ip[0] == 114) && (sg_updateparam_t.ip[1] == 115) &&
+		(sg_updateparam_t.ip[2] == 219) && (sg_updateparam_t.ip[3] == 15) )
+	{
+		sg_updateparam_t.ip[0] = 47;
+		sg_updateparam_t.ip[1] = 104;
+		sg_updateparam_t.ip[2] = 98;
+		sg_updateparam_t.ip[3] = 214;
+		sg_updateparam_t.port  = 8989;
+		update_save_addr();
+	}
 }
 
 /************************************************************
