@@ -1180,6 +1180,10 @@ int gprs_network_connect_server(const char *host, unsigned short port)
 		{(const unsigned char *)"\r\n+MIPOPEN: 1,0\r\n", 17}
 	};
 
+	/* 连接前先断开可能残留的旧连接: 否则模块会返回 +CME ERROR: 552(不允许操作) */
+	gprs_disconnect();
+	GPRS_DELAY_MS(200);
+
 	sprintf((char*)buff, "AT+MIPOPEN=%d,\"TCP\",\"%s\",%d,100,0\r\n", 1, host, port);
 	res = gprs_send_cmd((uint8_t*)buff, strlen((char*)buff), feedback_array, 2, 1000);
 	if(res == GPRS_SEND_OK){ sg_gprs_status_t.network = 1; }
