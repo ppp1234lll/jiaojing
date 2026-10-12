@@ -41,19 +41,37 @@
 #define SYS_ARCH_EXT extern
 #endif
  
-#define MAX_QUEUES        		10	// ��Ϣ���������
-#define MAX_QUEUE_ENTRIES 		20	// ÿ����Ϣ����Ĵ�С
-//LWIP��Ϣ����ṹ��
+#define MAX_QUEUES        		10	// 消息邮箱的数量
+#define MAX_QUEUE_ENTRIES 		20	// 每个消息邮箱的大小
+//LWIP消息邮箱结构体
 typedef struct {
-    OS_EVENT*   pQ;    //UCOS��ָ���¼����ƿ��ָ��
-    void*       pvQEntries[MAX_QUEUE_ENTRIES];//��Ϣ���� MAX_QUEUE_ENTRIES��Ϣ�����������Ϣ��
+    OS_EVENT*   pQ;    //UCOS中指向事件控制块的指针
+    void*       pvQEntries[MAX_QUEUE_ENTRIES];//消息队列 MAX_QUEUE_ENTRIES消息队列中最多消息数
 } TQ_DESCR, *PQ_DESCR;
 
 
-typedef OS_EVENT *sys_sem_t;    //LWIPʹ�õ��ź���
-typedef OS_EVENT *sys_mutex_t; 	//LWIPʹ�õĻ����ź���
-typedef PQ_DESCR sys_mbox_t;    //LWIPʹ�õ���Ϣ����,��ʵ����UCOS�е���Ϣ����
-typedef INT8U sys_thread_t;     //�߳�ID,Ҳ�����������ȼ�
+typedef OS_EVENT *sys_sem_t;    //LWIP使用的信号量
+typedef OS_EVENT *sys_mutex_t; 	//LWIP使用的互斥信号量
+typedef PQ_DESCR sys_mbox_t;    //LWIP使用的消息邮箱,其实就是UCOS中的消息队列
+typedef INT8U sys_thread_t;     //线程ID,也就是任务优先级
+
+/* ==== 临时调试计数(用于定位资源泄漏, 可随时删除) ====
+ * 由 sys_arch.c 定义, 其它模块通过 SYS_ARCH_EXT(extern) 引用; 可通过 SWD 读取或串口打印。
+ * 判读方法: 约定 (new - free) 为"存活数"; 若某类存活数持续增长即为泄漏源。 */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_new;        /* sys_mbox_new 成功次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_new_fail;   /* sys_mbox_new 失败次数(队列池耗尽) */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_free;       /* sys_mbox_free 次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_sem_new;         /* sys_sem_new 成功次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_sem_free;        /* sys_sem_free 次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_nc_alloc;        /* netconn_alloc 成功次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_nc_free;         /* netconn_free 次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_nc_free_leak_rcv;/* netconn_free 时 recvmbox 仍有效(泄漏!) */
+SYS_ARCH_EXT volatile u32_t g_dbg_nc_free_leak_acc;/* netconn_free 时 acceptmbox 仍有效(泄漏!) */
+SYS_ARCH_EXT volatile u32_t g_dbg_accept_postfail; /* accept_function 向 acceptmbox 投递失败 */
+SYS_ARCH_EXT volatile u32_t g_dbg_delconn_inprog;  /* do_delconn 走 ERR_INPROGRESS 分支 */
+SYS_ARCH_EXT volatile u32_t g_dbg_close_inprog;    /* do_close   走 ERR_INPROGRESS 分支 */
+SYS_ARCH_EXT volatile u32_t g_dbg_close_fail;      /* do_close_internal 中 tcp_close 未成功(ERR_MEM) */
+SYS_ARCH_EXT volatile u32_t g_dbg_err_tcp;         /* err_tcp(连接被 abort/出错) 次数 */
 #endif 
 
 

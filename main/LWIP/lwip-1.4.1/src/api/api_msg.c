@@ -51,8 +51,12 @@
 #include "lwip/tcpip.h"
 #include "lwip/igmp.h"
 #include "lwip/dns.h"
+#include "arch/sys_arch.h"   /* 调试计数 g_dbg_* 声明 */
 
 #include <string.h>
+
+/* forward declaration: netconn_free() 的兜底清理会用到 netconn_drain() */
+static void netconn_drain(struct netconn *conn);
 
 #define SET_NONBLOCKING_CONNECT(conn, val)  do { if(val) { \
   (conn)->flags |= NETCONN_FLAG_IN_NONBLOCKING_CONNECT; \
@@ -354,6 +358,7 @@ err_tcp(void *arg, err_t err)
   LWIP_ASSERT("conn != NULL", (conn != NULL));
 
   conn->pcb.tcp = NULL;
+  g_dbg_err_tcp++;                                     /* 调试计数: 连接被 abort/出错 */
 
   /* no check since this is always fatal! */
   SYS_ARCH_PROTECT(lev);
@@ -454,6 +459,7 @@ accept_function(void *arg, struct tcp_pcb *newpcb, err_t err)
   newconn->last_err = err;
 
   if (sys_mbox_trypost(&conn->acceptmbox, newconn) != ERR_OK) {
+    g_dbg_accept_postfail++;                           /* 调试计数 */
     /* When returning != ERR_OK, the pcb is aborted in tcp_process(),
        so do nothing here! */
     /* remove all references to this netconn from the pcb */
@@ -641,6 +647,7 @@ netconn_alloc(enum netconn_type t, netconn_callback callback)
   conn->recv_avail   = 0;
 #endif /* LWIP_SO_RCVBUF */
   conn->flags = 0;
+  g_dbg_nc_alloc++;                                    /* 调试计数 */
   return conn;
 free_and_return:
   memp_free(MEMP_NETCONN, conn);
@@ -663,6 +670,26 @@ netconn_free(struct netconn *conn)
   LWIP_ASSERT("acceptmbox must be deallocated before calling this function",
     !sys_mbox_valid(&conn->acceptmbox));
 #endif /* LWIP_TCP */
+
+  g_dbg_nc_free++;                                     /* 调试计数 */
+
+  /* 兜底(本地修补): 若调用者漏掉 netconn_drain(), 在此补做, 避免 uCOS 队列(OS_Q)/事件
+     被永久泄漏(OS_MAX_QS/OS_MAX_EVENTS 很小, 耗尽后新连接会被 RST)。 */
+  if ((conn->recvmbox != NULL)
+#if LWIP_TCP
+      || (conn->acceptmbox != NULL)
+#endif
+     ) {
+    if (conn->recvmbox != NULL) {
+      g_dbg_nc_free_leak_rcv++;                        /* 调试计数: 命中 recvmbox 泄漏 */
+    }
+#if LWIP_TCP
+    if (conn->acceptmbox != NULL) {
+      g_dbg_nc_free_leak_acc++;                        /* 调试计数: 命中 acceptmbox 泄漏 */
+    }
+#endif
+    netconn_drain(conn);                               /* 取空并释放邮箱 */
+  }
 
   sys_sem_free(&conn->op_completed);
   sys_sem_set_invalid(&conn->op_completed);
@@ -689,7 +716,10 @@ netconn_drain(struct netconn *conn)
   /* This runs in tcpip_thread, so we don't need to lock against rx packets */
 
   /* Delete and drain the recvmbox. */
-  if (sys_mbox_valid(&conn->recvmbox)) {
+  /* 修补(本地): 原实现用 sys_mbox_valid() 判断, 而本移植的 sys_mbox_valid() 在
+     "队列已满(OSNMsgs>=OSQSize)" 时返回 0 → 既不 drain 也不释放, 邮箱(uCOS 队列)泄漏。
+     改为按指针非空判断: 只要分配过就一定释放。 */
+  if (conn->recvmbox != NULL) {
     while (sys_mbox_tryfetch(&conn->recvmbox, &mem) != SYS_MBOX_EMPTY) {
 #if LWIP_TCP
       if (conn->type == NETCONN_TCP) {
@@ -713,7 +743,7 @@ netconn_drain(struct netconn *conn)
 
   /* Delete and drain the acceptmbox. */
 #if LWIP_TCP
-  if (sys_mbox_valid(&conn->acceptmbox)) {
+  if (conn->acceptmbox != NULL) {
     while (sys_mbox_tryfetch(&conn->acceptmbox, &mem) != SYS_MBOX_EMPTY) {
       struct netconn *newconn = (struct netconn *)mem;
       /* Only tcp pcbs have an acceptmbox, so no need to check conn->type */
@@ -812,6 +842,7 @@ do_close_internal(struct netconn *conn)
     /* wake up the application task */
     sys_sem_signal(&conn->op_completed);
   } else {
+    g_dbg_close_fail++;                                /* 调试计数: tcp_close 未成功(常为 ERR_MEM) */
     /* Closing failed, restore some of the callbacks */
     /* Closing of listen pcb will never fail! */
     LWIP_ASSERT("Closing a listen pcb may not fail!", (conn->pcb.tcp->state != LISTEN));
@@ -842,6 +873,7 @@ do_delconn(struct api_msg_msg *msg)
     /* this only happens for TCP netconns */
     LWIP_ASSERT("msg->conn->type == NETCONN_TCP", msg->conn->type == NETCONN_TCP);
     msg->err = ERR_INPROGRESS;
+    g_dbg_delconn_inprog++;                            /* 调试计数 */
     /* 修补(本地): 该 netconn 即将由 netconn_free() 删除, 但本分支原实现不释放邮箱。
        当连接处于 NETCONN_CLOSE(上一次 close 因 tcp_close() 返回 ERR_MEM 未完成,
        例如对端不读取导致发送缓冲未清空)时, recvmbox 会被泄漏 —— 在 uCOS 下 recvmbox
@@ -1467,6 +1499,7 @@ do_close(struct api_msg_msg *msg)
     /* this only happens for TCP netconns */
     LWIP_ASSERT("msg->conn->type == NETCONN_TCP", msg->conn->type == NETCONN_TCP);
     msg->err = ERR_INPROGRESS;
+    g_dbg_close_inprog++;                              /* 调试计数 */
   } else if ((msg->conn->pcb.tcp != NULL) && (msg->conn->type == NETCONN_TCP)) {
     if ((msg->msg.sd.shut != NETCONN_SHUT_RDWR) && (msg->conn->state == NETCONN_LISTEN)) {
       /* LISTEN doesn't support half shutdown */

@@ -44,74 +44,85 @@
 #include "malloc.h"
 
 
-//µ±ÏûÏ¢Ö¸ÕëÎª¿ÕÊ±,Ö¸ÏòÒ»¸ö³£Á¿pvNullPointerËùÖ¸ÏòµÄÖµ.
-//ÔÚUCOSÖĞÈç¹ûOSQPost()ÖĞµÄmsg==NULL»á·µ»ØÒ»ÌõOS_ERR_POST_NULL
-//´íÎó,¶øÔÚlwipÖĞ»áµ÷ÓÃsys_mbox_post(mbox,NULL)·¢ËÍÒ»Ìõ¿ÕÏûÏ¢,ÎÒÃÇ
-//ÔÚ±¾º¯ÊıÖĞ°ÑNULL±ä³ÉÒ»¸ö³£Á¿Ö¸Õë0Xffffffff
+//å½“æ¶ˆæ¯æŒ‡é’ˆä¸ºç©ºæ—¶,æŒ‡å‘ä¸€ä¸ªå¸¸é‡pvNullPointeræ‰€æŒ‡å‘çš„å€¼.
+//åœ¨UCOSä¸­å¦‚æœOSQPost()ä¸­çš„msg==NULLä¼šè¿”å›ä¸€æ¡OS_ERR_POST_NULL
+//é”™è¯¯,è€Œåœ¨lwipä¸­ä¼šè°ƒç”¨sys_mbox_post(mbox,NULL)å‘é€ä¸€æ¡ç©ºæ¶ˆæ¯,æˆ‘ä»¬
+//åœ¨æœ¬å‡½æ•°ä¸­æŠŠNULLå˜æˆä¸€ä¸ªå¸¸é‡æŒ‡é’ˆ0Xffffffff
 const void * const pvNullPointer = (mem_ptr_t*)0xffffffff;
  
 
-//´´½¨Ò»¸öÏûÏ¢ÓÊÏä
-//*mbox:ÏûÏ¢ÓÊÏä
-//size:ÓÊÏä´óĞ¡
-//·µ»ØÖµ:ERR_OK,´´½¨³É¹¦
-//         ÆäËû,´´½¨Ê§°Ü
+//åˆ›å»ºä¸€ä¸ªæ¶ˆæ¯é‚®ç®±
+//*mbox:æ¶ˆæ¯é‚®ç®±
+//size:é‚®ç®±å¤§å°
+//è¿”å›å€¼:ERR_OK,åˆ›å»ºæˆåŠŸ
+//         å…¶ä»–,åˆ›å»ºå¤±è´¥
 err_t sys_mbox_new( sys_mbox_t *mbox, int size)
 {
-	(*mbox)=mymalloc(SRAMIN,sizeof(TQ_DESCR));	//ÎªÏûÏ¢ÓÊÏäÉêÇëÄÚ´æ
-	mymemset((*mbox),0,sizeof(TQ_DESCR)); 		//Çå³ımboxµÄÄÚ´æ
-	if(*mbox)//ÄÚ´æ·ÖÅä³É¹¦
+	(*mbox)=mymalloc(SRAMIN,sizeof(TQ_DESCR));	//ä¸ºæ¶ˆæ¯é‚®ç®±ç”³è¯·å†…å­˜
+	mymemset((*mbox),0,sizeof(TQ_DESCR)); 		//æ¸…é™¤mboxçš„å†…å­˜
+	if(*mbox)//å†…å­˜åˆ†é…æˆåŠŸ
 	{
-		if(size>MAX_QUEUE_ENTRIES)size=MAX_QUEUE_ENTRIES;		//ÏûÏ¢¶ÓÁĞ×î¶àÈİÄÉMAX_QUEUE_ENTRIESÏûÏ¢ÊıÄ¿ 
- 		(*mbox)->pQ=OSQCreate(&((*mbox)->pvQEntries[0]),size);  //Ê¹ÓÃUCOS´´½¨Ò»¸öÏûÏ¢¶ÓÁĞ
+		if(size>MAX_QUEUE_ENTRIES)size=MAX_QUEUE_ENTRIES;		//æ¶ˆæ¯é˜Ÿåˆ—æœ€å¤šå®¹çº³MAX_QUEUE_ENTRIESæ¶ˆæ¯æ•°ç›® 
+ 		(*mbox)->pQ=OSQCreate(&((*mbox)->pvQEntries[0]),size);  //ä½¿ç”¨UCOSåˆ›å»ºä¸€ä¸ªæ¶ˆæ¯é˜Ÿåˆ—
 		LWIP_ASSERT("OSQCreate",(*mbox)->pQ!=NULL); 
-		if((*mbox)->pQ!=NULL)return ERR_OK;  //·µ»ØERR_OK,±íÊ¾ÏûÏ¢¶ÓÁĞ´´½¨³É¹¦ ERR_OK=0
+		if((*mbox)->pQ!=NULL)
+		{
+			g_dbg_mbox_new++;                                // è°ƒè¯•è®¡æ•°
+			return ERR_OK;  //è¿”å›ERR_OK,è¡¨ç¤ºæ¶ˆæ¯é˜Ÿåˆ—åˆ›å»ºæˆåŠŸ ERR_OK=0
+		}
 		else
 		{ 
+			g_dbg_mbox_new_fail++;                           // è°ƒè¯•è®¡æ•°(OSQCreate å¤±è´¥)
 			myfree(SRAMIN,(*mbox));
-			return ERR_MEM;  		//ÏûÏ¢¶ÓÁĞ´´½¨´íÎó
+			return ERR_MEM;  		//æ¶ˆæ¯é˜Ÿåˆ—åˆ›å»ºé”™è¯¯
 		}
-	}else return ERR_MEM; 			//ÏûÏ¢¶ÓÁĞ´´½¨´íÎó 
+	}
+	else
+	{
+		g_dbg_mbox_new_fail++;                               // è°ƒè¯•è®¡æ•°(mymalloc å¤±è´¥)
+		return ERR_MEM; 			//æ¶ˆæ¯é˜Ÿåˆ—åˆ›å»ºé”™è¯¯ 
+	}
 } 
-//ÊÍ·Å²¢É¾³ıÒ»¸öÏûÏ¢ÓÊÏä
-//*mbox:ÒªÉ¾³ıµÄÏûÏ¢ÓÊÏä
+//é‡Šæ”¾å¹¶åˆ é™¤ä¸€ä¸ªæ¶ˆæ¯é‚®ç®±
+//*mbox:è¦åˆ é™¤çš„æ¶ˆæ¯é‚®ç®±
 void sys_mbox_free(sys_mbox_t * mbox)
 {
 	u8_t ucErr;
 	sys_mbox_t m_box=*mbox;   
+	g_dbg_mbox_free++;                                   // è°ƒè¯•è®¡æ•°
 	(void)OSQDel(m_box->pQ,OS_DEL_ALWAYS,&ucErr);
 	LWIP_ASSERT( "OSQDel ",ucErr == OS_ERR_NONE ); 
 	myfree(SRAMIN,m_box); 
 	*mbox=NULL;
 }
-//ÏòÏûÏ¢ÓÊÏäÖĞ·¢ËÍÒ»ÌõÏûÏ¢(±ØĞë·¢ËÍ³É¹¦)
-//*mbox:ÏûÏ¢ÓÊÏä
-//*msg:Òª·¢ËÍµÄÏûÏ¢
+//å‘æ¶ˆæ¯é‚®ç®±ä¸­å‘é€ä¸€æ¡æ¶ˆæ¯(å¿…é¡»å‘é€æˆåŠŸ)
+//*mbox:æ¶ˆæ¯é‚®ç®±
+//*msg:è¦å‘é€çš„æ¶ˆæ¯
 void sys_mbox_post(sys_mbox_t *mbox,void *msg)
 {    
-	if(msg==NULL)msg=(void*)&pvNullPointer;//µ±msgÎª¿ÕÊ± msgµÈÓÚpvNullPointerÖ¸ÏòµÄÖµ 
-	while(OSQPost((*mbox)->pQ,msg)!=OS_ERR_NONE);//ËÀÑ­»·µÈ´ıÏûÏ¢·¢ËÍ³É¹¦ 
+	if(msg==NULL)msg=(void*)&pvNullPointer;//å½“msgä¸ºç©ºæ—¶ msgç­‰äºpvNullPointeræŒ‡å‘çš„å€¼ 
+	while(OSQPost((*mbox)->pQ,msg)!=OS_ERR_NONE);//æ­»å¾ªç¯ç­‰å¾…æ¶ˆæ¯å‘é€æˆåŠŸ 
 }
-//³¢ÊÔÏòÒ»¸öÏûÏ¢ÓÊÏä·¢ËÍÏûÏ¢
-//´Ëº¯ÊıÏà¶ÔÓÚsys_mbox_postº¯ÊıÖ»·¢ËÍÒ»´ÎÏûÏ¢£¬
-//·¢ËÍÊ§°Üºó²»»á³¢ÊÔµÚ¶ş´Î·¢ËÍ
-//*mbox:ÏûÏ¢ÓÊÏä
-//*msg:Òª·¢ËÍµÄÏûÏ¢
-//·µ»ØÖµ:ERR_OK,·¢ËÍOK
-// 	     ERR_MEM,·¢ËÍÊ§°Ü
+//å°è¯•å‘ä¸€ä¸ªæ¶ˆæ¯é‚®ç®±å‘é€æ¶ˆæ¯
+//æ­¤å‡½æ•°ç›¸å¯¹äºsys_mbox_postå‡½æ•°åªå‘é€ä¸€æ¬¡æ¶ˆæ¯ï¼Œ
+//å‘é€å¤±è´¥åä¸ä¼šå°è¯•ç¬¬äºŒæ¬¡å‘é€
+//*mbox:æ¶ˆæ¯é‚®ç®±
+//*msg:è¦å‘é€çš„æ¶ˆæ¯
+//è¿”å›å€¼:ERR_OK,å‘é€OK
+// 	     ERR_MEM,å‘é€å¤±è´¥
 err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 { 
-	if(msg==NULL)msg=(void*)&pvNullPointer;//µ±msgÎª¿ÕÊ± msgµÈÓÚpvNullPointerÖ¸ÏòµÄÖµ 
+	if(msg==NULL)msg=(void*)&pvNullPointer;//å½“msgä¸ºç©ºæ—¶ msgç­‰äºpvNullPointeræŒ‡å‘çš„å€¼ 
 	if((OSQPost((*mbox)->pQ, msg))!=OS_ERR_NONE)return ERR_MEM;
 	return ERR_OK;
 }
 
-//µÈ´ıÓÊÏäÖĞµÄÏûÏ¢
-//*mbox:ÏûÏ¢ÓÊÏä
-//*msg:ÏûÏ¢
-//timeout:³¬Ê±Ê±¼ä£¬Èç¹ûtimeoutÎª0µÄ»°,¾ÍÒ»Ö±µÈ´ı
-//·µ»ØÖµ:µ±timeout²»Îª0Ê±Èç¹û³É¹¦µÄ»°¾Í·µ»ØµÈ´ıµÄÊ±¼ä£¬
-//		Ê§°ÜµÄ»°¾Í·µ»Ø³¬Ê±SYS_ARCH_TIMEOUT
+//ç­‰å¾…é‚®ç®±ä¸­çš„æ¶ˆæ¯
+//*mbox:æ¶ˆæ¯é‚®ç®±
+//*msg:æ¶ˆæ¯
+//timeout:è¶…æ—¶æ—¶é—´ï¼Œå¦‚æœtimeoutä¸º0çš„è¯,å°±ä¸€ç›´ç­‰å¾…
+//è¿”å›å€¼:å½“timeoutä¸ä¸º0æ—¶å¦‚æœæˆåŠŸçš„è¯å°±è¿”å›ç­‰å¾…çš„æ—¶é—´ï¼Œ
+//		å¤±è´¥çš„è¯å°±è¿”å›è¶…æ—¶SYS_ARCH_TIMEOUT
 u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 { 
 	u8_t ucErr;
@@ -120,39 +131,39 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 	sys_mbox_t m_box=*mbox;
 	if(timeout!=0)
 	{
-		ucos_timeout=(timeout*OS_TICKS_PER_SEC)/1000; //×ª»»Îª½ÚÅÄÊı,ÒòÎªUCOSÑÓÊ±Ê¹ÓÃµÄÊÇ½ÚÅÄÊı,¶øLWIPÊÇÓÃms
-		if(ucos_timeout<1)ucos_timeout=1;//ÖÁÉÙ1¸ö½ÚÅÄ
+		ucos_timeout=(timeout*OS_TICKS_PER_SEC)/1000; //è½¬æ¢ä¸ºèŠ‚æ‹æ•°,å› ä¸ºUCOSå»¶æ—¶ä½¿ç”¨çš„æ˜¯èŠ‚æ‹æ•°,è€ŒLWIPæ˜¯ç”¨ms
+		if(ucos_timeout<1)ucos_timeout=1;//è‡³å°‘1ä¸ªèŠ‚æ‹
 	}else ucos_timeout = 0; 
-	timeout = OSTimeGet(); //»ñÈ¡ÏµÍ³Ê±¼ä 
-	temp=OSQPend(m_box->pQ,(u16_t)ucos_timeout,&ucErr); //ÇëÇóÏûÏ¢¶ÓÁĞ,µÈ´ıÊ±ÏŞÎªucos_timeout
+	timeout = OSTimeGet(); //è·å–ç³»ç»Ÿæ—¶é—´ 
+	temp=OSQPend(m_box->pQ,(u16_t)ucos_timeout,&ucErr); //è¯·æ±‚æ¶ˆæ¯é˜Ÿåˆ—,ç­‰å¾…æ—¶é™ä¸ºucos_timeout
 	if(msg!=NULL)
 	{	
-		if(temp==(void*)&pvNullPointer)*msg = NULL;   	//ÒòÎªlwip·¢ËÍ¿ÕÏûÏ¢µÄÊ±ºòÎÒÃÇÊ¹ÓÃÁËpvNullPointerÖ¸Õë,ËùÒÔÅĞ¶ÏpvNullPointerÖ¸ÏòµÄÖµ
- 		else *msg=temp;									//¾Í¿ÉÖªµÀÇëÇóµ½µÄÏûÏ¢ÊÇ·ñÓĞĞ§
+		if(temp==(void*)&pvNullPointer)*msg = NULL;   	//å› ä¸ºlwipå‘é€ç©ºæ¶ˆæ¯çš„æ—¶å€™æˆ‘ä»¬ä½¿ç”¨äº†pvNullPointeræŒ‡é’ˆ,æ‰€ä»¥åˆ¤æ–­pvNullPointeræŒ‡å‘çš„å€¼
+ 		else *msg=temp;									//å°±å¯çŸ¥é“è¯·æ±‚åˆ°çš„æ¶ˆæ¯æ˜¯å¦æœ‰æ•ˆ
 	}    
-	if(ucErr==OS_ERR_TIMEOUT)timeout=SYS_ARCH_TIMEOUT;  //ÇëÇó³¬Ê±
+	if(ucErr==OS_ERR_TIMEOUT)timeout=SYS_ARCH_TIMEOUT;  //è¯·æ±‚è¶…æ—¶
 	else
 	{
 		LWIP_ASSERT("OSQPend ",ucErr==OS_ERR_NONE); 
 		timeout_new=OSTimeGet();
-		if (timeout_new>timeout) timeout_new = timeout_new - timeout;//Ëã³öÇëÇóÏûÏ¢»òÊ¹ÓÃµÄÊ±¼ä
+		if (timeout_new>timeout) timeout_new = timeout_new - timeout;//ç®—å‡ºè¯·æ±‚æ¶ˆæ¯æˆ–ä½¿ç”¨çš„æ—¶é—´
 		else timeout_new = 0xffffffff - timeout + timeout_new; 
 		timeout=timeout_new*1000/OS_TICKS_PER_SEC + 1; 
 	}
 	return timeout; 
 }
-//³¢ÊÔ»ñÈ¡ÏûÏ¢
-//*mbox:ÏûÏ¢ÓÊÏä
-//*msg:ÏûÏ¢
-//·µ»ØÖµ:µÈ´ıÏûÏ¢ËùÓÃµÄÊ±¼ä/SYS_ARCH_TIMEOUT
+//å°è¯•è·å–æ¶ˆæ¯
+//*mbox:æ¶ˆæ¯é‚®ç®±
+//*msg:æ¶ˆæ¯
+//è¿”å›å€¼:ç­‰å¾…æ¶ˆæ¯æ‰€ç”¨çš„æ—¶é—´/SYS_ARCH_TIMEOUT
 u32_t sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
 {
-	return sys_arch_mbox_fetch(mbox,msg,1);//³¢ÊÔ»ñÈ¡Ò»¸öÏûÏ¢
+	return sys_arch_mbox_fetch(mbox,msg,1);//å°è¯•è·å–ä¸€ä¸ªæ¶ˆæ¯
 }
-//¼ì²éÒ»¸öÏûÏ¢ÓÊÏäÊÇ·ñÓĞĞ§
-//*mbox:ÏûÏ¢ÓÊÏä
-//·µ»ØÖµ:1,ÓĞĞ§.
-//      0,ÎŞĞ§
+//æ£€æŸ¥ä¸€ä¸ªæ¶ˆæ¯é‚®ç®±æ˜¯å¦æœ‰æ•ˆ
+//*mbox:æ¶ˆæ¯é‚®ç®±
+//è¿”å›å€¼:1,æœ‰æ•ˆ.
+//      0,æ— æ•ˆ
 int sys_mbox_valid(sys_mbox_t *mbox)
 {  
 	sys_mbox_t m_box=*mbox;
@@ -164,17 +175,17 @@ int sys_mbox_valid(sys_mbox_t *mbox)
 	ret=(ucErr<2&&(q_data.OSNMsgs<q_data.OSQSize))?1:0;
 	return ret; 
 } 
-//ÉèÖÃÒ»¸öÏûÏ¢ÓÊÏäÎªÎŞĞ§
-//*mbox:ÏûÏ¢ÓÊÏä
+//è®¾ç½®ä¸€ä¸ªæ¶ˆæ¯é‚®ç®±ä¸ºæ— æ•ˆ
+//*mbox:æ¶ˆæ¯é‚®ç®±
 void sys_mbox_set_invalid(sys_mbox_t *mbox)
 {
 	*mbox=NULL;
 } 
-//´´½¨Ò»¸öĞÅºÅÁ¿
-//*sem:´´½¨µÄĞÅºÅÁ¿
-//count:ĞÅºÅÁ¿Öµ
-//·µ»ØÖµ:ERR_OK,´´½¨OK
-// 	     ERR_MEM,´´½¨Ê§°Ü
+//åˆ›å»ºä¸€ä¸ªä¿¡å·é‡
+//*sem:åˆ›å»ºçš„ä¿¡å·é‡
+//count:ä¿¡å·é‡å€¼
+//è¿”å›å€¼:ERR_OK,åˆ›å»ºOK
+// 	     ERR_MEM,åˆ›å»ºå¤±è´¥
 err_t sys_sem_new(sys_sem_t * sem, u8_t count)
 {  
 	u8_t err; 
@@ -182,113 +193,115 @@ err_t sys_sem_new(sys_sem_t * sem, u8_t count)
 	if(*sem==NULL)return ERR_MEM; 
 	OSEventNameSet(*sem,"LWIP Sem",&err);
 	LWIP_ASSERT("OSSemCreate ",*sem != NULL );
+	g_dbg_sem_new++;                                     // è°ƒè¯•è®¡æ•°
 	return ERR_OK;
 } 
-//µÈ´ıÒ»¸öĞÅºÅÁ¿
-//*sem:ÒªµÈ´ıµÄĞÅºÅÁ¿
-//timeout:³¬Ê±Ê±¼ä
-//·µ»ØÖµ:µ±timeout²»Îª0Ê±Èç¹û³É¹¦µÄ»°¾Í·µ»ØµÈ´ıµÄÊ±¼ä£¬
-//		Ê§°ÜµÄ»°¾Í·µ»Ø³¬Ê±SYS_ARCH_TIMEOUT
+//ç­‰å¾…ä¸€ä¸ªä¿¡å·é‡
+//*sem:è¦ç­‰å¾…çš„ä¿¡å·é‡
+//timeout:è¶…æ—¶æ—¶é—´
+//è¿”å›å€¼:å½“timeoutä¸ä¸º0æ—¶å¦‚æœæˆåŠŸçš„è¯å°±è¿”å›ç­‰å¾…çš„æ—¶é—´ï¼Œ
+//		å¤±è´¥çš„è¯å°±è¿”å›è¶…æ—¶SYS_ARCH_TIMEOUT
 u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 { 
 	u8_t ucErr;
 	u32_t ucos_timeout, timeout_new; 
 	if(	timeout!=0) 
 	{
-		ucos_timeout = (timeout * OS_TICKS_PER_SEC) / 1000;//×ª»»Îª½ÚÅÄÊı,ÒòÎªUCOSÑÓÊ±Ê¹ÓÃµÄÊÇ½ÚÅÄÊı,¶øLWIPÊÇÓÃms
+		ucos_timeout = (timeout * OS_TICKS_PER_SEC) / 1000;//è½¬æ¢ä¸ºèŠ‚æ‹æ•°,å› ä¸ºUCOSå»¶æ—¶ä½¿ç”¨çš„æ˜¯èŠ‚æ‹æ•°,è€ŒLWIPæ˜¯ç”¨ms
 		if(ucos_timeout < 1)
 		ucos_timeout = 1;
 	}else ucos_timeout = 0; 
 	timeout = OSTimeGet();  
 	OSSemPend (*sem,(u16_t)ucos_timeout, (u8_t *)&ucErr);
- 	if(ucErr == OS_ERR_TIMEOUT)timeout=SYS_ARCH_TIMEOUT;//ÇëÇó³¬Ê±	
+ 	if(ucErr == OS_ERR_TIMEOUT)timeout=SYS_ARCH_TIMEOUT;//è¯·æ±‚è¶…æ—¶	
 	else
 	{     
  		timeout_new = OSTimeGet(); 
 		if (timeout_new>=timeout) timeout_new = timeout_new - timeout;
 		else timeout_new = 0xffffffff - timeout + timeout_new;
- 		timeout = (timeout_new*1000/OS_TICKS_PER_SEC + 1);//Ëã³öÇëÇóÏûÏ¢»òÊ¹ÓÃµÄÊ±¼ä(ms)
+ 		timeout = (timeout_new*1000/OS_TICKS_PER_SEC + 1);//ç®—å‡ºè¯·æ±‚æ¶ˆæ¯æˆ–ä½¿ç”¨çš„æ—¶é—´(ms)
 	}
 	return timeout;
 }
-//·¢ËÍÒ»¸öĞÅºÅÁ¿
-//sem:ĞÅºÅÁ¿Ö¸Õë
+//å‘é€ä¸€ä¸ªä¿¡å·é‡
+//sem:ä¿¡å·é‡æŒ‡é’ˆ
 void sys_sem_signal(sys_sem_t *sem)
 {
 	OSSemPost(*sem);
 }
-//ÊÍ·Å²¢É¾³ıÒ»¸öĞÅºÅÁ¿
-//sem:ĞÅºÅÁ¿Ö¸Õë
+//é‡Šæ”¾å¹¶åˆ é™¤ä¸€ä¸ªä¿¡å·é‡
+//sem:ä¿¡å·é‡æŒ‡é’ˆ
 void sys_sem_free(sys_sem_t *sem)
 {
 	u8_t ucErr;
 	(void)OSSemDel(*sem,OS_DEL_ALWAYS,&ucErr );
 	if(ucErr!=OS_ERR_NONE)LWIP_ASSERT("OSSemDel ",ucErr==OS_ERR_NONE);
 	*sem = NULL;
+	g_dbg_sem_free++;                                    // è°ƒè¯•è®¡æ•°
 } 
-//²éÑ¯Ò»¸öĞÅºÅÁ¿µÄ×´Ì¬,ÎŞĞ§»òÓĞĞ§
-//sem:ĞÅºÅÁ¿Ö¸Õë
-//·µ»ØÖµ:1,ÓĞĞ§.
-//      0,ÎŞĞ§
+//æŸ¥è¯¢ä¸€ä¸ªä¿¡å·é‡çš„çŠ¶æ€,æ— æ•ˆæˆ–æœ‰æ•ˆ
+//sem:ä¿¡å·é‡æŒ‡é’ˆ
+//è¿”å›å€¼:1,æœ‰æ•ˆ.
+//      0,æ— æ•ˆ
 int sys_sem_valid(sys_sem_t *sem)
 {
 	OS_SEM_DATA  sem_data;
 	return (OSSemQuery (*sem,&sem_data) == OS_ERR_NONE )? 1:0;              
 } 
-//ÉèÖÃÒ»¸öĞÅºÅÁ¿ÎŞĞ§
-//sem:ĞÅºÅÁ¿Ö¸Õë
+//è®¾ç½®ä¸€ä¸ªä¿¡å·é‡æ— æ•ˆ
+//sem:ä¿¡å·é‡æŒ‡é’ˆ
 void sys_sem_set_invalid(sys_sem_t *sem)
 {
 	*sem=NULL;
 } 
-//arch³õÊ¼»¯
+//archåˆå§‹åŒ–
 void sys_init(void)
 { 
-    //ÕâÀï,ÎÒÃÇÔÚ¸Ãº¯Êı,²»×öÈÎºÎÊÂÇé
+    //è¿™é‡Œ,æˆ‘ä»¬åœ¨è¯¥å‡½æ•°,ä¸åšä»»ä½•äº‹æƒ…
 } 
-extern OS_STK * TCPIP_THREAD_TASK_STK;//TCP IPÄÚºËÈÎÎñ¶ÑÕ»,ÔÚlwip_commº¯Êı¶¨Òå
-//´´½¨Ò»¸öĞÂ½ø³Ì
-//*name:½ø³ÌÃû³Æ
-//thred:½ø³ÌÈÎÎñº¯Êı
-//*arg:½ø³ÌÈÎÎñº¯ÊıµÄ²ÎÊı
-//stacksize:½ø³ÌÈÎÎñµÄ¶ÑÕ»´óĞ¡
-//prio:½ø³ÌÈÎÎñµÄÓÅÏÈ¼¶
+extern OS_STK * TCPIP_THREAD_TASK_STK;//TCP IPå†…æ ¸ä»»åŠ¡å †æ ˆ,åœ¨lwip_commå‡½æ•°å®šä¹‰
+//åˆ›å»ºä¸€ä¸ªæ–°è¿›ç¨‹
+//*name:è¿›ç¨‹åç§°
+//thred:è¿›ç¨‹ä»»åŠ¡å‡½æ•°
+//*arg:è¿›ç¨‹ä»»åŠ¡å‡½æ•°çš„å‚æ•°
+//stacksize:è¿›ç¨‹ä»»åŠ¡çš„å †æ ˆå¤§å°
+//prio:è¿›ç¨‹ä»»åŠ¡çš„ä¼˜å…ˆçº§
 sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, int stacksize, int prio)
 {
 	OS_CPU_SR cpu_sr;
 	INT8U err;
-	if(strcmp(name,TCPIP_THREAD_NAME)==0)//´´½¨TCP IPÄÚºËÈÎÎñ
+	if(strcmp(name,TCPIP_THREAD_NAME)==0)//åˆ›å»ºTCP IPå†…æ ¸ä»»åŠ¡
 	{
-		OS_ENTER_CRITICAL();  //½øÈëÁÙ½çÇø 
-//		OSTaskCreate(thread,arg,(OS_STK*)&TCPIP_THREAD_TASK_STK[stacksize-1],prio);//´´½¨TCP IPÄÚºËÈÎÎñ 
-		OSTaskCreateExt(	 thread, 																					//½¨Á¢À©Õ¹ÈÎÎñ(ÈÎÎñ´úÂëÖ¸Õë) 
-											(void *)0,																					//´«µİ²ÎÊıÖ¸Õë 
-											(OS_STK*)&TCPIP_THREAD_TASK_STK[stacksize-1], 					//·ÖÅäÈÎÎñ¶ÑÕ»Õ»¶¥Ö¸Õë 
-											(INT8U)prio, 															//·ÖÅäÈÎÎñÓÅÏÈ¼¶ 
-											(INT16U)prio,															//(Î´À´µÄ)ÓÅÏÈ¼¶±êÊ¶(ÓëÓÅÏÈ¼¶ÏàÍ¬) 
-											(OS_STK *)&TCPIP_THREAD_TASK_STK[0], 											//·ÖÅäÈÎÎñ¶ÑÕ»Õ»µ×Ö¸Õë 
-											(INT32U)stacksize, 															//Ö¸¶¨¶ÑÕ»µÄÈİÁ¿(¼ìÑéÓÃ) 
-											(void *)0,																					//Ö¸ÏòÓÃ»§¸½¼ÓµÄÊı¾İÓòµÄÖ¸Õë 
-											(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//½¨Á¢ÈÎÎñÉè¶¨Ñ¡Ïî 
+		OS_ENTER_CRITICAL();  //è¿›å…¥ä¸´ç•ŒåŒº 
+//		OSTaskCreate(thread,arg,(OS_STK*)&TCPIP_THREAD_TASK_STK[stacksize-1],prio);//åˆ›å»ºTCP IPå†…æ ¸ä»»åŠ¡ 
+		OSTaskCreateExt(	 thread, 																					//å»ºç«‹æ‰©å±•ä»»åŠ¡(ä»»åŠ¡ä»£ç æŒ‡é’ˆ) 
+											(void *)0,																					//ä¼ é€’å‚æ•°æŒ‡é’ˆ 
+											(OS_STK*)&TCPIP_THREAD_TASK_STK[stacksize-1], 					//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆé¡¶æŒ‡é’ˆ 
+											(INT8U)prio, 															//åˆ†é…ä»»åŠ¡ä¼˜å…ˆçº§ 
+											(INT16U)prio,															//(æœªæ¥çš„)ä¼˜å…ˆçº§æ ‡è¯†(ä¸ä¼˜å…ˆçº§ç›¸åŒ) 
+											(OS_STK *)&TCPIP_THREAD_TASK_STK[0], 											//åˆ†é…ä»»åŠ¡å †æ ˆæ ˆåº•æŒ‡é’ˆ 
+											(INT32U)stacksize, 															//æŒ‡å®šå †æ ˆçš„å®¹é‡(æ£€éªŒç”¨) 
+											(void *)0,																					//æŒ‡å‘ç”¨æˆ·é™„åŠ çš„æ•°æ®åŸŸçš„æŒ‡é’ˆ 
+											(INT16U)OS_TASK_OPT_STK_CHK|OS_TASK_OPT_STK_CLR);		//å»ºç«‹ä»»åŠ¡è®¾å®šé€‰é¡¹ 
 		OSTaskNameSet(prio, (INT8U *)(void *)TCPIP_THREAD_NAME, &err);
-		OS_EXIT_CRITICAL();  //ÍË³öÁÙ½çÇø
+		OS_EXIT_CRITICAL();  //é€€å‡ºä¸´ç•ŒåŒº
 	} 
 	return 0;
 } 
-//lwipÑÓÊ±º¯Êı
-//ms:ÒªÑÓÊ±µÄmsÊı
+//lwipå»¶æ—¶å‡½æ•°
+//ms:è¦å»¶æ—¶çš„msæ•°
 void sys_msleep(u32_t ms)
 {
 	delay_ms(ms);
 }
-//»ñÈ¡ÏµÍ³Ê±¼ä,LWIP1.4.1Ôö¼ÓµÄº¯Êı
-//·µ»ØÖµ:µ±Ç°ÏµÍ³Ê±¼ä(µ¥Î»:ºÁÃë)
+//è·å–ç³»ç»Ÿæ—¶é—´,LWIP1.4.1å¢åŠ çš„å‡½æ•°
+//è¿”å›å€¼:å½“å‰ç³»ç»Ÿæ—¶é—´(å•ä½:æ¯«ç§’)
 u32_t sys_now(void)
 {
 	u32_t ucos_time, lwip_time;
-	ucos_time=OSTimeGet();	//»ñÈ¡µ±Ç°ÏµÍ³Ê±¼ä µÃµ½µÄÊÇUCSOµÄ½ÚÅÄÊı
-	lwip_time=(ucos_time*1000/OS_TICKS_PER_SEC+1);//½«½ÚÅÄÊı×ª»»ÎªLWIPµÄÊ±¼äMS
-	return lwip_time; 		//·µ»Ølwip_time;
+	ucos_time=OSTimeGet();	//è·å–å½“å‰ç³»ç»Ÿæ—¶é—´ å¾—åˆ°çš„æ˜¯UCSOçš„èŠ‚æ‹æ•°
+	lwip_time=(ucos_time*1000/OS_TICKS_PER_SEC+1);//å°†èŠ‚æ‹æ•°è½¬æ¢ä¸ºLWIPçš„æ—¶é—´MS
+	return lwip_time; 		//è¿”å›lwip_time;
 }
 
 
