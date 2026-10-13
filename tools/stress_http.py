@@ -261,7 +261,7 @@ def ws_worker(args, stats, deadline, stop_evt):
 # --------------------------------------------------------------------------- #
 def main():
     ap = argparse.ArgumentParser(description="有线 HTTP 备用服务器压力测试")
-    ap.add_argument("--ip", default="192.168.1.30")
+    ap.add_argument("--ip", default="192.168.1.100")
     ap.add_argument("--port", type=int, default=8088)
     ap.add_argument("--duration", type=int, default=3600, help="压测时长(秒), 默认 3600")
     ap.add_argument("--mode", choices=["mixed", "halfopen", "rst", "normal", "ws"],

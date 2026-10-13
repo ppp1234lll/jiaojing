@@ -3,59 +3,59 @@
 #include "lfs_port.h"
 
 
-/* ÆäËü²ÎÊý */
+/* å…¶å®ƒå‚æ•° */
 #define SAVEL_OTHER_PARAM_NAME  ("localnetwork.bin")
 
-/* ±¾µØÍøÂçÐÅÏ¢ */
+/* æœ¬åœ°ç½‘ç»œä¿¡æ¯ */
 #define SAVE_LOCAL_NETWORK_NAME  ("network_name")
 
-/* Ô¶¶ËÍøÂçÐÅÏ¢ */
+/* è¿œç«¯ç½‘ç»œä¿¡æ¯ */
 #define SAVE_REMOTE_NETWORK_NAME ("remote_name")
 
-/* Ô¶¶ËÍøÂç¡ª¡ª±¸·Ý 20231023*/ 
+/* è¿œç«¯ç½‘ç»œâ€”â€”å¤‡ä»½ 20231023*/ 
 #define SAVE_REMOTE_BACKUPS_NAME ("backups")
-/* Éè±¸ÏêÏ¸:id¡¢Ãû³Æ¡¢ÃÜÂëµÈ */
+/* è®¾å¤‡è¯¦ç»†:idã€åç§°ã€å¯†ç ç­‰ */
 #define SAVE_DEVICE_PARAMETER_NAME ("device_name")
 
-/* ÍâÉè¿ØÖÆ²ÎÊý£ºÎÂ¶È¿ØÖÆ¡¢ÉãÏñÍ·IP */
+/* å¤–è®¾æŽ§åˆ¶å‚æ•°ï¼šæ¸©åº¦æŽ§åˆ¶ã€æ‘„åƒå¤´IP */
 #define SAVE_COMPARISION_PARAMETER ("comparision_param")
 
-/* ÉãÏñÍ·Ïà¹ØÐÅÏ¢ */
+/* æ‘„åƒå¤´ç›¸å…³ä¿¡æ¯ */
 #define SAVE_CAREMA_PARAMETER ("carema_param")
 
-/* Í¨ÐÅÏà¹Ø²ÎÊý */
+/* é€šä¿¡ç›¸å…³å‚æ•° */
 #define SAVE_COM_PARAMETER_NAME ("comparameter")
 
-/* ¸üÐÂµØÖ· */
+/* æ›´æ–°åœ°å€ */
 #define SAVE_UPDATE_FILE_NAME ("updateaddr")
 
-/* ÐÂÔö·þÎñÆ÷ÐÅÏ¢ */
+/* æ–°å¢žæœåŠ¡å™¨ä¿¡æ¯ */
 #define SAVE_ONLY_SEND_IP_NAME ("only_send_ip")
 
-/* Ïà¹ØãÐÖµ£ºµçÑ¹ µçÁ÷ ½Ç¶È */
+/* ç›¸å…³é˜ˆå€¼ï¼šç”µåŽ‹ ç”µæµ è§’åº¦ */
 #define SAVE_THRESHOLD_PARAMETER ("threshold_params")  // 20230720
 
-/* ¸üÐÂÎÄ¼þÐÅÏ¢ */
+/* æ›´æ–°æ–‡ä»¶ä¿¡æ¯ */
 #define SAVE_UPDATE_FILE_INFOR_NAME ("upfileinfor.bin")
 
 
 /************************************************************
 *
 * Function name	: save_init_function
-* Description	: ´æ´¢¹¦ÄÜ³õÊ¼»¯º¯Êý
+* Description	: å­˜å‚¨åŠŸèƒ½åˆå§‹åŒ–å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void save_init_function(void)
 {
-	lfs_init_function();     						// ¹ÒÔØÎÄ¼þÏµÍ³
+	lfs_init_function();     						// æŒ‚è½½æ–‡ä»¶ç³»ç»Ÿ
 }
 
 /************************************************************
 *
 * Function name	: save_clear_file_function
-* Description	: »Ö¸´³ö³§»¯
+* Description	: æ¢å¤å‡ºåŽ‚åŒ–
 * Parameter		: 
 * Return		: 
 *	
@@ -88,7 +88,7 @@ void save_clear_file_function(uint8_t mode)
 /************************************************************
 *
 * Function name	: save_stroage_local_network
-* Description	: ´æ´¢±¾µØÍøÂç²ÎÊý
+* Description	: å­˜å‚¨æœ¬åœ°ç½‘ç»œå‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -99,7 +99,7 @@ int8_t save_stroage_local_network(struct local_ip_t *local)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp   = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_LOCAL_NETWORK_NAME, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -122,7 +122,7 @@ int8_t save_stroage_local_network(struct local_ip_t *local)
 /************************************************************
 *
 * Function name	: save_read_local_network
-* Description	: ¶ÁÈ¡±¾µØÍøÂçÉèÖÃ
+* Description	: è¯»å–æœ¬åœ°ç½‘ç»œè®¾ç½®
 * Parameter		: 
 * Return		: 
 *	
@@ -140,25 +140,33 @@ int8_t save_read_local_network(struct local_ip_t *local)
 	{
 		err = lfs_file_rewind(&g_lfs_t, &lfs_fp);
 		err = lfs_file_read(&g_lfs_t, &lfs_fp, local,sizeof(struct local_ip_t));
+		err = lfs_file_close(&g_lfs_t, &lfs_fp);
+
+		/* ä¸€æ¬¡æ€§å…¼å®¹è¿ç§»: æ—§é»˜è®¤IP 192.168.1.30 -> æ–°é»˜è®¤(DEFALUT_LOCAL_IPx),
+		   ä½¿æœ¬æœº/æ–‡ä»¶é‡Œä»æ˜¯æ—§åœ°å€çš„è®¾å¤‡æ— éœ€æ¸…Flahå³å¯åˆ‡åˆ°æ–°åœ°å€ */
+		if((local->ip[0]==192)&&(local->ip[1]==168)&&(local->ip[2]==1)&&(local->ip[3]==30))
+		{
+			save_read_default_local_network(local);
+			save_stroage_local_network(local);
+		}
 	}
 	else
 	{
-		/* ¶ÁÈ¡Ä¬ÈÏÖµ */
+		/* è¯»å–é»˜è®¤å€¼ */
 		err = lfs_file_close(&g_lfs_t, &lfs_fp);
 		
 		save_read_default_local_network(local);
 		save_stroage_local_network(local);
 		ret = -1;
 	}
-	err = lfs_file_close(&g_lfs_t, &lfs_fp);
-	
+
 	return ret;
 }
 
 /************************************************************
 *
 * Function name	: save_read_default_local_network
-* Description	: ¶ÁÈ¡Ä¬ÈÏ²ÎÊý
+* Description	: è¯»å–é»˜è®¤å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -166,19 +174,19 @@ int8_t save_read_local_network(struct local_ip_t *local)
 void save_read_default_local_network(struct local_ip_t *local)
 {
 	uint32_t data= 0;
-	uint8_t  mac[8] = {0}; 			// MACµØÖ· 
+	uint8_t  mac[8] = {0}; 			// MACåœ°å€ 
 	uint8_t  ret = 0;
 	
 	data = *(vu32*)(0X1FFF7A10);
 	
-	/* ±¾»úipµØÖ· */
+	/* æœ¬æœºipåœ°å€ */
 	local->ip[0] = DEFALUT_LOCAL_IP0;
 	local->ip[1] = DEFALUT_LOCAL_IP1;
 	local->ip[2] = DEFALUT_LOCAL_IP2;
 	local->ip[3] = DEFALUT_LOCAL_IP3;
 	sprintf(local->ip_str,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
 	
-	/* ±¾»úMAC */
+	/* æœ¬æœºMAC */
 	STMFLASH_Read(DEVICE_MAC_ADDR, (uint32_t *)mac, 2);
 	for(uint8_t i=0;i<6;i++)
 	{
@@ -187,10 +195,10 @@ void save_read_default_local_network(struct local_ip_t *local)
 	}
 	if(ret == 6)
 	{
-		local->mac[0]=2;//¸ßÈý×Ö½Ú(IEEE³ÆÖ®Îª×éÖ¯Î¨Ò»ID,OUI)µØÖ·¹Ì¶¨Îª:2.0.0
+		local->mac[0]=2;//é«˜ä¸‰å­—èŠ‚(IEEEç§°ä¹‹ä¸ºç»„ç»‡å”¯ä¸€ID,OUI)åœ°å€å›ºå®šä¸º:2.0.0
 		local->mac[1]=0;
 		local->mac[2]=0;
-		local->mac[3]=(data>>16)&0XFF;//µÍÈý×Ö½ÚÓÃSTM32µÄÎ¨Ò»ID
+		local->mac[3]=(data>>16)&0XFF;//ä½Žä¸‰å­—èŠ‚ç”¨STM32çš„å”¯ä¸€ID
 		local->mac[4]=(data>>8)&0XFF;
 		local->mac[5]=data&0XFF; 	
 	}	
@@ -205,28 +213,28 @@ void save_read_default_local_network(struct local_ip_t *local)
 	}
 	STMFLASH_Write_SAVE(DEVICE_FLASH_STORE,DEVICE_MAC_ADDR,(uint32_t *)&local->mac,2);		
 
-	/* ±¾»ú×ÓÍøÑÚÂë */
+	/* æœ¬æœºå­ç½‘æŽ©ç  */
 	local->netmask[0]=DEFALUT_NETMASK0;	
 	local->netmask[1]=DEFALUT_NETMASK1;
 	local->netmask[2]=DEFALUT_NETMASK2;
 	local->netmask[3]=DEFALUT_NETMASK3;
-	/* ±¾»úÄ¬ÈÏÍø¹Ø */
+	/* æœ¬æœºé»˜è®¤ç½‘å…³ */
 	local->gateway[0]=DEFALUT_GATEWAY0;	
 	local->gateway[1]=DEFALUT_GATEWAY1;
 	local->gateway[2]=DEFALUT_GATEWAY2;
 	local->gateway[3]=DEFALUT_GATEWAY3;	
 	
-	/* ±¾»úDNS */
+	/* æœ¬æœºDNS */
 	local->dns[0] = DEFALUT_DNS0;
 	local->dns[1] = DEFALUT_DNS1;
 	local->dns[2] = DEFALUT_DNS2;
 	local->dns[3] = DEFALUT_DNS3;
 	
-	local->port = DEFALUT_PORT; // ×Ô¶¯Ä£Ê½
+	local->port = DEFALUT_PORT; // è‡ªåŠ¨æ¨¡å¼
 	
-	local->server_mode = DEFALUT_SERVERMODE; // Í¬Ê±Á¬½Ó
+	local->server_mode = DEFALUT_SERVERMODE; // åŒæ—¶è¿žæŽ¥
 	
-	/* ×é²¥µØÖ· */
+	/* ç»„æ’­åœ°å€ */
 	local->multicast_ip[0] = DEFALUT_MULTICAST_IP0;
 	local->multicast_ip[1] = DEFALUT_MULTICAST_IP1;
 	local->multicast_ip[2] = DEFALUT_MULTICAST_IP2;
@@ -236,7 +244,7 @@ void save_read_default_local_network(struct local_ip_t *local)
 	memset(local->ping_ip,0,sizeof(local->ping_ip));
 	memset(local->ping_sub_ip,0,sizeof(local->ping_sub_ip));
 	
-	local->search_mode = 1; // PINGÄ£Ê½
+	local->search_mode = 1; // PINGæ¨¡å¼
 }
 
 /************************************************************
@@ -253,7 +261,7 @@ int8_t save_stroage_remote_ip_function(struct remote_ip *remote)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp	 = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_REMOTE_NETWORK_NAME, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -295,7 +303,7 @@ int8_t save_read_remote_ip_function(struct remote_ip *remote)
 	}
 	else
 	{
-		/* ¶ÁÈ¡Ä¬ÈÏÖµ */
+		/* è¯»å–é»˜è®¤å€¼ */
 		err = lfs_file_close(&g_lfs_t, &lfs_fp);
 		
 		save_read_default_remote_ip(remote);
@@ -312,14 +320,14 @@ int8_t save_read_remote_ip_function(struct remote_ip *remote)
 /************************************************************
 *
 * Function name	: save_read_default_remote_ip
-* Description	: ¶ÁÈ¡Ä¬ÈÏÖµ
+* Description	: è¯»å–é»˜è®¤å€¼
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void save_read_default_remote_ip(struct remote_ip *remote)
 {
-	/* Ô¶³Ì·þÎñÆ÷Êý¾Ý */
+	/* è¿œç¨‹æœåŠ¡å™¨æ•°æ® */
 	memset(remote->outside_iporname,0,sizeof(remote->outside_iporname));
 	strcpy((char*)remote->outside_iporname,"47.104.250.225");
 	remote->outside_port  = 6012;
@@ -340,7 +348,7 @@ int8_t save_stroage_comparision_parameter(comparision_parameter_t *param)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp   = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_COMPARISION_PARAMETER, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -362,7 +370,7 @@ int8_t save_stroage_comparision_parameter(comparision_parameter_t *param)
 /************************************************************
 *
 * Function name	: save_read_default_comparision_parameter
-* Description	: ¶ÁÈ¡Ä¬ÈÏ²ÎÊý
+* Description	: è¯»å–é»˜è®¤å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -397,7 +405,7 @@ int8_t save_read_comparision_parameter(comparision_parameter_t *param)
 	{
 		err = lfs_file_close(&g_lfs_t, &lfs_fp);
 		save_read_default_comparision_parameter(param);
-		/* ´æ´¢ */
+		/* å­˜å‚¨ */
 		save_stroage_comparision_parameter(param);
 		ret = -1;
 	}
@@ -410,7 +418,7 @@ int8_t save_read_comparision_parameter(comparision_parameter_t *param)
 /************************************************************
 *
 * Function name	: save_storage_device_parameter_function
-* Description	: ´æ´¢Éè±¸Ïà¹Ø²ÎÊý£ºID¡¢ÃÜÂëµÈ
+* Description	: å­˜å‚¨è®¾å¤‡ç›¸å…³å‚æ•°ï¼šIDã€å¯†ç ç­‰
 * Parameter		: 
 * Return		: 
 *	
@@ -421,7 +429,7 @@ int8_t save_storage_device_parameter_function(struct device_param *param)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp   = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_DEVICE_PARAMETER_NAME, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -444,7 +452,7 @@ int8_t save_storage_device_parameter_function(struct device_param *param)
 /************************************************************
 *
 * Function name	: save_read_default_device_paramter_function
-* Description	: ¶ÁÈ¡Éè±¸Ïà¹Ø²ÎÊý£ºID¡¢ÃÜÂëµÈ
+* Description	: è¯»å–è®¾å¤‡ç›¸å…³å‚æ•°ï¼šIDã€å¯†ç ç­‰
 * Parameter		: 
 * Return		: 
 *	
@@ -466,13 +474,13 @@ void save_read_default_device_paramter_function(struct device_param *param)
 	memset(param->name,0,sizeof(param->name));
 	memset(param->password,0,sizeof(param->password));
 	strcpy((char*)param->password,DEFALUT_PASSWORD);
-	param->default_password = 1; // Ä¬ÈÏ¿ª»úÐèÒªÐÞ¸ÄÃÜÂë
+	param->default_password = 1; // é»˜è®¤å¼€æœºéœ€è¦ä¿®æ”¹å¯†ç 
 }
 
 /************************************************************
 *
 * Function name	: save_read_device_paramter_function
-* Description	: ¶ÁÈ¡Éè±¸Ïà¹Ø²ÎÊý£ºID¡¢ÃÜÂëµÈ
+* Description	: è¯»å–è®¾å¤‡ç›¸å…³å‚æ•°ï¼šIDã€å¯†ç ç­‰
 * Parameter		: 
 * Return		: 
 *	
@@ -494,7 +502,7 @@ int8_t save_read_device_paramter_function(struct device_param *param)
 	{
 		err = lfs_file_close(&g_lfs_t, &lfs_fp);
 		save_read_default_device_paramter_function(param);
-		/* ´æ´¢ */
+		/* å­˜å‚¨ */
 		save_storage_device_parameter_function(param);
 		ret = -1;
 	}
@@ -506,7 +514,7 @@ int8_t save_read_device_paramter_function(struct device_param *param)
 /************************************************************
 *
 * Function name	: save_stroage_com_param_function
-* Description	: ´æ´¢Í¨ÐÅÏà¹Ø²ÎÊý
+* Description	: å­˜å‚¨é€šä¿¡ç›¸å…³å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -517,7 +525,7 @@ int8_t save_stroage_com_param_function(com_param_t *param)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp   = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_COM_PARAMETER_NAME, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -550,15 +558,15 @@ void save_read_default_com_param_function(com_param_t *param)
 	param->report 			= DEFALUT_REPORT; // 60s
 	param->ping   			= DEFALUT_PING;
 	param->dev_ping 		= DEFALUT_DEV_PING;
-	param->network_time = DEFALUT_NETWORK_DELAY;  // ÍøÂçÑÓÊ±Ê±¼ä  20220308
+	param->network_time = DEFALUT_NETWORK_DELAY;  // ç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
 	param->fan_time  	= 0; 
-	param->reload  	    = DEFALUT_RELOAD_TIME; // ÖØÆôÊ±¼ä       20240904
+	param->reload  	    = DEFALUT_RELOAD_TIME; // é‡å¯æ—¶é—´       20240904
 }
 
 /************************************************************
 *
 * Function name	: save_read_com_param_function
-* Description	: ¶ÁÈ¡Í¨ÐÅÏà¹Ø²ÎÊý
+* Description	: è¯»å–é€šä¿¡ç›¸å…³å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -580,7 +588,7 @@ int8_t save_read_com_param_function(com_param_t *param)
 	{
 		err = lfs_file_close(&g_lfs_t, &lfs_fp);
 		save_read_default_com_param_function(param);
-		/* ´æ´¢ */
+		/* å­˜å‚¨ */
 		save_stroage_com_param_function(param);
 		ret = -1;
 	}
@@ -594,7 +602,7 @@ int8_t save_read_com_param_function(com_param_t *param)
 /************************************************************
 *
 * Function name	: save_stroage_update_addr
-* Description	: ´æ´¢¸üÐÂµØÖ·
+* Description	: å­˜å‚¨æ›´æ–°åœ°å€
 * Parameter		: 
 * Return		: 
 *	
@@ -615,7 +623,7 @@ int8_t save_stroage_update_addr(uint8_t *ip,uint32_t port)
 	temp[6] = (port>>16)&0xff;
 	temp[7] = (port>>24)&0xff;
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_UPDATE_FILE_NAME, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -638,7 +646,7 @@ int8_t save_stroage_update_addr(uint8_t *ip,uint32_t port)
 /************************************************************
 *
 * Function name	: save_read_update_addr
-* Description	: ¶ÁÈ¡¸üÐÂµØÖ·
+* Description	: è¯»å–æ›´æ–°åœ°å€
 * Parameter		: 
 * Return		: 
 *	
@@ -700,7 +708,7 @@ int8_t save_stroage_carema_parameter(carema_t *param)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp   = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_CAREMA_PARAMETER, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -723,7 +731,7 @@ int8_t save_stroage_carema_parameter(carema_t *param)
 /************************************************************
 *
 * Function name	: save_read_default_carema_parameter
-* Description	: ¶ÁÈ¡Ä¬ÈÏ²ÎÊý
+* Description	: è¯»å–é»˜è®¤å‚æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -783,7 +791,7 @@ int8_t save_stroage_threshold_parameter(struct threshold_params *param)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp   = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_THRESHOLD_PARAMETER, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -806,7 +814,7 @@ int8_t save_stroage_threshold_parameter(struct threshold_params *param)
 /************************************************************
 *
 * Function name	: save_read_default_carema_parameter
-* Description	: ¶ÁÈ¡Ä¬ÈÏ²ÎÊý
+* Description	: è¯»å–é»˜è®¤å‚æ•°
 * Parameter		: 
 * Return		: 
 *	   20230720
@@ -876,7 +884,7 @@ int8_t save_stroage_backups_function(sys_backups_t *param)
  	int 		err 	 = 0;
 	lfs_file_t  lfs_fp	 = {0};
 	
-	/* Êý¾Ý±£´æ */
+	/* æ•°æ®ä¿å­˜ */
 	err = lfs_file_open(&g_lfs_t, &lfs_fp, SAVE_REMOTE_BACKUPS_NAME, LFS_O_RDWR | LFS_O_CREAT);
 	if(err == 0)
 	{
@@ -918,7 +926,7 @@ int8_t save_read_backups_function(sys_backups_t *param)
 	}
 	else
 	{
-		/* ¶ÁÈ¡Ä¬ÈÏÖµ */
+		/* è¯»å–é»˜è®¤å€¼ */
 		err = lfs_file_close(&g_lfs_t, &lfs_fp);
 		
 		save_read_default_backups(param);
@@ -934,14 +942,14 @@ int8_t save_read_backups_function(sys_backups_t *param)
 /************************************************************
 *
 * Function name	: save_read_default_backups
-* Description	: ¶ÁÈ¡Ä¬ÈÏÖµ
+* Description	: è¯»å–é»˜è®¤å€¼
 * Parameter		: 
 * Return		: 
 *	 20231022
 ************************************************************/
 void save_read_default_backups(sys_backups_t *param)
 {
-	/* Ô¶³Ì·þÎñÆ÷Êý¾Ý */
+	/* è¿œç¨‹æœåŠ¡å™¨æ•°æ® */
 	memset(param->remote.outside_iporname,0,sizeof(param->remote.outside_iporname));
 	strcpy((char*)param->remote.outside_iporname,"47.104.250.225");
 	param->remote.outside_port  = 6012;
