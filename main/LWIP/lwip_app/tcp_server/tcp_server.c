@@ -13,6 +13,9 @@
 
 struct netconn *tcp_server_conn, *tcp_server_newconn;
 
+volatile uint8_t g_dbg_accept_err_reset = 0;   /* 诊断: accept 持续异常失败触发的网络重启次数 */
+extern void eth_set_network_reset(void);       /* 定义在 APP/TASK/src/eth.c */
+
 //TCP客户端任务
 #define TCPSERVER_PRIO			10
 //任务堆栈大小
@@ -25,9 +28,10 @@ static void tcp_server_thread(void *arg)
 {
 	err_t err;
 	struct local_ip_t  *local = app_get_local_network_function();
-	INT8U osres;	
+	INT8U osres;
+	static uint8_t accept_err_run = 0;   // netconn_accept 连续异常失败计数(自愈用)
 	LWIP_UNUSED_ARG(arg);
-	
+
 	if(TCP_SERVER_DEBUG) printf("create tcp_server_thread \r\n");
 	
 	while (1) 
@@ -63,8 +67,9 @@ static void tcp_server_thread(void *arg)
 		{
 			err = netconn_accept(tcp_server_conn,&tcp_server_newconn);  //接收连接请求
 			if (err == ERR_OK)    //处理新连接的数据
-			{ 		
-				if(TCP_SERVER_DEBUG) printf("netconn_accept\n");			
+			{
+				accept_err_run = 0;
+				if(TCP_SERVER_DEBUG) printf("netconn_accept\n");
 				tcp_server_newconn->recv_timeout = 10;
 				/* 关键: 给发送也设超时。对端(平台)不读取时 netconn_write 会长期阻塞在
 				   发送缓冲/接收窗口上; 若此时上层因"槽位被占用"要关闭该连接, 任务就会
@@ -82,6 +87,22 @@ static void tcp_server_thread(void *arg)
 
 				led_control_function(LD_LAN,LD_FLICKER);
 				lwipdev.tcp_server_link = 1; // 标志位置1
+			}
+			else if(err != ERR_TIMEOUT)   // ERR_TIMEOUT=空闲轮询属正常; 其余(内存耗尽等)为异常
+			{
+				/* 兜底自愈: accept 持续异常失败(典型为 TCP_PCB/内存池耗尽——极端场景下
+				   pcb 因优雅关闭无法完成而滞留) 时, 网络层已无法接受任何新连接且不会自行
+				   恢复; 触发一次网络重启(lwip 重建 memp 池与 pcb), 避免设备永久失去服务。 */
+				if(++accept_err_run >= 100u)     // 连续100次异常失败
+				{
+					accept_err_run = 0;
+					g_dbg_accept_err_reset++;
+					eth_set_network_reset();     // 网络重启(lwip 重建内存池)
+				}
+			}
+			else
+			{
+				accept_err_run = 0;              // ERR_TIMEOUT: 正常空闲轮询, 清计数
 			}
 		}
 		/* 停止tcp */

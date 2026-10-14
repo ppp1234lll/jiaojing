@@ -30,6 +30,11 @@
 struct ip_addr DNS_Addr;
 uint8_t etharpError;
 
+/* tcpip 线程心跳(由 LWIP tcpip_thread 每循环递增, 定义在 tcpip.c):
+   一旦 tcpip 核心线程挂死(如陈旧 netconn 句柄引发的内核数据破坏), 输入消息无人处理,
+   设备表现为"能连不能答"的静默失效。此处检测心跳停跳并整机复位自愈。 */
+extern volatile u32_t g_dbg_tcpip_alive;
+
 /************************************************************
 *
 * Function name	: eth_network_line_status_detection_function
@@ -50,6 +55,26 @@ void eth_network_line_status_detection_function(void)
 		eth_udp_connect_control_function();  // 组播UDP连接	
 		eth_ping_detection_function();		   /* PING协议 */
 		
+		/* tcpip 线程心跳看门狗(10ms 周期): 网络运行期间心跳 5s 无变化即整机复位自愈 */
+		if(lwipdev.netif_state == 1)
+		{
+			static u32_t tcpip_alive_last = 0;
+			static u16_t tcpip_stall_cnt  = 0;
+			if(g_dbg_tcpip_alive == tcpip_alive_last)
+			{
+				if(++tcpip_stall_cnt >= 500u)     /* 500 * 10ms = 5s */
+				{
+					tcpip_stall_cnt = 0;
+					NVIC_SystemReset();           /* tcpip 线程挂死: 复位自愈(约十几秒恢复服务) */
+				}
+			}
+			else
+			{
+				tcpip_stall_cnt  = 0;
+				tcpip_alive_last = g_dbg_tcpip_alive;
+			}
+		}
+
 		/* 主网络状态1、2检测 */
 		if(lwipdev.netif_state == 1) 
 		{

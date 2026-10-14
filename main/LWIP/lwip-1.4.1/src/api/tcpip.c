@@ -70,6 +70,9 @@ sys_mutex_t lock_tcpip_core;
  *
  * @param arg unused argument
  */
+/* 本地诊断: tcpip 线程心跳(定义在本文件后部; eth 任务读取它检测线程挂死) */
+extern volatile u32_t g_dbg_tcpip_alive;
+
 static void
 tcpip_thread(void *arg)
 {
@@ -84,6 +87,7 @@ tcpip_thread(void *arg)
   while (1) {                          /* MAIN Loop */
     UNLOCK_TCPIP_CORE();
     LWIP_TCPIP_THREAD_ALIVE();
+    g_dbg_tcpip_alive++;               /* 本地: 心跳递增, eth 任务检测到停跳即整机复位 */
     /* wait for a message, timeouts are processed while waiting */
     sys_timeouts_mbox_fetch(&mbox, (void **)&msg);
     LOCK_TCPIP_CORE();
@@ -170,6 +174,7 @@ tcpip_thread(void *arg)
 volatile u32_t g_dbg_tcpip_inpkt_fail = 0;    /* 累计失败次数(诊断用, 可用SWD读取) */
 static u32_t tcpip_inpkt_fail_run = 0;        /* 连续失败计数(达到阈值触发网络重启) */
 extern void eth_set_network_reset(void);      /* 定义在 APP/TASK/src/eth.c */
+volatile u32_t g_dbg_tcpip_alive = 0;         /* tcpip 线程心跳(eth 任务据此检测线程挂死并复位自愈) */
 
 err_t
 tcpip_input(struct pbuf *p, struct netif *inp)

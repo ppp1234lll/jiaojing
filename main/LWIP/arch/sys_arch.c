@@ -100,6 +100,26 @@ static u32_t    s_ml_idx = 0;
 volatile u32_t g_dbg_mbox_gen = 0;         /* 邮箱分配代数计数 */
 volatile u32_t g_dbg_mbox_double_real = 0; /* 真·重复释放(地址已被注销) */
 volatile u32_t g_dbg_mbox_stale_ptr = 0;   /* 陈旧指针(地址存活但代数不符) */
+volatile u32_t g_dbg_mbox_use_reject = 0;  /* 收发路径拒绝对陈旧/悬空邮箱的操作次数 */
+
+/* 邮箱所有权校验: 返回 0=合法; 1=地址未登记(已被释放: 真·重复释放或悬空指针);
+   2=代数不符(该 TQ_DESCR 内存已被新邮箱复用, 调用者拿的是陈旧指针)。
+   除 free 外, 收发路径(sys_mbox_post/trypost/sys_arch_mbox_fetch)也必须用它拒绝
+   对陈旧邮箱的操作——否则 OSQPost/OSQPend 会通过垃圾 pQ 写穿内核对象
+   (OS_EVENT/OS_Q 表, 实测曾把 OSTCBCur 改写成垃圾导致整机挂死)。 */
+static u8_t sys_mbox_own_check(PQ_DESCR m_box)
+{
+	u32_t k;
+	if(m_box==NULL)return 1;
+	for(k=0;k<MBOX_LIVE_HIST;k++)
+	{
+		if(s_ml_addr[k]==m_box)
+		{
+			return (s_ml_gen[k]==m_box->dbg_gen)?0:2;
+		}
+	}
+	return 1;
+}
 
 /* 取"本函数的调用者返回地址"(即调用 sys_mbox_new/free 那条 BL 的下一条指令地址,
    位于调用者内部; Thumb 位为1, 查 map 时用 (lr & ~1))。
@@ -178,27 +198,22 @@ void sys_mbox_free(sys_mbox_t * mbox)
 	   两种情况都直接返回, 不再 OSQDel/myfree, 保证 uCOS 队列/事件池与 SRAM 堆不受破坏。 */
 	{
 		u32_t k;
-		u8_t found = 0;
-		for(k=0;k<MBOX_LIVE_HIST;k++)
+		u8_t own = sys_mbox_own_check(m_box);
+		if(own==2)
 		{
-			if(s_ml_addr[k]==m_box)
-			{
-				found = 1;
-				if(s_ml_gen[k]!=m_box->dbg_gen)
-				{
-					g_dbg_mbox_stale_ptr++;              // 陈旧指针(内存已被新邮箱复用)
-					*mbox=NULL;
-					return;
-				}
-				s_ml_addr[k]=NULL;s_ml_gen[k]=0;         // 注销所有权
-				break;
-			}
+			g_dbg_mbox_stale_ptr++;                      // 陈旧指针(内存已被新邮箱复用)
+			*mbox=NULL;
+			return;
 		}
-		if(!found)
+		if(own==1)
 		{
 			g_dbg_mbox_double_real++;                    // 真·重复释放(地址已被注销)
 			*mbox=NULL;
 			return;
+		}
+		for(k=0;k<MBOX_LIVE_HIST;k++)                    // 注销所有权
+		{
+			if(s_ml_addr[k]==m_box){s_ml_addr[k]=NULL;s_ml_gen[k]=0;break;}
 		}
 	}
 
@@ -244,9 +259,17 @@ void sys_mbox_free(sys_mbox_t * mbox)
 //*mbox:消息邮箱
 //*msg:要发送的消息
 void sys_mbox_post(sys_mbox_t *mbox,void *msg)
-{    
-	if(msg==NULL)msg=(void*)&pvNullPointer;//当msg为空时 msg等于pvNullPointer指向的值 
-	while(OSQPost((*mbox)->pQ,msg)!=OS_ERR_NONE);//死循环等待消息发送成功 
+{
+	sys_mbox_t m_box=*mbox;
+	/* 所有权校验: 陈旧/悬空邮箱一律拒收(丢弃该条消息), 严禁进入 OSQPost 写穿内核对象;
+	   原实现的 while 重试循环在邮箱失效时会永久自旋, 也是挂死源之一 */
+	if(sys_mbox_own_check(m_box)!=0)
+	{
+		g_dbg_mbox_use_reject++;
+		return;
+	}
+	if(msg==NULL)msg=(void*)&pvNullPointer;//当msg为空时 msg等于pvNullPointer指向的值
+	while(OSQPost(m_box->pQ,msg)!=OS_ERR_NONE);//死循环等待消息发送成功
 }
 //尝试向一个消息邮箱发送消息
 //此函数相对于sys_mbox_post函数只发送一次消息，
@@ -256,9 +279,15 @@ void sys_mbox_post(sys_mbox_t *mbox,void *msg)
 //返回值:ERR_OK,发送OK
 // 	     ERR_MEM,发送失败
 err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
-{ 
-	if(msg==NULL)msg=(void*)&pvNullPointer;//当msg为空时 msg等于pvNullPointer指向的值 
-	if((OSQPost((*mbox)->pQ, msg))!=OS_ERR_NONE)return ERR_MEM;
+{
+	sys_mbox_t m_box=*mbox;
+	if(sys_mbox_own_check(m_box)!=0)   /* 所有权校验: 陈旧/悬空邮箱按投递失败处理(丢包) */
+	{
+		g_dbg_mbox_use_reject++;
+		return ERR_MEM;
+	}
+	if(msg==NULL)msg=(void*)&pvNullPointer;//当msg为空时 msg等于pvNullPointer指向的值
+	if((OSQPost(m_box->pQ, msg))!=OS_ERR_NONE)return ERR_MEM;
 	return ERR_OK;
 }
 
@@ -274,12 +303,19 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 	u32_t ucos_timeout,timeout_new,elapsed;
 	void *temp;
 	sys_mbox_t m_box=*mbox;
+	if(sys_mbox_own_check(m_box)!=0)   /* 所有权校验: 陈旧/悬空邮箱按"无消息"处理,
+	                                      严禁 OSQPend 通过垃圾事件写穿内核对象 */
+	{
+		g_dbg_mbox_use_reject++;
+		if(msg!=NULL)*msg=NULL;
+		return SYS_ARCH_TIMEOUT;
+	}
 	if(timeout!=0)
 	{
 		ucos_timeout=(timeout*OS_TICKS_PER_SEC)/1000; //转换为节拍数,因为UCOS延时使用的是节拍数,而LWIP是用ms
 		if(ucos_timeout<1)ucos_timeout=1;//至少1个节拍
-	}else ucos_timeout = 0; 
-	timeout = OSTimeGet(); //获取系统时间 
+	}else ucos_timeout = 0;
+	timeout = OSTimeGet(); //获取系统时间
 	temp=OSQPend(m_box->pQ,(u16_t)ucos_timeout,&ucErr); //请求消息队列,等待时限为ucos_timeout
 
 	if(ucErr!=OS_ERR_NONE)   /* 请求超时(OS_ERR_TIMEOUT), 或事件对象无效等异常情况:
