@@ -65,6 +65,35 @@ static void sys_arch_pool_fail_check(void)
 	}
 }
 
+/* ================= 邮箱"分配/释放来源"追踪(诊断用) =================
+   目的: 定位"非属主释放/重复释放"——它会让一对 uCOS OS_Q+OS_EVENT 丢失(池退化),
+   最终 netconn_alloc 失败、设备对新连接一律回 RST。
+   做法: 记录最近若干次分配/释放的 TQ_DESCR 地址与调用者返回地址;
+        命中重复释放时保存"两次释放各自的调用者", 离线用 Keil map 文件即可反查函数名。
+   查询: g_dbg_mbox_df_cnt(次数)、g_dbg_mbox_df_lr(后一次释放者)、
+        g_dbg_mbox_df_prev_lr(首次释放者)、g_dbg_mbox_df_addr,
+        以及镜像数组 g_dbg_mbox_hist_addr/lr 与 g_dbg_mbox_alc_addr/lr 供 SWD 直接读取。
+   注: 该追踪只在 sys_mbox_new/free 里做几十条指令, 对性能影响可忽略, 定位完成后可整体去掉。 */
+#define SYS_MBOX_HIST        8
+static sys_mbox_t s_mbox_hist[SYS_MBOX_HIST];            /* 最近释放的邮箱地址(环形) */
+static u32_t      s_mbox_hist_lr[SYS_MBOX_HIST];         /* 对应释放者返回地址 */
+static u32_t      s_mbox_hist_idx = 0;
+static sys_mbox_t s_mbox_alc[SYS_MBOX_HIST];             /* 最近分配的邮箱地址(环形) */
+static u32_t      s_mbox_alc_lr[SYS_MBOX_HIST];          /* 对应分配者返回地址 */
+static u32_t      s_mbox_alc_idx = 0;
+
+volatile u32_t g_dbg_mbox_hist_addr[SYS_MBOX_HIST];      /* 上述两个环形的镜像, 便于 SWD 直接读取 */
+volatile u32_t g_dbg_mbox_hist_lr[SYS_MBOX_HIST];
+volatile u32_t g_dbg_mbox_hist_ptr;
+volatile u32_t g_dbg_mbox_alc_addr[SYS_MBOX_HIST];
+volatile u32_t g_dbg_mbox_alc_lr[SYS_MBOX_HIST];
+volatile u32_t g_dbg_mbox_alc_ptr;
+
+/* 取"本函数的调用者返回地址"(即调用 sys_mbox_new/free 那条 BL 的下一条指令地址,
+   位于调用者内部; Thumb 位为1, 查 map 时用 (lr & ~1))。
+   注意: 必须在本函数体内直接使用 __builtin_return_address(0), 若放到辅助函数里
+   取到的会是"辅助函数自己的返回地址"(即本函数内部地址), 无意义。 */
+
 
 //创建一个消息邮箱
 //*mbox:消息邮箱
@@ -73,6 +102,7 @@ static void sys_arch_pool_fail_check(void)
 //         其他,创建失败
 err_t sys_mbox_new( sys_mbox_t *mbox, int size)
 {
+	u32_t lr = (u32_t)__builtin_return_address(0);   // 创建者返回地址(诊断: 反查邮箱创建来源)
 	(*mbox)=mymalloc(SRAMIN,sizeof(TQ_DESCR));	//为消息邮箱申请内存
 	mymemset((*mbox),0,sizeof(TQ_DESCR)); 		//清除mbox的内存
 	if(*mbox)//内存分配成功
@@ -83,6 +113,13 @@ err_t sys_mbox_new( sys_mbox_t *mbox, int size)
 		if((*mbox)->pQ!=NULL)
 		{
 			g_dbg_mbox_new++;                                // 调试计数
+			g_dbg_mbox_alloc_lr = lr;                        // 诊断: 记录最近一次创建来源
+			s_mbox_alc[s_mbox_alc_idx]    = *mbox;           /* 诊断: 记录分配(环形) */
+			s_mbox_alc_lr[s_mbox_alc_idx] = lr;
+			g_dbg_mbox_alc_addr[s_mbox_alc_idx] = (u32_t)*mbox;
+			g_dbg_mbox_alc_lr[s_mbox_alc_idx]   = lr;
+			s_mbox_alc_idx = (s_mbox_alc_idx + 1u) % SYS_MBOX_HIST;
+			g_dbg_mbox_alc_ptr = s_mbox_alc_idx;
 			s_pool_fail_run = 0;                             // 分配成功: 清零连续失败计数
 			return ERR_OK;  //返回ERR_OK,表示消息队列创建成功 ERR_OK=0
 		}
@@ -106,26 +143,48 @@ err_t sys_mbox_new( sys_mbox_t *mbox, int size)
 void sys_mbox_free(sys_mbox_t * mbox)
 {
 	u8_t ucErr;
+	u32_t lr, i;
 	sys_mbox_t m_box=*mbox;   
 	g_dbg_mbox_free++;                                   // 调试计数
+	lr = (u32_t)__builtin_return_address(0);             // 释放来源(调用者返回地址), 诊断用
 	if(m_box==NULL)                                      // 空指针保护: 重复释放时不要继续操作系统对象
 	{
 		*mbox=NULL;
 		return;
 	}
-	/* 幂等保护: 只有当事件对象确实还是"队列"时才真正删除。
-	   否则说明该邮箱已被释放过(重复释放/脏指针): 此时若继续 OSQDel + myfree,
-	   会破坏 uCOS 队列池(队列+事件双泄漏)并重复释放 SRAM 堆块。 */
+
+	/* 真·重复释放/脏指针判定: 事件对象已不是"队列" → 该邮箱此前已被释放并回收。
+	   (注意: 不能只比较 TQ_DESCR 地址——SRAM 堆块会被复用, 同一地址会合法地反复出现。) */
 	if((m_box->pQ==NULL)||(m_box->pQ->OSEventType!=OS_EVENT_TYPE_Q))
 	{
-		g_dbg_mbox_del_err++;                            // 调试计数: 命中重复释放/无效事件
+		u32_t prev = 0;
+		for(i=0;i<SYS_MBOX_HIST;i++)                      /* 反查首次释放该邮箱的调用者 */
+		{
+			if(s_mbox_hist[i]==m_box) { prev = s_mbox_hist_lr[i]; break; }
+		}
+		g_dbg_mbox_free_invalid++;                        // 调试计数: 释放时事件已不是队列
+		g_dbg_mbox_del_err++;
+		g_dbg_mbox_df_cnt++;                              // 调试计数: 真·重复释放次数
+		g_dbg_mbox_df_addr    = (u32_t)m_box;
+		g_dbg_mbox_df_lr      = lr;                       // 后一次(本次)释放的调用者
+		g_dbg_mbox_df_prev_lr = prev;                     // 首次释放的调用者(0=历史中未找到)
 		*mbox=NULL;
-		return;
+		return;                                           /* 不再 OSQDel/myfree, 避免破坏池与堆 */
 	}
+
+	/* 正常路径: 记录本次释放(环形 + SWD 可读镜像), 供"首次释放者"反查。 */
+	s_mbox_hist[s_mbox_hist_idx]    = m_box;
+	s_mbox_hist_lr[s_mbox_hist_idx] = lr;
+	g_dbg_mbox_hist_addr[s_mbox_hist_idx] = (u32_t)m_box;
+	g_dbg_mbox_hist_lr[s_mbox_hist_idx]   = lr;
+	s_mbox_hist_idx = (s_mbox_hist_idx + 1u) % SYS_MBOX_HIST;
+	g_dbg_mbox_hist_ptr = s_mbox_hist_idx;
+
 	(void)OSQDel(m_box->pQ,OS_DEL_ALWAYS,&ucErr);
 	if(ucErr!=OS_ERR_NONE)
 	{
-		g_dbg_mbox_del_err++;                            // 调试计数: OSQDel 失败
+		g_dbg_mbox_free_fail++;                          // 调试计数: OSQDel 失败(队列未回收 → 池退化)
+		g_dbg_mbox_del_err++;
 		*mbox=NULL;
 		return;                                          // 失败时不再 myfree, 避免重复释放堆块
 	}

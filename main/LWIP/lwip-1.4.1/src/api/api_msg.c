@@ -58,6 +58,10 @@
 /* forward declaration: netconn_free() 的兜底清理会用到 netconn_drain() */
 static void netconn_drain(struct netconn *conn);
 
+/* forward declaration: 本地诊断(定义在本文件后部, netconn_free() 会先用到) */
+static void dbg_nc_freed(void *conn, u32_t lr);
+static void dbg_nc_check(void *conn, u32_t lr);
+
 #define SET_NONBLOCKING_CONNECT(conn, val)  do { if(val) { \
   (conn)->flags |= NETCONN_FLAG_IN_NONBLOCKING_CONNECT; \
 } else { \
@@ -689,7 +693,61 @@ netconn_free(struct netconn *conn)
   sys_sem_free(&conn->op_completed);
   sys_sem_set_invalid(&conn->op_completed);
 
+  dbg_nc_freed(conn, (u32_t)__builtin_return_address(0));  /* 诊断: 登记"已释放的 netconn" */
   memp_free(MEMP_NETCONN, conn);
+}
+
+/* ================= 本地诊断: netconn_drain 重复调用追踪 =================
+   用于定位"同一 netconn 被重复 drain(重复释放)"——它会让 uCOS OS_Q/OS_EVENT 成对丢失,
+   最终 netconn_alloc 失败、设备对新连接一律回 RST。查询见 g_dbg_drain_* 符号。 */
+#define DREN_HIST   4
+volatile u32_t g_dbg_drain_cnt = 0;         /* netconn_drain 调用总次数 */
+volatile u32_t g_dbg_drain_dup = 0;         /* 同一 conn 在最近 DREN_HIST 次中被重复 drain 的次数 */
+volatile u32_t g_dbg_drain_dup_conn = 0;    /* 重复的那个 netconn 指针 */
+volatile u32_t g_dbg_drain_dup_lr = 0;      /* 后一次 netconn_drain 的调用者返回地址 */
+volatile u32_t g_dbg_drain_dup_prev = 0;    /* 首次 netconn_drain 的调用者返回地址 */
+volatile u32_t g_dbg_drain_conn[DREN_HIST]; /* 最近 drain 的 conn(环形) */
+volatile u32_t g_dbg_drain_lr[DREN_HIST];   /* 对应调用者返回地址 */
+volatile u32_t g_dbg_drain_idx = 0;
+
+/* ================= 本地诊断: "使用已释放 netconn"追踪 =================
+   原理: netconn_free() 时把该 netconn 指针与"释放者返回地址"记入环形表;
+        之后在 do_close/do_delconn/netconn_drain/netconn_close 入口检查入参是否命中该表。
+        命中即说明有人拿着"已经被 memp_free 掉的 netconn 指针"(可能已被新 netconn 复用)
+        继续 close/delete/drain → 会释放别人的邮箱, 最终耗尽 uCOS 队列/事件池。
+   查询: g_dbg_stale_cnt(次数)、g_dbg_stale_conn(指针)、g_dbg_stale_lr(本次使用者)、
+        g_dbg_stale_free_lr(最初释放者)。 */
+#define NCFREE_HIST   16
+volatile u32_t g_dbg_stale_cnt = 0;
+volatile u32_t g_dbg_stale_conn = 0;
+volatile u32_t g_dbg_stale_lr = 0;
+volatile u32_t g_dbg_stale_free_lr = 0;
+static void *s_ncfree[NCFREE_HIST];
+static u32_t s_ncfree_lr[NCFREE_HIST];
+static u32_t s_ncfree_idx = 0;
+
+static void dbg_nc_freed(void *conn, u32_t lr)
+{
+  s_ncfree[s_ncfree_idx]    = conn;
+  s_ncfree_lr[s_ncfree_idx] = lr;
+  s_ncfree_idx = (s_ncfree_idx + 1u) % NCFREE_HIST;
+}
+
+static void dbg_nc_check(void *conn, u32_t lr)
+{
+  u32_t k;
+  if (conn == NULL) {
+    return;
+  }
+  for (k = 0; k < NCFREE_HIST; k++) {
+    if (s_ncfree[k] == conn) {
+      g_dbg_stale_cnt++;
+      g_dbg_stale_conn    = (u32_t)conn;
+      g_dbg_stale_lr      = lr;                 /* 本次使用者(元凶路径) */
+      g_dbg_stale_free_lr = s_ncfree_lr[k];     /* 最初释放者 */
+      break;
+    }
+  }
 }
 
 /**
@@ -708,6 +766,28 @@ netconn_drain(struct netconn *conn)
 #if LWIP_TCP
   struct pbuf *p;
 #endif /* LWIP_TCP */
+
+  dbg_nc_check(conn, (u32_t)__builtin_return_address(0));  /* 诊断: 是否在 drain 已释放的 netconn */
+
+  /* 诊断(本地): 记录 netconn_drain 的入参 conn 与调用者返回地址, 用于定位"同一 netconn 被
+     重复 drain/释放"。若同一 conn 在最近 DREN_HIST 次中出现两次, 说明存在重复释放路径。 */
+  {
+    u32_t dlr = (u32_t)__builtin_return_address(0);
+    u32_t k;
+    g_dbg_drain_cnt++;
+    for (k = 0; k < DREN_HIST; k++) {
+      if (g_dbg_drain_conn[k] == (u32_t)conn) {
+        g_dbg_drain_dup++;
+        g_dbg_drain_dup_conn = (u32_t)conn;
+        g_dbg_drain_dup_lr   = dlr;                  /* 后一次调用者 */
+        g_dbg_drain_dup_prev = g_dbg_drain_lr[k];    /* 首次调用者 */
+        break;
+      }
+    }
+    g_dbg_drain_conn[g_dbg_drain_idx] = (u32_t)conn;
+    g_dbg_drain_lr[g_dbg_drain_idx]   = dlr;
+    g_dbg_drain_idx = (g_dbg_drain_idx + 1u) % DREN_HIST;
+  }
 
   /* This runs in tcpip_thread, so we don't need to lock against rx packets */
 
@@ -874,6 +954,7 @@ do_close_internal(struct netconn *conn)
 void
 do_delconn(struct api_msg_msg *msg)
 {
+  dbg_nc_check(msg->conn, (u32_t)__builtin_return_address(0));  /* 诊断: 是否在操作已释放的 netconn */
   /* @todo TCP: abort running write/connect? */
  if ((msg->conn->state != NETCONN_NONE) &&
      (msg->conn->state != NETCONN_LISTEN) &&
@@ -1501,6 +1582,7 @@ do_getaddr(struct api_msg_msg *msg)
 void
 do_close(struct api_msg_msg *msg)
 {
+  dbg_nc_check(msg->conn, (u32_t)__builtin_return_address(0));  /* 诊断: 是否在操作已释放的 netconn */
 #if LWIP_TCP
   /* @todo: abort running write/connect? */
   if ((msg->conn->state != NETCONN_NONE) && (msg->conn->state != NETCONN_LISTEN)) {

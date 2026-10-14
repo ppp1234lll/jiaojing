@@ -609,35 +609,51 @@ uint8_t tcp_client2_get_recv_status(void)
 void tcp_client_stop_function(void)
 {	
 	OS_CPU_SR cpu_sr;
+	uint32_t wait = 0;
 
+	/* ① 先请求"协作式关闭": 由各连接任务自行 close/delete 连接并退出。
+	   不能一上来就强删任务——任务可能正阻塞在 netconn_write/netconn_recv 里,
+	   其已入队的 API 消息仍会被 tcpip 线程继续处理, 而连接对象此时已被释放,
+	   会造成"作用于已释放/已复用 netconn"的重复释放(耗尽 uCOS 队列/事件池)。 */
+	tcp_client1_close_req = 1;
+	tcp_backup_close_req  = 1;
+	while(((lwipdev.tcp_client1 != 0) || (lwipdev.tcp_client_backup != 0)) && (wait < 200))
+	{
+		OSTimeDly(1);
+		wait++;
+	}
 	tcp_client1_close_req = 0;
 	tcp_backup_close_req  = 0;
 
-	/* 先删任务(使其脱离 mbox/事件等待链), 再释放连接对象, 避免"先释放 mailbox 后摘链" */
+	/* ② 兜底: 仍未退出则强删任务 */
 	OS_ENTER_CRITICAL();		// 关中断
 	OSTaskDel(TCP_CLIENT1_PRIO);	// 删除TCP任务
 	OS_EXIT_CRITICAL();			// 开中断
+	OS_ENTER_CRITICAL();		// 关中断
+	OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
+	OS_EXIT_CRITICAL();			// 开中断
 
+	/* ③ 摘指针(先清全局, 之后才释放), 避免任何路径二次释放同一 netconn */
 	if(tcp_cilent1_conn != NULL)
 	{
-		netconn_close(tcp_cilent1_conn);                            //关闭连接
-		netconn_delete(tcp_cilent1_conn);                           //删除连接
+		struct netconn *c1 = tcp_cilent1_conn;
 		tcp_cilent1_conn = NULL;
+		netconn_close(c1);                            //关闭连接
+		netconn_delete(c1);                           //删除连接
 	}
 	lwipdev.tcp_client1 = 0;   //第 client->num 个设备状态置0 表示客户端未连接
 	if(lwipdev.client_websocket_id == 1)
 		lwipdev.client_websocket_id = 0;
 
 	/* 备用服务器连接同步关闭(仅HTTP场景) */
-	OS_ENTER_CRITICAL();		// 关中断
-	OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
-	OS_EXIT_CRITICAL();			// 开中断
-
 	if(tcp_backup_conn != NULL)
 	{
-		netconn_close(tcp_backup_conn);                             //关闭连接
-		netconn_delete(tcp_backup_conn);                            //删除连接
+		struct netconn *cb = tcp_backup_conn;
 		tcp_backup_conn = NULL;
+		netconn_close(cb);                            //关闭连接
+		netconn_delete(cb);                           //删除连接
 	}
 	lwipdev.tcp_client_backup = 0;
+
+	http_com_reset_recv_function(); // 清理接收队列/半包状态
 }

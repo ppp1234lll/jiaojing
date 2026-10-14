@@ -66,6 +66,13 @@ static void tcp_server_thread(void *arg)
 			{ 		
 				if(TCP_SERVER_DEBUG) printf("netconn_accept\n");			
 				tcp_server_newconn->recv_timeout = 10;
+				/* 关键: 给发送也设超时。对端(平台)不读取时 netconn_write 会长期阻塞在
+				   发送缓冲/接收窗口上; 若此时上层因"槽位被占用"要关闭该连接, 任务就会
+				   长时间卡在 netconn_write 里, 迫使上层强杀任务, 而该任务已入队的 API
+				   消息仍会被 tcpip 线程继续处理 → 作用于已释放/复用的 netconn(重复释放,
+				   耗尽 uCOS 队列/事件池)。设 20ms 发送超时后, 写会及时返回, 任务总能
+				   在协作等待窗口内自行收尾退出。*/
+				tcp_server_newconn->send_timeout = 20;
 				// 创建客户端任务(主槽/备用槽; 主槽被未及时断开的HTTP连接占用时, 由备用槽承接并在
 				// tcp_client_init 内立即强制关闭旧HTTP连接; WebSocket占用或创建失败时新连接已关闭)
 				osres = tcp_client_init((void *)tcp_server_newconn);

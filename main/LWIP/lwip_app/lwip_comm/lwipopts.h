@@ -2,43 +2,43 @@
 #define __LWIPOPTS_H__
 #include "stdlib.h"
 
-//�߳����ȼ�
+//线程优先级
 #ifndef TCPIP_THREAD_PRIO
-#define TCPIP_THREAD_PRIO		5	//�����ں���������ȼ�Ϊ5
+#define TCPIP_THREAD_PRIO		5	//定义内核任务的优先级为5
 #endif
 #undef  DEFAULT_THREAD_PRIO
 #define DEFAULT_THREAD_PRIO		2
 
 
-#define SYS_LIGHTWEIGHT_PROT    1			// Ϊ1ʱʹ��ʵʱ����ϵͳ������������,�����ؼ����벻���жϴ��
-#define NO_SYS                  0  		// ʹ��UCOS����ϵͳ
-#define MEM_ALIGNMENT           4  		// ʹ��4�ֽڶ���ģʽ
-#define MEM_SIZE                20*1024 	//�ڴ��heap��С
-#define MEMP_NUM_PBUF           40 		// MEMP_NUM_PBUF:memp�ṹ��pbuf����,���Ӧ�ô�ROM���߾�̬�洢�����ʹ�������ʱ,���ֵӦ�����ô�һ��
-#define MEMP_NUM_UDP_PCB        6		// MEMP_NUM_UDP_PCB:UDPЭ����ƿ�(PCB)����.ÿ�����UDP"����"��Ҫһ��PCB.
-#define MEMP_NUM_TCP_PCB        10		// MEMP_NUM_TCP_PCB:ͬʱ���������TCP����
-#define MEMP_NUM_TCP_PCB_LISTEN 10			// MEMP_NUM_TCP_PCB_LISTEN:�ܹ�������TCP��������
-#define MEMP_NUM_TCP_SEG        20		// MEMP_NUM_TCP_SEG:���ͬʱ�ڶ����е�TCP������
-#define MEMP_NUM_SYS_TIMEOUT    10			// MEMP_NUM_SYS_TIMEOUT:�ܹ�ͬʱ�����timeout����
+#define SYS_LIGHTWEIGHT_PROT    1			// 为1时使用实时操作系统的轻量级保护,保护关键代码不被中断打断
+#define NO_SYS                  0  		// 使用UCOS操作系统
+#define MEM_ALIGNMENT           4  		// 使用4字节对齐模式
+#define MEM_SIZE                20*1024 	//内存堆heap大小
+#define MEMP_NUM_PBUF           40 		// MEMP_NUM_PBUF:memp结构的pbuf数量,如果应用从ROM或者静态存储区发送大量数据时,这个值应该设置大一点
+#define MEMP_NUM_UDP_PCB        6		// MEMP_NUM_UDP_PCB:UDP协议控制块(PCB)数量.每个活动的UDP"连接"需要一个PCB.
+#define MEMP_NUM_TCP_PCB        10		// MEMP_NUM_TCP_PCB:同时建立激活的TCP数量
+#define MEMP_NUM_TCP_PCB_LISTEN 10			// MEMP_NUM_TCP_PCB_LISTEN:能够监听的TCP连接数量
+#define MEMP_NUM_TCP_SEG        20		// MEMP_NUM_TCP_SEG:最多同时在队列中的TCP段数量
+#define MEMP_NUM_SYS_TIMEOUT    10			// MEMP_NUM_SYS_TIMEOUT:能够同时激活的timeout个数
 
 
-#define MEMP_NUM_NETBUF         15     // ʹ��netconn��socket���ʱ����ֵ�Ĵ�С��Ӱ�����ͬʱ���������ӵĸ���
-#define MEMP_NUM_NETCONN        20     // ʹ��netconn��socket���ʱ����ֵ����̫С�����ܵ��½�������ʱ�����ڴ�ʧ�ܣ��Ӷ�����ͬʱΪ�������ӵ������շ�����
+#define MEMP_NUM_NETBUF         15     // 使用netconn和socket编程时，该值的大小会影响可以同时创建的连接的个数
+#define MEMP_NUM_NETCONN        20     // 使用netconn和socket编程时，该值设置太小，可能导致接收数据时分配内存失败，从而不能同时为几个连接的数据收发服务
 
 
-//pbufѡ��
-#define PBUF_POOL_SIZE     30    // pbuf�ڴ���е�pbuf��������
-// һ��pbuf��payload �ĳ��ȣ�Ӧ����Ϊ��̫��֡����ֵ
+//pbuf选项
+#define PBUF_POOL_SIZE     30    // pbuf内存池中的pbuf的最大个数
+// 一个pbuf的payload 的长度，应设置为以太网帧最大的值
 #define PBUF_POOL_BUFSIZE  512
 
-#define LWIP_TCP                1  		//ʹ��TCP
-#define TCP_TTL                 255		//����ʱ��
+#define LWIP_TCP                1  		//使用TCP
+#define TCP_TTL                 255		//生存时间
 
 #undef TCP_QUEUE_OOSEQ
-#define TCP_QUEUE_OOSEQ         0 		//��TCP�����ݶγ�������ʱ�Ŀ���λ,���豸���ڴ��С��ʱ�����ӦΪ0
+#define TCP_QUEUE_OOSEQ         0 		//当TCP的数据段超出队列时的控制位,当设备的内存过小的时候此项应为0
 
 #undef TCPIP_MBOX_SIZE
-#define TCPIP_MBOX_SIZE         MAX_QUEUE_ENTRIES   //tcpip�������߳�ʱ����Ϣ�����С
+#define TCPIP_MBOX_SIZE         MAX_QUEUE_ENTRIES   //tcpip创建主线程时的消息邮箱大小
 
 #undef DEFAULT_TCP_RECVMBOX_SIZE
 #define DEFAULT_TCP_RECVMBOX_SIZE       MAX_QUEUE_ENTRIES  
@@ -47,73 +47,74 @@
 #define DEFAULT_ACCEPTMBOX_SIZE         MAX_QUEUE_ENTRIES  
 
 
-#define TCP_MSS                 1072//(1500 - 40)	  	//���TCP�ֶ�,TCP_MSS = (MTU - IP��ͷ��С - TCP��ͷ��С
-#define TCP_SND_BUF             (6*TCP_MSS)		//TCP���ͻ�������С(bytes).
-#define TCP_SND_QUEUELEN        (2* TCP_SND_BUF/TCP_MSS)	//TCP_SND_QUEUELEN: TCP���ͻ�������С(pbuf).���ֵ��СΪ(2 * TCP_SND_BUF/TCP_MSS)
-#define TCP_WND                 (6*TCP_MSS)		//TCP���ʹ���
-#define LWIP_ICMP               1 	//ʹ��ICMPЭ��
-#define LWIP_DHCP               0	//ʹ��DHCP
-#define LWIP_UDP                1 	//ʹ��UDP����
-#define UDP_TTL                 255 //UDP���ݰ�����ʱ��
+#define TCP_MSS                 1072//(1500 - 40)	  	//最大TCP分段,TCP_MSS = (MTU - IP报头大小 - TCP报头大小
+#define TCP_SND_BUF             (6*TCP_MSS)		//TCP发送缓冲区大小(bytes).
+#define TCP_SND_QUEUELEN        (2* TCP_SND_BUF/TCP_MSS)	//TCP_SND_QUEUELEN: TCP发送缓冲区大小(pbuf).这个值最小为(2 * TCP_SND_BUF/TCP_MSS)
+#define TCP_WND                 (6*TCP_MSS)		//TCP发送窗口
+#define LWIP_ICMP               1 	//使用ICMP协议
+#define LWIP_DHCP               0	//使用DHCP
+#define LWIP_UDP                1 	//使用UDP服务
+#define UDP_TTL                 255 //UDP数据包生存时间
 #define LWIP_STATS 0
 #define LWIP_PROVIDE_ERRNO 1
 
-#define LWIP_IGMP 				1	// �����鲥����
+#define LWIP_IGMP 				1	// 开启组播功能
 #define LWIP_RAND()				rand()
-//֡У���ѡ�STM32F4x7����ͨ��Ӳ��ʶ��ͼ���IP,UDP��ICMP��֡У���
-#define CHECKSUM_BY_HARDWARE //����CHECKSUM_BY_HARDWARE,ʹ��Ӳ��֡У��
+//帧校验和选项，STM32F4x7允许通过硬件识别和计算IP,UDP和ICMP的帧校验和
+#define CHECKSUM_BY_HARDWARE //定义CHECKSUM_BY_HARDWARE,使用硬件帧校验
 
 #ifdef CHECKSUM_BY_HARDWARE
-  //CHECKSUM_GEN_IP==0: Ӳ������IP���ݰ���֡У���
+  //CHECKSUM_GEN_IP==0: 硬件生成IP数据包的帧校验和
   #define CHECKSUM_GEN_IP                 0
-  //CHECKSUM_GEN_UDP==0: Ӳ������UDP���ݰ���֡У���
+  //CHECKSUM_GEN_UDP==0: 硬件生成UDP数据包的帧校验和
   #define CHECKSUM_GEN_UDP                0
-  //CHECKSUM_GEN_TCP==0: Ӳ������TCP���ݰ���֡У���
+  //CHECKSUM_GEN_TCP==0: 硬件生成TCP数据包的帧校验和
   #define CHECKSUM_GEN_TCP                0 
-  //CHECKSUM_CHECK_IP==0: Ӳ����������IP���ݰ�֡У���
+  //CHECKSUM_CHECK_IP==0: 硬件检查输入的IP数据包帧校验和
   #define CHECKSUM_CHECK_IP               0
-  //CHECKSUM_CHECK_UDP==0: Ӳ����������UDP���ݰ�֡У���
+  //CHECKSUM_CHECK_UDP==0: 硬件检查输入的UDP数据包帧校验和
   #define CHECKSUM_CHECK_UDP              0
-  //CHECKSUM_CHECK_TCP==0: Ӳ����������TCP���ݰ�֡У���
+  //CHECKSUM_CHECK_TCP==0: 硬件检查输入的TCP数据包帧校验和
   #define CHECKSUM_CHECK_TCP              0
 #else
-  //CHECKSUM_GEN_IP==1: ��������IP���ݰ�֡У���
+  //CHECKSUM_GEN_IP==1: 软件生成IP数据包帧校验和
   #define CHECKSUM_GEN_IP                 1
-  // CHECKSUM_GEN_UDP==1: ��������UDOP���ݰ�֡У���
+  // CHECKSUM_GEN_UDP==1: 软件生成UDOP数据包帧校验和
   #define CHECKSUM_GEN_UDP                1
-  //CHECKSUM_GEN_TCP==1: ��������TCP���ݰ�֡У���
+  //CHECKSUM_GEN_TCP==1: 软件生成TCP数据包帧校验和
   #define CHECKSUM_GEN_TCP                1
-  // CHECKSUM_CHECK_IP==1: ������������IP���ݰ�֡У���
+  // CHECKSUM_CHECK_IP==1: 软件检查输入的IP数据包帧校验和
   #define CHECKSUM_CHECK_IP               1
-  // CHECKSUM_CHECK_UDP==1: ������������UDP���ݰ�֡У���
+  // CHECKSUM_CHECK_UDP==1: 软件检查输入的UDP数据包帧校验和
   #define CHECKSUM_CHECK_UDP              1
-  //CHECKSUM_CHECK_TCP==1: ������������TCP���ݰ�֡У���
+  //CHECKSUM_CHECK_TCP==1: 软件检查输入的TCP数据包帧校验和
   #define CHECKSUM_CHECK_TCP              1
 #endif
 
 
 
-#define LWIP_NETCONN                    1 	//LWIP_NETCONN==1:ʹ��NETCON����(Ҫ��ʹ��api_lib.c)
-#define LWIP_SOCKET                     1	//LWIP_SOCKET==1:ʹ��Sicket API(Ҫ��ʹ��sockets.c)
+#define LWIP_NETCONN                    1 	//LWIP_NETCONN==1:使能NETCON函数(要求使用api_lib.c)
+#define LWIP_SOCKET                     1	//LWIP_SOCKET==1:使能Sicket API(要求使用sockets.c)
 #define LWIP_COMPAT_MUTEX               1
-#define LWIP_SO_RCVTIMEO                1 	//ͨ������LWIP_SO_RCVTIMEOʹ��netconn�ṹ����recv_timeout,ʹ��recv_timeout���Ա��������߳�
+#define LWIP_SO_SNDTIMEO                1   /* add: enable netconn->send_timeout so netconn_write won't block long when peer stops reading */
+#define LWIP_SO_RCVTIMEO                1 	//通过定义LWIP_SO_RCVTIMEO使能netconn结构体中recv_timeout,使用recv_timeout可以避免阻塞线程
 
-#define LWIP_DNS 												1   // ����DNS
+#define LWIP_DNS 												1   // 启用DNS
 
 ////KEEPALIVE
-#define LWIP_TCP_KEEPALIVE              1    			 // ����keepalive����
-#define TCP_KEEPIDLE_DEFAULT            7200000UL  // 3����˫�����������𱣻�̽��
-#define TCP_KEEPINTVL_DEFAULT           600000UL    // 10min����һ�α���̽��
-#define TCP_KEEPCNT_DEFAULT             300        // 300��̽������Ӧ��Ͽ�
+#define LWIP_TCP_KEEPALIVE              1    			 // 启用keepalive功能
+#define TCP_KEEPIDLE_DEFAULT            7200000UL  // 3秒内双方无数据则发起保活探测
+#define TCP_KEEPINTVL_DEFAULT           600000UL    // 10min发送一次保活探测
+#define TCP_KEEPCNT_DEFAULT             300        // 300次探测无响应则断开
 
-//�й�ϵͳ��ѡ��
-#define TCPIP_THREAD_STACKSIZE          512	//�ں������ջ��С
+//有关系统的选项
+#define TCPIP_THREAD_STACKSIZE          512	//内核任务堆栈大小
 #define DEFAULT_UDP_RECVMBOX_SIZE       2000
 #define DEFAULT_THREAD_STACKSIZE        512
 
-//LWIP����ѡ��
-#define LWIP_DEBUG                    	 0	 //�ر�DEBUGѡ��
-#define ICMP_DEBUG                      LWIP_DBG_OFF //����/�ر�ICMPdebug
+//LWIP调试选项
+#define LWIP_DEBUG                    	 0	 //关闭DEBUG选项
+#define ICMP_DEBUG                      LWIP_DBG_OFF //开启/关闭ICMPdebug
 
 #endif /* __LWIPOPTS_H__ */
 

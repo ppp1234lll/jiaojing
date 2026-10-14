@@ -73,6 +73,14 @@ SYS_ARCH_EXT volatile u32_t g_dbg_close_inprog;    /* do_close   走 ERR_INPROGR
 SYS_ARCH_EXT volatile u32_t g_dbg_close_fail;      /* do_close_internal 中 tcp_close 未成功(ERR_MEM) */
 SYS_ARCH_EXT volatile u32_t g_dbg_err_tcp;         /* err_tcp(连接被 abort/出错) 次数 */
 SYS_ARCH_EXT volatile u32_t g_dbg_mbox_del_err;    /* OSQDel 失败次数(邮箱实际未回收 → 池退化) */
+/* ===== 邮箱重复释放来源追踪(诊断): 命中时记录"两次释放各自的调用者返回地址", 可用 map 反查函数 ===== */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_df_cnt;        /* 命中"重复释放同一邮箱"的总次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_df_addr;       /* 最近一次被重复释放的邮箱(TQ_DESCR)地址 */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_df_lr;         /* 本次(后一次)释放的调用者返回地址 */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_df_prev_lr;    /* 首次释放该邮箱的调用者返回地址 */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_free_invalid;  /* 释放时事件已不是队列(已被回收 → 重复释放/脏指针) */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_free_fail;     /* OSQDel 返回错误(队列实际未回收) */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_alloc_lr;      /* 最近一次 sys_mbox_new 的调用者返回地址 */
 SYS_ARCH_EXT volatile u32_t g_dbg_sem_del_err;     /* OSSemDel 失败次数(事件实际未回收 → 池退化) */
 #endif 
 
