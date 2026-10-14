@@ -33,7 +33,7 @@ uint8_t etharpError;
 /************************************************************
 *
 * Function name	: eth_network_line_status_detection_function
-* Description	: ÍøÏß×´Ì¬¼ì²âº¯Êı
+* Description	: ç½‘çº¿çŠ¶æ€æ£€æµ‹å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -45,12 +45,12 @@ void eth_network_line_status_detection_function(void)
 	
 	while(1)
 	{
-		eth_network_line_status_check();		 /* Íø¿Ú¼ì²âº¯Êı */
-		eth_tcp_server_control_function();   // TCP·şÎñÆ÷				
-		eth_udp_connect_control_function();  // ×é²¥UDPÁ¬½Ó	
-		eth_ping_detection_function();		   /* PINGĞ­Òé */
+		eth_network_line_status_check();		 /* ç½‘å£æ£€æµ‹å‡½æ•° */
+		eth_tcp_server_control_function();   // TCPæœåŠ¡å™¨				
+		eth_udp_connect_control_function();  // ç»„æ’­UDPè¿æ¥	
+		eth_ping_detection_function();		   /* PINGåè®® */
 		
-		/* Ö÷ÍøÂç×´Ì¬1¡¢2¼ì²â */
+		/* ä¸»ç½‘ç»œçŠ¶æ€1ã€2æ£€æµ‹ */
 		if(lwipdev.netif_state == 1) 
 		{
 			if( det_get_main_network_status() == 1 ||det_get_main_network_sub_status() == 1) 
@@ -62,14 +62,14 @@ void eth_network_line_status_detection_function(void)
 			led_out_control_function(LD_LAN_LED,LD_OFF);
 	
 		IWDG_Feed();
-		OSTimeDlyHMSM(0,0,0,10);  // ÑÓÊ±20ms
+		OSTimeDlyHMSM(0,0,0,10);  // å»¶æ—¶20ms
 	}
 }
 
 /************************************************************
 *
 * Function name	: eth_network_line_status_check
-* Description	: Íø¿Ú×´Ì¬¼ì²â
+* Description	: ç½‘å£çŠ¶æ€æ£€æµ‹
 * Parameter		: 
 * Return		: 
 *	
@@ -81,23 +81,24 @@ int8_t eth_network_line_status_check(void)
 	static uint8_t eth_now_status  = 0;
 	static uint8_t eth_status_flag = 0;
 	
-	/* ¼ì²âÍøÏßÊÇ·ñÁ¬½Ó */
+	/* æ£€æµ‹ç½‘çº¿æ˜¯å¦è¿æ¥ */
 	eth_now_status = LAN8720_Get_Network_Cable_Status();
+	if(eth_now_status == 0) g_dbg_link_down++;		/* è¯Šæ–­è®¡æ•°: é“¾è·¯è¢«åˆ¤å®šä¸º down */
 	
-	/* ¼ì²âµ½ÍøÏß±ä»¯»òÍøÂç»¹Î´Á¬½Ó */
-	if(eth_now_status != 0 && (lwipdev.netif_state == 0))	// ÍøÏßÁ¬ÉÏ
+	/* æ£€æµ‹åˆ°ç½‘çº¿å˜åŒ–æˆ–ç½‘ç»œè¿˜æœªè¿æ¥ */
+	if(eth_now_status != 0 && (lwipdev.netif_state == 0))	// ç½‘çº¿è¿ä¸Š
 	{
-		/* ÓĞÍøÏß½ÓÈëÇÒÍøÂç»¹Î´´´½¨ */
+		/* æœ‰ç½‘çº¿æ¥å…¥ä¸”ç½‘ç»œè¿˜æœªåˆ›å»º */
 		lwip_start_function();
-		eth_status_flag = 0; // Çå¿Õ
+		eth_status_flag = 0; // æ¸…ç©º
 	}
 	
-	if(eth_now_status == 0 && eth_status_flag == 0)			// ÍøÏß¶Ï¿ª
+	if(eth_now_status == 0 && eth_status_flag == 0)			// ç½‘çº¿æ–­å¼€
 	{
 		eth_set_tcp_connect_reset();
 		OSTimeDlyHMSM(0,0,0,100);
 		
-		eth_status_flag = 1; // Ö»½øÈëÒ»´Î
+		eth_status_flag = 1; // åªè¿›å…¥ä¸€æ¬¡
 		led_out_control_function(LD_LAN_LED,LD_OFF);
 		led_control_function(LD_LAN,LD_OFF);
 		
@@ -107,34 +108,35 @@ int8_t eth_network_line_status_check(void)
 		}
   }
 	
-    /* ÍøÂçÁ¬½Ó×´Ì¬¼ì²â */
+    /* ç½‘ç»œè¿æ¥çŠ¶æ€æ£€æµ‹ */
     if (eth_now_status == 0) 
 		{
 			if((++count) >= 50) // 50*20ms
 			{ 
 				count = 0;
-				lwipdev.reset = 1; // ¶¨Ê±ÖØÆôÍøÂç
+				lwipdev.reset = 1; // å®šæ—¶é‡å¯ç½‘ç»œ
 			}
     } 
 		else 
         count = 0;
     
-	/* ÍøÂçÖØÆô */
+	/* ç½‘ç»œé‡å¯ */
 	if(lwipdev.reset == 1) 
 	{
 		lwipdev.reset = 0;	
-		OSTimeDlyHMSM(0,0,1,0);  // ±£Ö¤ÖØÆôÇ°Êı¾İ¼°Ê±·¢³ö		
-		if (lwipdev.tcp_server_reset != LWIP_TCP_NO_CONNECT)   // ÖØÆôONVIFÁ¬½Ó
+		g_dbg_eth_reset++;						/* è¯Šæ–­è®¡æ•°: å®é™…æ‰§è¡Œç½‘ç»œé‡å¯ */
+		OSTimeDlyHMSM(0,0,1,0);  // ä¿è¯é‡å¯å‰æ•°æ®åŠæ—¶å‘å‡º		
+		if (lwipdev.tcp_server_reset != LWIP_TCP_NO_CONNECT)   // é‡å¯ONVIFè¿æ¥
 		{
 			eth_set_tcp_server_reset();
 		}
-		if (lwipdev.udp_multicast_status != LWIP_UDP_NO_CONNECT)   // ÖØÆôUDPÁ¬½Ó
+		if (lwipdev.udp_multicast_status != LWIP_UDP_NO_CONNECT)   // é‡å¯UDPè¿æ¥
 		{
 			eth_set_udp_connect_reset();
 		}
-		/* ¹Ø±ÕÍø¿Ú */
+		/* å…³é—­ç½‘å£ */
 		lwip_stop_function();
-		/* ¸´Î»Íø¿Ú */
+		/* å¤ä½ç½‘å£ */
 		lwipdev.netif_state = 0;
 
 		eth_reset_function();
@@ -158,7 +160,7 @@ struct eth_ping sg_ethping_t = {0};
 /************************************************************
 *
 * Function name	: eth_ping_timer_function
-* Description	: pingÏà¹Øº¯Êı- timer
+* Description	: pingç›¸å…³å‡½æ•°- timer
 * Parameter		: 
 * Return		: 
 *	
@@ -170,7 +172,7 @@ void eth_ping_timer_function(void)
 		sg_ethping_t.count++;
 		if(sg_ethping_t.count > app_get_next_ping_time())
 		{
-			/* ¿ªÊ¼Ò»´Îping */
+			/* å¼€å§‹ä¸€æ¬¡ping */
 			sg_ethping_t.cnt = 0;
 			sg_ethping_t.ping_next = 1;
 			sg_ethping_t.dev_next  = 1;
@@ -193,7 +195,7 @@ void eth_ping_timer_function(void)
 /************************************************************
 *
 * Function name	: eth_ping_detection_function
-* Description	: ping¼ì²âº¯Êı
+* Description	: pingæ£€æµ‹å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -206,9 +208,9 @@ void eth_ping_detection_function(void)
 	int8_t  		ret   	 = 0;
 
 	uint16_t times = 0;
-	uint8_t delay_time = app_get_network_delay_time(); // ÍøÂçÑÓÊ±Ê±¼ä  20220308
+	uint8_t delay_time = app_get_network_delay_time(); // ç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
 	
-	/* ¼ì²âÊÇ·ñ¿ÉÒÔ¿ªÊ¼Ò»ÂÖping */
+	/* æ£€æµ‹æ˜¯å¦å¯ä»¥å¼€å§‹ä¸€è½®ping */
 	if(sg_ethping_t.ping_next == 0 || sg_ethping_t.dev_next == 0)
 	{
 		return;
@@ -217,9 +219,9 @@ void eth_ping_detection_function(void)
 	if ( ping_cmd == 0) {
 		switch(sg_ethping_t.cnt)
 		{
-			case 0: 					// Ö÷»ú
+			case 0: 					// ä¸»æœº
 				app_get_main_network_ping_ip_addr(ip);
-				if(ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0)			/* Î´Ö÷»úpingµØÖ· */
+				if(ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0)			/* æœªä¸»æœºpingåœ°å€ */
 				{
 					det_set_main_network_status(0);
 					sg_ethping_t.cnt++;
@@ -228,20 +230,20 @@ void eth_ping_detection_function(void)
 						if(PING_DEBUG) printf("ping stop...1\n");
 						det_set_ping_status(1);
 						sg_ethping_t.cnt = 0;
-						/* ¿ªÊ¼ĞÂµÄÒ»ÂÖ¼ÆÊ± */
+						/* å¼€å§‹æ–°çš„ä¸€è½®è®¡æ—¶ */
 						sg_ethping_t.ping_next = 0;
 					}
 					ping_cmd = 0;
 				}
 				else
 				{
-					lwip_ping_clear();					/* ¼ì²âµ½Ö÷»úip£¬¿ªÊ¼ping */
+					lwip_ping_clear();					/* æ£€æµ‹åˆ°ä¸»æœºipï¼Œå¼€å§‹ping */
 					ping_cmd = 1;
 				}
 				break;
 			case 1:
 				app_get_main_network_sub_ping_ip_addr(ip);
-				if(ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0)					/* Î´Ö÷»úpingµØÖ· */
+				if(ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0)					/* æœªä¸»æœºpingåœ°å€ */
 				{
 					det_set_main_network_sub_status(0);
 					sg_ethping_t.cnt++;
@@ -249,20 +251,20 @@ void eth_ping_detection_function(void)
 					{
 						if(PING_DEBUG) printf("ping stop...2\n");
 						det_set_ping_status(1);
-						sg_ethping_t.cnt = 0;						/* ¿ªÊ¼ĞÂµÄÒ»ÂÖ¼ÆÊ± */
+						sg_ethping_t.cnt = 0;						/* å¼€å§‹æ–°çš„ä¸€è½®è®¡æ—¶ */
 						sg_ethping_t.ping_next = 0;
 					}
 					ping_cmd = 0;
 				}
-				else					/* ¼ì²âµ½Ö÷»úip£¬¿ªÊ¼ping */
+				else					/* æ£€æµ‹åˆ°ä¸»æœºipï¼Œå¼€å§‹ping */
 				{
 					lwip_ping_clear();
 					ping_cmd = 1;
 				}
 				break;
-			default: 					// ÉãÏñÍ·
+			default: 					// æ‘„åƒå¤´
 				ret = app_get_camera_function(ip,sg_ethping_t.cnt-2);
-				if(ret <0)					/* Î´¼ì²âÉãÏñÍ·ip£¬Ö±½Ó±ê¼Ç */
+				if(ret <0)					/* æœªæ£€æµ‹æ‘„åƒå¤´ipï¼Œç›´æ¥æ ‡è®° */
 				{
 					det_set_camera_status(sg_ethping_t.cnt-2,0);
 					sg_ethping_t.cnt++;
@@ -272,11 +274,11 @@ void eth_ping_detection_function(void)
 						det_set_ping_status(1);
 
 						sg_ethping_t.cnt = 0;
-						sg_ethping_t.ping_next = 0;						/* ¿ªÊ¼ĞÂµÄÒ»ÂÖ¼ÆÊ± */
+						sg_ethping_t.ping_next = 0;						/* å¼€å§‹æ–°çš„ä¸€è½®è®¡æ—¶ */
 					}
 					ping_cmd = 0;
 				}
-				else					/* ¼ì²âµ½ÉãÏñÍ·ip£¬¿ªÊ¼ping */
+				else					/* æ£€æµ‹åˆ°æ‘„åƒå¤´ipï¼Œå¼€å§‹ping */
 				{
 					lwip_ping_clear();
 					ping_cmd = 1;
@@ -289,16 +291,16 @@ void eth_ping_detection_function(void)
 	{
 
 		ret = lwip_ping_the_specified_ip_function(ip);
-		if(ret != LWIP_PING_WAIT)	// »ñÈ¡µ½½á¹û
+		if(ret != LWIP_PING_WAIT)	// è·å–åˆ°ç»“æœ
 		{
-			ping_cmd = 0;			// ½áÊøÒ»´Îping
+			ping_cmd = 0;			// ç»“æŸä¸€æ¬¡ping
 			times = get_lwip_ping_times();
 			if(ret == LWIP_PING_SUCCESS)
 			{
 				switch(sg_ethping_t.cnt)
 				{
 					case 0:
-						if(times <= delay_time)               // ÍøÂçÑÓÊ±Ê±¼ä  20220308
+						if(times <= delay_time)               // ç½‘ç»œå»¶æ—¶æ—¶é—´  20220308
 							det_set_main_network_status(1);
 						else
 							det_set_main_network_status(2);
@@ -336,14 +338,14 @@ void eth_ping_detection_function(void)
 						break;
 				}
 			}
-			/* ¿ªÊ¼ÏÂÒ»¸öÉè±¸µÄping¼ÆÊ± */
+			/* å¼€å§‹ä¸‹ä¸€ä¸ªè®¾å¤‡çš„pingè®¡æ—¶ */
 			sg_ethping_t.dev_next = 0;
 			sg_ethping_t.cnt++;
 			if(sg_ethping_t.cnt >= PING_IP_MAX_NUM)
 			{
 				if(PING_DEBUG) printf("ping stop...4\n");
 				det_set_ping_status(1);
-				sg_ethping_t.cnt = 0;				/* ¿ªÊ¼ĞÂµÄÒ»ÂÖ¼ÆÊ± */
+				sg_ethping_t.cnt = 0;				/* å¼€å§‹æ–°çš„ä¸€è½®è®¡æ—¶ */
 				sg_ethping_t.ping_next = 0;
 			}
 		}
@@ -353,7 +355,7 @@ void eth_ping_detection_function(void)
 /************************************************************
 *
 * Function name	: dns_serverFound
-* Description	: dns»Øµ÷º¯Êı
+* Description	: dnså›è°ƒå‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -384,7 +386,7 @@ void dns_serverFound(const char *name, struct ip_addr *ipaddr, void *arg)
 /************************************************************
 *
 * Function name	: eth_tcp_connect_control_function
-* Description	: tcpÁ¬½Ó¿ØÖÆº¯Êı
+* Description	: tcpè¿æ¥æ§åˆ¶å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
@@ -396,21 +398,21 @@ void eth_tcp_connect_control_function(void)
 /************************************************************
 *
 * Function name	: eth_tcp_server_control_function
-* Description	: TCP·şÎñÆ÷´´½¨
+* Description	: TCPæœåŠ¡å™¨åˆ›å»º
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void eth_tcp_server_control_function(void)
 {
-	if(lwipdev.netif_state == 0)	/* ¼ì²âÍø¿Ú×´Ì¬ */
+	if(lwipdev.netif_state == 0)	/* æ£€æµ‹ç½‘å£çŠ¶æ€ */
 	{
 		return;
 	}
 
 	if(lwipdev.tcp_server_status == LWIP_TCP_NO_CONNECT) 
 	{
-		tcp_server_start_function();  // ´´½¨·şÎñÆ÷
+		tcp_server_start_function();  // åˆ›å»ºæœåŠ¡å™¨
 		lwipdev.tcp_server_status = LWIP_TCP_INIT_CONNECT;
 	}
 }
@@ -418,21 +420,21 @@ void eth_tcp_server_control_function(void)
 /************************************************************
 *
 * Function name	: eth_udp_connect_control_function
-* Description	: ×é²¥udpÁ¬½Ó¿ØÖÆº¯Êı
+* Description	: ç»„æ’­udpè¿æ¥æ§åˆ¶å‡½æ•°
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void eth_udp_connect_control_function(void)
 {
-	if(lwipdev.netif_state == 0)	/* ¼ì²âÍø¿Ú×´Ì¬ */
+	if(lwipdev.netif_state == 0)	/* æ£€æµ‹ç½‘å£çŠ¶æ€ */
 	{
 		return;
 	}
 
-	if(lwipdev.udp_multicast_status == LWIP_UDP_NO_CONNECT) // ¼ì²âµ½UDP»¹Î´Á¬½Ó
+	if(lwipdev.udp_multicast_status == LWIP_UDP_NO_CONNECT) // æ£€æµ‹åˆ°UDPè¿˜æœªè¿æ¥
 	{
-		udp_multicast_start_function();  // ´´½¨UDP·şÎñÆ÷
+		udp_multicast_start_function();  // åˆ›å»ºUDPæœåŠ¡å™¨
 		lwipdev.udp_multicast_status = LWIP_UDP_INIT_CONNECT;
 	}
 	
@@ -440,7 +442,7 @@ void eth_udp_connect_control_function(void)
 /************************************************************
 *
 * Function name	: eth_set_udp_connect_reset
-* Description	: ÖØÆô×é²¥
+* Description	: é‡å¯ç»„æ’­
 * Parameter		: 
 * Return		: 
 *	
@@ -452,7 +454,7 @@ void eth_set_udp_connect_reset(void)
 /************************************************************
 *
 * Function name	: eth_set_tcp_server_reset
-* Description	: ÖØÆôTCP·şÎñÆ÷
+* Description	: é‡å¯TCPæœåŠ¡å™¨
 * Parameter		: 
 * Return		: 
 *	   20230810
@@ -465,7 +467,7 @@ void eth_set_tcp_server_reset(void)
 /************************************************************
 *
 * Function name	: eth_set_tcp_connect_reset
-* Description	: ÖØÆôTCPÁ¬½Ó
+* Description	: é‡å¯TCPè¿æ¥
 * Parameter		: 
 * Return		: 
 *	
@@ -479,20 +481,21 @@ void eth_set_tcp_connect_reset(void)
 /************************************************************
 *
 * Function name	: eth_set_network_reset
-* Description	: ÖØÆôÍøÂç
+* Description	: é‡å¯ç½‘ç»œ
 * Parameter		: 
 * Return		: 
 *	
 ************************************************************/
 void eth_set_network_reset(void)
 {
+	g_dbg_net_reset++;							/* è¯Šæ–­è®¡æ•°: ç½‘ç»œé‡å¯è¯·æ±‚ */
 	lwipdev.reset = 1;
 }
 
 /************************************************************
 *
 * Function name	: eth_get_network_cable_status
-* Description	: »ñÈ¡ÍøÏß×´Ì¬
+* Description	: è·å–ç½‘çº¿çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -505,7 +508,7 @@ uint8_t eth_get_network_cable_status(void)
 /************************************************************
 *
 * Function name	: eth_get_tcp_status
-* Description	: »ñÈ¡tcp×´Ì¬
+* Description	: è·å–tcpçŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -517,7 +520,7 @@ uint8_t eth_get_tcp_status(void)
 /************************************************************
 *
 * Function name	: eth_get_udp_status
-* Description	: »ñÈ¡udp×´Ì¬
+* Description	: è·å–udpçŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	
@@ -530,7 +533,7 @@ uint8_t eth_get_udp_status(void)
 /************************************************************
 *
 * Function name	: eth_get_tcp_server_status
-* Description	: »ñÈ¡tcp·şÎñÆ÷×´Ì¬
+* Description	: è·å–tcpæœåŠ¡å™¨çŠ¶æ€
 * Parameter		: 
 * Return		: 
 *	

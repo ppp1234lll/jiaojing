@@ -6,44 +6,44 @@
 
 #include "eth.h"
 
-//ÓÉethernetif_init()µ÷ÓÃÓÃÓÚ³õÊ¼»¯Ó²¼ş
-//netif:Íø¿¨½á¹¹ÌåÖ¸Õë
-//·µ»ØÖµ:ERR_OK,Õı³£
-//       ÆäËû,Ê§°Ü
+//ç”±ethernetif_init()è°ƒç”¨ç”¨äºåˆå§‹åŒ–ç¡¬ä»¶
+//netif:ç½‘å¡ç»“æ„ä½“æŒ‡é’ˆ
+//è¿”å›å€¼:ERR_OK,æ­£å¸¸
+//       å…¶ä»–,å¤±è´¥
 static err_t low_level_init(struct netif *netif)
 {
 #ifdef CHECKSUM_BY_HARDWARE
     int i;
 #endif
-    netif->hwaddr_len = ETHARP_HWADDR_LEN; //ÉèÖÃMACµØÖ·³¤¶È,Îª6¸ö×Ö½Ú
-    //³õÊ¼»¯MACµØÖ·,ÉèÖÃÊ²Ã´µØÖ·ÓÉÓÃ»§×Ô¼ºÉèÖÃ,µ«ÊÇ²»ÄÜÓëÍøÂçÖĞÆäËûÉè±¸MACµØÖ·ÖØ¸´
+    netif->hwaddr_len = ETHARP_HWADDR_LEN; //è®¾ç½®MACåœ°å€é•¿åº¦,ä¸º6ä¸ªå­—èŠ‚
+    //åˆå§‹åŒ–MACåœ°å€,è®¾ç½®ä»€ä¹ˆåœ°å€ç”±ç”¨æˆ·è‡ªå·±è®¾ç½®,ä½†æ˜¯ä¸èƒ½ä¸ç½‘ç»œä¸­å…¶ä»–è®¾å¤‡MACåœ°å€é‡å¤
     netif->hwaddr[0]=lwipdev.mac[0];
     netif->hwaddr[1]=lwipdev.mac[1];
     netif->hwaddr[2]=lwipdev.mac[2];
     netif->hwaddr[3]=lwipdev.mac[3];
     netif->hwaddr[4]=lwipdev.mac[4];
     netif->hwaddr[5]=lwipdev.mac[5];
-    netif->mtu=1500; //×î´óÔÊĞí´«Êäµ¥Ôª,ÔÊĞí¸ÃÍø¿¨¹ã²¥ºÍARP¹¦ÄÜ
-    //²¢ÇÒ¸ÃÍø¿¨ÔÊĞíÓĞÓ²¼şÁ´Â·Á¬½Ó
+    netif->mtu=1500; //æœ€å¤§å…è®¸ä¼ è¾“å•å…ƒ,å…è®¸è¯¥ç½‘å¡å¹¿æ’­å’ŒARPåŠŸèƒ½
+    //å¹¶ä¸”è¯¥ç½‘å¡å…è®¸æœ‰ç¡¬ä»¶é“¾è·¯è¿æ¥
     netif->flags = NETIF_FLAG_BROADCAST|NETIF_FLAG_ETHARP|NETIF_FLAG_LINK_UP|NETIF_FLAG_IGMP;
 
-    ETH_MACAddressConfig(ETH_MAC_Address0, netif->hwaddr); //ÏòSTM32F4µÄMACµØÖ·¼Ä´æÆ÷ÖĞĞ´ÈëMACµØÖ·
+    ETH_MACAddressConfig(ETH_MAC_Address0, netif->hwaddr); //å‘STM32F4çš„MACåœ°å€å¯„å­˜å™¨ä¸­å†™å…¥MACåœ°å€
     ETH_DMATxDescChainInit(DMATxDscrTab, Tx_Buff, ETH_TXBUFNB);
     ETH_DMARxDescChainInit(DMARxDscrTab, Rx_Buff, ETH_RXBUFNB);
-#ifdef CHECKSUM_BY_HARDWARE 	//Ê¹ÓÃÓ²¼şÖ¡Ğ£Ñé
-    for(i=0; i<ETH_TXBUFNB; i++)	//Ê¹ÄÜTCP,UDPºÍICMPµÄ·¢ËÍÖ¡Ğ£Ñé,TCP,UDPºÍICMPµÄ½ÓÊÕÖ¡Ğ£ÑéÔÚDMAÖĞÅäÖÃÁË
+#ifdef CHECKSUM_BY_HARDWARE 	//ä½¿ç”¨ç¡¬ä»¶å¸§æ ¡éªŒ
+    for(i=0; i<ETH_TXBUFNB; i++)	//ä½¿èƒ½TCP,UDPå’ŒICMPçš„å‘é€å¸§æ ¡éªŒ,TCP,UDPå’ŒICMPçš„æ¥æ”¶å¸§æ ¡éªŒåœ¨DMAä¸­é…ç½®äº†
     {
         ETH_DMATxDescChecksumInsertionConfig(&DMATxDscrTab[i], ETH_DMATxDesc_ChecksumTCPUDPICMPFull);
     }
 #endif
-    ETH_Start(); //¿ªÆôMACºÍDMA
+    ETH_Start(); //å¼€å¯MACå’ŒDMA
     return ERR_OK;
 }
-//ÓÃÓÚ·¢ËÍÊı¾İ°üµÄ×îµ×²ãº¯Êı(lwipÍ¨¹ınetif->linkoutputÖ¸Ïò¸Ãº¯Êı)
-//netif:Íø¿¨½á¹¹ÌåÖ¸Õë
-//p:pbufÊı¾İ½á¹¹ÌåÖ¸Õë
-//·µ»ØÖµ:ERR_OK,·¢ËÍÕı³£
-//       ERR_MEM,·¢ËÍÊ§°Ü
+//ç”¨äºå‘é€æ•°æ®åŒ…çš„æœ€åº•å±‚å‡½æ•°(lwipé€šè¿‡netif->linkoutputæŒ‡å‘è¯¥å‡½æ•°)
+//netif:ç½‘å¡ç»“æ„ä½“æŒ‡é’ˆ
+//p:pbufæ•°æ®ç»“æ„ä½“æŒ‡é’ˆ
+//è¿”å›å€¼:ERR_OK,å‘é€æ­£å¸¸
+//       ERR_MEM,å‘é€å¤±è´¥
 static err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
     u8 res;
@@ -58,15 +58,16 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     res=ETH_Tx_Packet(l);
 		if(res==ETH_ERROR) 
 		{
+			g_dbg_ll_out_err++;                     /* è¯Šæ–­è®¡æ•°: å‘é€å¤±è´¥(ä¼šè§¦å‘ç½‘ç»œé‡å¯) */
 //			printf("tx_error\n");
 			eth_set_network_reset();
 		}
-    if(res==ETH_ERROR)return ERR_MEM;//·µ»Ø´íÎó×´Ì¬
+    if(res==ETH_ERROR)return ERR_MEM;//è¿”å›é”™è¯¯çŠ¶æ€
     return ERR_OK;
 }
-//ÓÃÓÚ½ÓÊÕÊı¾İ°üµÄ×îµ×²ãº¯Êı
-//neitif:Íø¿¨½á¹¹ÌåÖ¸Õë
-//·µ»ØÖµ:pbufÊı¾İ½á¹¹ÌåÖ¸Õë
+//ç”¨äºæ¥æ”¶æ•°æ®åŒ…çš„æœ€åº•å±‚å‡½æ•°
+//neitif:ç½‘å¡ç»“æ„ä½“æŒ‡é’ˆ
+//è¿”å›å€¼:pbufæ•°æ®ç»“æ„ä½“æŒ‡é’ˆ
 static struct pbuf * low_level_input(struct netif *netif)
 {
     struct pbuf *p, *q;
@@ -76,9 +77,9 @@ static struct pbuf * low_level_input(struct netif *netif)
     u8 *buffer;
     p = NULL;
     frame=ETH_Rx_Packet();
-    len=frame.length;//µÃµ½°ü´óĞ¡
-    buffer=(u8 *)frame.buffer;//µÃµ½°üÊı¾İµØÖ·
-    p=pbuf_alloc(PBUF_RAW,len,PBUF_POOL);//pbufsÄÚ´æ³Ø·ÖÅäpbuf
+    len=frame.length;//å¾—åˆ°åŒ…å¤§å°
+    buffer=(u8 *)frame.buffer;//å¾—åˆ°åŒ…æ•°æ®åœ°å€
+    p=pbuf_alloc(PBUF_RAW,len,PBUF_POOL);//pbufså†…å­˜æ± åˆ†é…pbuf
     if(p!=NULL)
     {
         for(q=p; q!=NULL; q=q->next)
@@ -87,18 +88,18 @@ static struct pbuf * low_level_input(struct netif *netif)
             l=l+q->len;
         }
     }
-    frame.descriptor->Status=ETH_DMARxDesc_OWN;//ÉèÖÃRxÃèÊö·ûOWNÎ»,bufferÖØ¹éETH DMA
-    if((ETH->DMASR&ETH_DMASR_RBUS)!=(u32)RESET)//µ±Rx Buffer²»¿ÉÓÃÎ»(RBUS)±»ÉèÖÃµÄÊ±ºò,ÖØÖÃËü.»Ö¸´´«Êä
+    frame.descriptor->Status=ETH_DMARxDesc_OWN;//è®¾ç½®Rxæè¿°ç¬¦OWNä½,bufferé‡å½’ETH DMA
+    if((ETH->DMASR&ETH_DMASR_RBUS)!=(u32)RESET)//å½“Rx Bufferä¸å¯ç”¨ä½(RBUS)è¢«è®¾ç½®çš„æ—¶å€™,é‡ç½®å®ƒ.æ¢å¤ä¼ è¾“
     {
-        ETH->DMASR=ETH_DMASR_RBUS;//ÖØÖÃETH DMA RBUSÎ»
-        ETH->DMARPDR=0;//»Ö¸´DMA½ÓÊÕ
+        ETH->DMASR=ETH_DMASR_RBUS;//é‡ç½®ETH DMA RBUSä½
+        ETH->DMARPDR=0;//æ¢å¤DMAæ¥æ”¶
     }
     return p;
 }
-//Íø¿¨½ÓÊÕÊı¾İ(lwipÖ±½Óµ÷ÓÃ)
-//netif:Íø¿¨½á¹¹ÌåÖ¸Õë
-//·µ»ØÖµ:ERR_OK,·¢ËÍÕı³£
-//       ERR_MEM,·¢ËÍÊ§°Ü
+//ç½‘å¡æ¥æ”¶æ•°æ®(lwipç›´æ¥è°ƒç”¨)
+//netif:ç½‘å¡ç»“æ„ä½“æŒ‡é’ˆ
+//è¿”å›å€¼:ERR_OK,å‘é€æ­£å¸¸
+//       ERR_MEM,å‘é€å¤±è´¥
 err_t ethernetif_input(struct netif *netif)
 {
     err_t err;
@@ -106,6 +107,7 @@ err_t ethernetif_input(struct netif *netif)
     p=low_level_input(netif);
 	  if(p==NULL) 
 		{
+			g_dbg_ll_in_null++;                     /* è¯Šæ–­è®¡æ•°: å–åŒ…å¤±è´¥(ä¼šè§¦å‘ç½‘ç»œé‡å¯) */
 //			printf("rx_error\n");
 			eth_set_network_reset();
 		}
@@ -119,21 +121,21 @@ err_t ethernetif_input(struct netif *netif)
     }
     return err;
 }
-//Ê¹ÓÃlow_level_init()º¯ÊıÀ´³õÊ¼»¯ÍøÂç
-//netif:Íø¿¨½á¹¹ÌåÖ¸Õë
-//·µ»ØÖµ:ERR_OK,Õı³£
-//       ÆäËû,Ê§°Ü
+//ä½¿ç”¨low_level_init()å‡½æ•°æ¥åˆå§‹åŒ–ç½‘ç»œ
+//netif:ç½‘å¡ç»“æ„ä½“æŒ‡é’ˆ
+//è¿”å›å€¼:ERR_OK,æ­£å¸¸
+//       å…¶ä»–,å¤±è´¥
 err_t ethernetif_init(struct netif *netif)
 {
     LWIP_ASSERT("netif!=NULL",(netif!=NULL));
 #if LWIP_NETIF_HOSTNAME			//LWIP_NETIF_HOSTNAME 
-    netif->hostname="lwip";  	//³õÊ¼»¯Ãû³Æ
+    netif->hostname="lwip";  	//åˆå§‹åŒ–åç§°
 #endif
-    netif->name[0]=IFNAME0; 	//³õÊ¼»¯±äÁ¿netifµÄname×Ö¶Î
-    netif->name[1]=IFNAME1; 	//ÔÚÎÄ¼şÍâ¶¨ÒåÕâÀï²»ÓÃ¹ØĞÄ¾ßÌåÖµ
-    netif->output=etharp_output;//IP²ã·¢ËÍÊı¾İ°üº¯Êı
-    netif->linkoutput=low_level_output;//ARPÄ£¿é·¢ËÍÊı¾İ°üº¯Êı
-    low_level_init(netif); 		//µ×²ãÓ²¼ş³õÊ¼»¯º¯Êı
+    netif->name[0]=IFNAME0; 	//åˆå§‹åŒ–å˜é‡netifçš„nameå­—æ®µ
+    netif->name[1]=IFNAME1; 	//åœ¨æ–‡ä»¶å¤–å®šä¹‰è¿™é‡Œä¸ç”¨å…³å¿ƒå…·ä½“å€¼
+    netif->output=etharp_output;//IPå±‚å‘é€æ•°æ®åŒ…å‡½æ•°
+    netif->linkoutput=low_level_output;//ARPæ¨¡å—å‘é€æ•°æ®åŒ…å‡½æ•°
+    low_level_init(netif); 		//åº•å±‚ç¡¬ä»¶åˆå§‹åŒ–å‡½æ•°
     return ERR_OK;
 }
 

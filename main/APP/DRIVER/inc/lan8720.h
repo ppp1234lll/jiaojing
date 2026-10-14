@@ -3,16 +3,16 @@
 #include "sys.h"
 #include "stm32f4x7_eth.h"
 
-#define LAN8720_PHY_ADDRESS  	0x00				// LAN8720 PHYĞ¾Æ¬µØÖ·.
+#define LAN8720_PHY_ADDRESS  	0x00				// LAN8720 PHYèŠ¯ç‰‡åœ°å€.
 
 
-extern ETH_DMADESCTypeDef *DMARxDscrTab;			// ÒÔÌ«ÍøDMA½ÓÊÕÃèÊö·ûÊı¾İ½á¹¹ÌåÖ¸Õë
-extern ETH_DMADESCTypeDef *DMATxDscrTab;			// ÒÔÌ«ÍøDMA·¢ËÍÃèÊö·ûÊı¾İ½á¹¹ÌåÖ¸Õë 
-extern uint8_t *Rx_Buff; 							// ÒÔÌ«Íøµ×²ãÇı¶¯½ÓÊÕbuffersÖ¸Õë 
-extern uint8_t *Tx_Buff; 							// ÒÔÌ«Íøµ×²ãÇı¶¯·¢ËÍbuffersÖ¸Õë
-extern ETH_DMADESCTypeDef  *DMATxDescToSet;			// DMA·¢ËÍÃèÊö·û×·×ÙÖ¸Õë
-extern ETH_DMADESCTypeDef  *DMARxDescToGet; 		// DMA½ÓÊÕÃèÊö·û×·×ÙÖ¸Õë 
-extern ETH_DMA_Rx_Frame_infos *DMA_RX_FRAME_infos;	// DMA×îºó½ÓÊÕµ½µÄÖ¡ĞÅÏ¢Ö¸Õë
+extern ETH_DMADESCTypeDef *DMARxDscrTab;			// ä»¥å¤ªç½‘DMAæ¥æ”¶æè¿°ç¬¦æ•°æ®ç»“æ„ä½“æŒ‡é’ˆ
+extern ETH_DMADESCTypeDef *DMATxDscrTab;			// ä»¥å¤ªç½‘DMAå‘é€æè¿°ç¬¦æ•°æ®ç»“æ„ä½“æŒ‡é’ˆ 
+extern uint8_t *Rx_Buff; 							// ä»¥å¤ªç½‘åº•å±‚é©±åŠ¨æ¥æ”¶buffersæŒ‡é’ˆ 
+extern uint8_t *Tx_Buff; 							// ä»¥å¤ªç½‘åº•å±‚é©±åŠ¨å‘é€buffersæŒ‡é’ˆ
+extern ETH_DMADESCTypeDef  *DMATxDescToSet;			// DMAå‘é€æè¿°ç¬¦è¿½è¸ªæŒ‡é’ˆ
+extern ETH_DMADESCTypeDef  *DMARxDescToGet; 		// DMAæ¥æ”¶æè¿°ç¬¦è¿½è¸ªæŒ‡é’ˆ 
+extern ETH_DMA_Rx_Frame_infos *DMA_RX_FRAME_infos;	// DMAæœ€åæ¥æ”¶åˆ°çš„å¸§ä¿¡æ¯æŒ‡é’ˆ
 
 
 u8 LAN8720_Init(void);
@@ -30,7 +30,20 @@ void ETH_Mem_Free(void);
 void eth_reset_function(void);
 
 /* 0514 */
-uint8_t LAN8720_Get_Network_Cable_Status(void);		// ÍøÏß½ÓÈë×´Ì¬
+uint8_t LAN8720_Get_Network_Cable_Status(void);		// ç½‘çº¿æ¥å…¥çŠ¶æ€
+
+/* ==== ETH è¯Šæ–­è®¡æ•°(ä¸´æ—¶, å®šä¹‰åœ¨ lan8720.c; å¯ç”¨ SWD è¯»å–; å®šä½å®Œæˆåå¯åˆ é™¤) ==== */
+extern volatile uint32_t g_dbg_eth_init;      /* ETH_MACDMA_Config() è°ƒç”¨æ¬¡æ•° */
+extern volatile uint32_t g_dbg_eth_irq;       /* ETH_IRQHandler è¿›å…¥æ¬¡æ•° */
+extern volatile uint32_t g_dbg_eth_rx;        /* ETH_Rx_Packet æˆåŠŸæ”¶å¸§æ¬¡æ•° */
+extern volatile uint32_t g_dbg_eth_rx_err;    /* ETH_Rx_Packet å¤±è´¥æ¬¡æ•° */
+extern volatile uint32_t g_dbg_eth_tx;        /* ETH_Tx_Packet æˆåŠŸå‘é€æ¬¡æ•° */
+extern volatile uint32_t g_dbg_eth_tx_err;    /* ETH_Tx_Packet å¤±è´¥æ¬¡æ•° */
+extern volatile uint32_t g_dbg_net_reset;     /* eth_set_network_reset() è°ƒç”¨æ¬¡æ•° */
+extern volatile uint32_t g_dbg_eth_reset;     /* lwipdev.reset å®é™…æ‰§è¡Œç½‘ç»œé‡å¯æ¬¡æ•° */
+extern volatile uint32_t g_dbg_link_down;     /* æ£€æµ‹åˆ° PHY é“¾è·¯ down æ¬¡æ•° */
+extern volatile uint32_t g_dbg_ll_in_null;    /* low_level_input è¿”å› NULL æ¬¡æ•° */
+extern volatile uint32_t g_dbg_ll_out_err;    /* low_level_output å‘é€å¤±è´¥æ¬¡æ•° */
 
 #endif 
 
