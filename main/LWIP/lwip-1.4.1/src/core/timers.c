@@ -419,6 +419,10 @@ sys_restart_timeouts(void)
  * @param mbox the mbox to fetch the message from
  * @param msg the place to store the message
  */
+/* 本地修补: 诊断计数——"到期定时器"分支连续执行过多(即出现0时间节点的异常状态)的次数,
+   正常运行时应长期为0; 可用 SWD 读取, 用于验证 sys_arch_mbox_fetch 耗时修正的效果。 */
+volatile u32_t g_dbg_tmo_guard = 0;
+
 void
 sys_timeouts_mbox_fetch(sys_mbox_t *mbox, void **msg)
 {
@@ -426,6 +430,7 @@ sys_timeouts_mbox_fetch(sys_mbox_t *mbox, void **msg)
   struct sys_timeo *tmptimeout;
   sys_timeout_handler handler;
   void *arg;
+  u32_t guard = 0;   /* 本地修补: 统计连续处理"已到期"定时器的次数 */
 
  again:
   if (!next_timeout) {
@@ -435,6 +440,15 @@ sys_timeouts_mbox_fetch(sys_mbox_t *mbox, void **msg)
       time_needed = sys_arch_mbox_fetch(mbox, msg, next_timeout->time);
     } else {
       time_needed = SYS_ARCH_TIMEOUT;
+      /* 本地修补: 若连续处理到期定时器过多, 说明超时链表的相对时间被算成 0(见
+         sys_arch_mbox_fetch 的耗时修正)。此分支原本不取邮箱, 一旦形成 0 时间节点
+         就会永久空转, 使 tcpip 邮箱里的消息(输入消息池)永远取不出去 → 设备静默。
+         这里定期强制取一次消息(1ms超时), 保证邮箱不被饿死, 并能顺带喂看门狗。 */
+      if (++guard >= 32u) {
+        guard = 0;
+        g_dbg_tmo_guard++;
+        time_needed = sys_arch_mbox_fetch(mbox, msg, 1);
+      }
     }
 
     if (time_needed == SYS_ARCH_TIMEOUT) {

@@ -673,23 +673,18 @@ netconn_free(struct netconn *conn)
 
   g_dbg_nc_free++;                                     /* 调试计数 */
 
-  /* 兜底(本地修补): 若调用者漏掉 netconn_drain(), 在此补做, 避免 uCOS 队列(OS_Q)/事件
-     被永久泄漏(OS_MAX_QS/OS_MAX_EVENTS 很小, 耗尽后新连接会被 RST)。 */
-  if ((conn->recvmbox != NULL)
-#if LWIP_TCP
-      || (conn->acceptmbox != NULL)
-#endif
-     ) {
-    if (conn->recvmbox != NULL) {
-      g_dbg_nc_free_leak_rcv++;                        /* 调试计数: 命中 recvmbox 泄漏 */
-    }
-#if LWIP_TCP
-    if (conn->acceptmbox != NULL) {
-      g_dbg_nc_free_leak_acc++;                        /* 调试计数: 命中 acceptmbox 泄漏 */
-    }
-#endif
-    netconn_drain(conn);                               /* 取空并释放邮箱 */
+  /* 调试计数: 若此处邮箱指针仍非空, 说明调用者漏了 netconn_drain()(用于发现泄漏路径)。
+     这里**不再**补做取空/释放: 对已释放或已被复用的 netconn 来说邮箱指针可能是脏值,
+     贸然 OSQDel/myfree 会破坏 uCOS 队列池; 且用脏指针取空会死循环。
+     邮箱的释放统一由 netconn_drain() 负责(它只在邮箱有效时取空, 但只要分配过就一定释放)。 */
+  if (conn->recvmbox != NULL) {
+    g_dbg_nc_free_leak_rcv++;                          /* 调试计数: 命中 recvmbox 未释放 */
   }
+#if LWIP_TCP
+  if (conn->acceptmbox != NULL) {
+    g_dbg_nc_free_leak_acc++;                          /* 调试计数: 命中 acceptmbox 未释放 */
+  }
+#endif
 
   sys_sem_free(&conn->op_completed);
   sys_sem_set_invalid(&conn->op_completed);
@@ -709,6 +704,7 @@ static void
 netconn_drain(struct netconn *conn)
 {
   void *mem;
+  u32_t guard;                 /* 本地修补: 取空循环硬上限, 防止脏邮箱导致死循环 */
 #if LWIP_TCP
   struct pbuf *p;
 #endif /* LWIP_TCP */
@@ -716,25 +712,31 @@ netconn_drain(struct netconn *conn)
   /* This runs in tcpip_thread, so we don't need to lock against rx packets */
 
   /* Delete and drain the recvmbox. */
-  /* 修补(本地): 原实现用 sys_mbox_valid() 判断, 而本移植的 sys_mbox_valid() 在
-     "队列已满(OSNMsgs>=OSQSize)" 时返回 0 → 既不 drain 也不释放, 邮箱(uCOS 队列)泄漏。
-     改为按指针非空判断: 只要分配过就一定释放。 */
+  /* 修补(本地): 拆开"取空"与"释放"两件事——
+     - 取空: 仅当邮箱确实有效(sys_mbox_valid)时才做, 避免用脏/已释放指针取空而死循环;
+     - 释放: 只要指针非空(说明分配过)就一定 sys_mbox_free, 避免 uCOS 队列(OS_Q)泄漏
+       (原实现两者都依赖 sys_mbox_valid, 而本移植的该函数在"队列已满"时返回0,
+        于是既不取空也不释放 → 队列池被耗尽 → 新连接被 RST)。
+     取空循环另加 64 次上限, 作为最后一道保险。 */
   if (conn->recvmbox != NULL) {
-    while (sys_mbox_tryfetch(&conn->recvmbox, &mem) != SYS_MBOX_EMPTY) {
+    if (sys_mbox_valid(&conn->recvmbox)) {
+      guard = 0;
+      while ((sys_mbox_tryfetch(&conn->recvmbox, &mem) != SYS_MBOX_EMPTY) && (++guard < 64u)) {
 #if LWIP_TCP
-      if (conn->type == NETCONN_TCP) {
-        if(mem != NULL) {
-          p = (struct pbuf*)mem;
-          /* pcb might be set to NULL already by err_tcp() */
-          if (conn->pcb.tcp != NULL) {
-            tcp_recved(conn->pcb.tcp, p->tot_len);
+        if (conn->type == NETCONN_TCP) {
+          if(mem != NULL) {
+            p = (struct pbuf*)mem;
+            /* pcb might be set to NULL already by err_tcp() */
+            if (conn->pcb.tcp != NULL) {
+              tcp_recved(conn->pcb.tcp, p->tot_len);
+            }
+            pbuf_free(p);
           }
-          pbuf_free(p);
-        }
-      } else
+        } else
 #endif /* LWIP_TCP */
-      {
-        netbuf_delete((struct netbuf *)mem);
+        {
+          netbuf_delete((struct netbuf *)mem);
+        }
       }
     }
     sys_mbox_free(&conn->recvmbox);
@@ -744,20 +746,26 @@ netconn_drain(struct netconn *conn)
   /* Delete and drain the acceptmbox. */
 #if LWIP_TCP
   if (conn->acceptmbox != NULL) {
-    while (sys_mbox_tryfetch(&conn->acceptmbox, &mem) != SYS_MBOX_EMPTY) {
-      struct netconn *newconn = (struct netconn *)mem;
-      /* Only tcp pcbs have an acceptmbox, so no need to check conn->type */
-      /* pcb might be set to NULL already by err_tcp() */
-      if (conn->pcb.tcp != NULL) {
-        tcp_accepted(conn->pcb.tcp);
+    if (sys_mbox_valid(&conn->acceptmbox)) {
+      guard = 0;
+      while ((sys_mbox_tryfetch(&conn->acceptmbox, &mem) != SYS_MBOX_EMPTY) && (++guard < 64u)) {
+        struct netconn *newconn = (struct netconn *)mem;
+        if (newconn == NULL) {
+          continue;
+        }
+        /* Only tcp pcbs have an acceptmbox, so no need to check conn->type */
+        /* pcb might be set to NULL already by err_tcp() */
+        if (conn->pcb.tcp != NULL) {
+          tcp_accepted(conn->pcb.tcp);
+        }
+        /* drain recvmbox */
+        netconn_drain(newconn);
+        if (newconn->pcb.tcp != NULL) {
+          tcp_abort(newconn->pcb.tcp);
+          newconn->pcb.tcp = NULL;
+        }
+        netconn_free(newconn);
       }
-      /* drain recvmbox */
-      netconn_drain(newconn);
-      if (newconn->pcb.tcp != NULL) {
-        tcp_abort(newconn->pcb.tcp);
-        newconn->pcb.tcp = NULL;
-      }
-      netconn_free(newconn);
     }
     sys_mbox_free(&conn->acceptmbox);
     sys_mbox_set_invalid(&conn->acceptmbox);

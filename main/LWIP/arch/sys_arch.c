@@ -50,6 +50,21 @@
 //在本函数中把NULL变成一个常量指针0Xffffffff
 const void * const pvNullPointer = (mem_ptr_t*)0xffffffff;
  
+/* 资源池(队列/事件)耗尽的自愈兜底:
+   这些池只在 OSInit() 时建立, 运行期无法重建; 一旦被泄漏耗尽, 设备会永久无法接受
+   新连接(对新连接一律回 RST)且只能人工复位/断电。此处做兜底——连续分配失败达到阈值
+   就整机复位, 复位后自动恢复服务。正常运行时该计数应长期为 0。 */
+#define SYS_POOL_FAIL_RESET_THRESHOLD   500u
+static u32_t s_pool_fail_run = 0;
+static void sys_arch_pool_fail_check(void)
+{
+	if(++s_pool_fail_run >= SYS_POOL_FAIL_RESET_THRESHOLD)
+	{
+		s_pool_fail_run = 0;
+		NVIC_SystemReset();                                  /* 整机复位: 重建 uCOS 队列/事件池 */
+	}
+}
+
 
 //创建一个消息邮箱
 //*mbox:消息邮箱
@@ -68,11 +83,13 @@ err_t sys_mbox_new( sys_mbox_t *mbox, int size)
 		if((*mbox)->pQ!=NULL)
 		{
 			g_dbg_mbox_new++;                                // 调试计数
+			s_pool_fail_run = 0;                             // 分配成功: 清零连续失败计数
 			return ERR_OK;  //返回ERR_OK,表示消息队列创建成功 ERR_OK=0
 		}
 		else
 		{ 
 			g_dbg_mbox_new_fail++;                           // 调试计数(OSQCreate 失败)
+			sys_arch_pool_fail_check();                      // 池耗尽兜底: 连续失败达阈值则整机复位
 			myfree(SRAMIN,(*mbox));
 			return ERR_MEM;  		//消息队列创建错误
 		}
@@ -80,6 +97,7 @@ err_t sys_mbox_new( sys_mbox_t *mbox, int size)
 	else
 	{
 		g_dbg_mbox_new_fail++;                               // 调试计数(mymalloc 失败)
+		sys_arch_pool_fail_check();                          // 池耗尽兜底
 		return ERR_MEM; 			//消息队列创建错误 
 	}
 } 
@@ -90,8 +108,27 @@ void sys_mbox_free(sys_mbox_t * mbox)
 	u8_t ucErr;
 	sys_mbox_t m_box=*mbox;   
 	g_dbg_mbox_free++;                                   // 调试计数
+	if(m_box==NULL)                                      // 空指针保护: 重复释放时不要继续操作系统对象
+	{
+		*mbox=NULL;
+		return;
+	}
+	/* 幂等保护: 只有当事件对象确实还是"队列"时才真正删除。
+	   否则说明该邮箱已被释放过(重复释放/脏指针): 此时若继续 OSQDel + myfree,
+	   会破坏 uCOS 队列池(队列+事件双泄漏)并重复释放 SRAM 堆块。 */
+	if((m_box->pQ==NULL)||(m_box->pQ->OSEventType!=OS_EVENT_TYPE_Q))
+	{
+		g_dbg_mbox_del_err++;                            // 调试计数: 命中重复释放/无效事件
+		*mbox=NULL;
+		return;
+	}
 	(void)OSQDel(m_box->pQ,OS_DEL_ALWAYS,&ucErr);
-	LWIP_ASSERT( "OSQDel ",ucErr == OS_ERR_NONE ); 
+	if(ucErr!=OS_ERR_NONE)
+	{
+		g_dbg_mbox_del_err++;                            // 调试计数: OSQDel 失败
+		*mbox=NULL;
+		return;                                          // 失败时不再 myfree, 避免重复释放堆块
+	}
 	myfree(SRAMIN,m_box); 
 	*mbox=NULL;
 }
@@ -126,7 +163,7 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 { 
 	u8_t ucErr;
-	u32_t ucos_timeout,timeout_new;
+	u32_t ucos_timeout,timeout_new,elapsed;
 	void *temp;
 	sys_mbox_t m_box=*mbox;
 	if(timeout!=0)
@@ -136,21 +173,34 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 	}else ucos_timeout = 0; 
 	timeout = OSTimeGet(); //获取系统时间 
 	temp=OSQPend(m_box->pQ,(u16_t)ucos_timeout,&ucErr); //请求消息队列,等待时限为ucos_timeout
+
+	if(ucErr!=OS_ERR_NONE)   /* 请求超时(OS_ERR_TIMEOUT), 或事件对象无效等异常情况:
+	                            一律按"未取到消息"处理, 避免调用者把它当成取到了消息而死循环
+	                            (netconn_drain 的取空循环就依赖这里的语义) */
+	{
+		if(msg!=NULL)*msg=NULL;   // 修补: 必须清掉消息指针, 否则调用者会拿到上一次的陈旧指针
+		return SYS_ARCH_TIMEOUT;
+	}
+
 	if(msg!=NULL)
 	{	
 		if(temp==(void*)&pvNullPointer)*msg = NULL;   	//因为lwip发送空消息的时候我们使用了pvNullPointer指针,所以判断pvNullPointer指向的值
  		else *msg=temp;									//就可知道请求到的消息是否有效
 	}    
-	if(ucErr==OS_ERR_TIMEOUT)timeout=SYS_ARCH_TIMEOUT;  //请求超时
-	else
-	{
-		LWIP_ASSERT("OSQPend ",ucErr==OS_ERR_NONE); 
-		timeout_new=OSTimeGet();
-		if (timeout_new>timeout) timeout_new = timeout_new - timeout;//算出请求消息或使用的时间
-		else timeout_new = 0xffffffff - timeout + timeout_new; 
-		timeout=timeout_new*1000/OS_TICKS_PER_SEC + 1; 
-	}
-	return timeout; 
+
+	/* 修补: 计算等待耗时(ms)。OSTimeGet() 是32位节拍计数, 必须按无符号回绕计算。
+	   原实现 `if(new>old) d=new-old; else d=0xffffffff-old+new;` 在"同一节拍内取到
+	   消息"(new==old, 高频发生)时会得到 0xffffffff → 返回约 21474832ms 的假耗时;
+	   LwIP 超时链表用相对时间(sys_timeout/sys_timeouts_mbox_fetch), 假耗时会把它扣成0,
+	   使链表出现"0时间"节点 → sys_timeouts_mbox_fetch() 在"定时器已到期"分支里反复
+	   执行定时器却不再取邮箱 → tcpip 核心线程永久空转(输入消息池耗尽、设备静默)。*/
+	timeout_new=OSTimeGet();
+	if(timeout_new>=timeout)elapsed=timeout_new-timeout;
+	else elapsed=(0xffffffffu-timeout)+timeout_new+1u;   // 节拍计数器回绕
+	if(elapsed>0x001fffffu)elapsed=0x001fffffu;          // 上限保护, 避免下面乘1000溢出
+	elapsed=elapsed*1000/OS_TICKS_PER_SEC;               // 节拍→毫秒
+	if(elapsed>=SYS_ARCH_TIMEOUT)elapsed=SYS_ARCH_TIMEOUT-1u; // 绝不能被误判为"超时"
+	return elapsed; 
 }
 //尝试获取消息
 //*mbox:消息邮箱
@@ -190,10 +240,15 @@ err_t sys_sem_new(sys_sem_t * sem, u8_t count)
 {  
 	u8_t err; 
 	*sem=OSSemCreate((u16_t)count);
-	if(*sem==NULL)return ERR_MEM; 
+	if(*sem==NULL)
+	{
+		sys_arch_pool_fail_check();                      // 事件池耗尽兜底: 连续失败达阈值则整机复位
+		return ERR_MEM; 
+	}
 	OSEventNameSet(*sem,"LWIP Sem",&err);
 	LWIP_ASSERT("OSSemCreate ",*sem != NULL );
 	g_dbg_sem_new++;                                     // 调试计数
+	s_pool_fail_run = 0;                                 // 分配成功: 清零连续失败计数
 	return ERR_OK;
 } 
 //等待一个信号量
@@ -234,8 +289,19 @@ void sys_sem_signal(sys_sem_t *sem)
 void sys_sem_free(sys_sem_t *sem)
 {
 	u8_t ucErr;
+	if(*sem==NULL)                                       // 空指针保护: 重复释放时不要继续操作系统对象
+	{
+		return;
+	}
+	/* 幂等保护: 只有当事件对象确实还是"信号量"时才真正删除, 避免重复释放破坏事件池 */
+	if((*sem)->OSEventType!=OS_EVENT_TYPE_SEM)
+	{
+		g_dbg_sem_del_err++;                             // 调试计数: 命中重复释放/无效事件
+		*sem = NULL;
+		return;
+	}
 	(void)OSSemDel(*sem,OS_DEL_ALWAYS,&ucErr );
-	if(ucErr!=OS_ERR_NONE)LWIP_ASSERT("OSSemDel ",ucErr==OS_ERR_NONE);
+	if(ucErr!=OS_ERR_NONE)g_dbg_sem_del_err++;           // 调试计数: OSSemDel 失败
 	*sem = NULL;
 	g_dbg_sem_free++;                                    // 调试计数
 } 

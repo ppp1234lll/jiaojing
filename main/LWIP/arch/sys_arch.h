@@ -72,6 +72,8 @@ SYS_ARCH_EXT volatile u32_t g_dbg_delconn_inprog;  /* do_delconn 走 ERR_INPROGR
 SYS_ARCH_EXT volatile u32_t g_dbg_close_inprog;    /* do_close   走 ERR_INPROGRESS 分支 */
 SYS_ARCH_EXT volatile u32_t g_dbg_close_fail;      /* do_close_internal 中 tcp_close 未成功(ERR_MEM) */
 SYS_ARCH_EXT volatile u32_t g_dbg_err_tcp;         /* err_tcp(连接被 abort/出错) 次数 */
+SYS_ARCH_EXT volatile u32_t g_dbg_mbox_del_err;    /* OSQDel 失败次数(邮箱实际未回收 → 池退化) */
+SYS_ARCH_EXT volatile u32_t g_dbg_sem_del_err;     /* OSSemDel 失败次数(事件实际未回收 → 池退化) */
 #endif 
 
 

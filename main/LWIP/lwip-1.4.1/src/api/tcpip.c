@@ -73,7 +73,7 @@ sys_mutex_t lock_tcpip_core;
 static void
 tcpip_thread(void *arg)
 {
-  struct tcpip_msg *msg;
+  struct tcpip_msg *msg = NULL;
   LWIP_UNUSED_ARG(arg);
 
   if (tcpip_init_done != NULL) {
@@ -87,6 +87,11 @@ tcpip_thread(void *arg)
     /* wait for a message, timeouts are processed while waiting */
     sys_timeouts_mbox_fetch(&mbox, (void **)&msg);
     LOCK_TCPIP_CORE();
+    if (msg == NULL) {
+      /* 本地修补: 若未取到有效消息则跳过, 避免用陈旧/无效指针去 switch/free
+         (sys_arch_mbox_fetch 在超时时会显式把 *msg 置 NULL)。 */
+      continue;
+    }
     switch (msg->type) {
 #if LWIP_NETCONN
     case TCPIP_MSG_API:
@@ -157,6 +162,15 @@ tcpip_thread(void *arg)
  *          NETIF_FLAG_ETHERNET flags)
  * @param inp the network interface on which the packet was received
  */
+/* 本地修补: TCPIP_MSG_INPKT 分配失败的诊断计数与自愈。
+   该消息池只有 MEMP_NUM_TCPIP_MSG_INPKT 个, 一旦被占满, 之后所有收到的帧都会被
+   静默丢弃(tcpip 线程再也处理不了输入包), 设备表现为"能收不能发、完全失联",
+   且必须复位才能恢复。这里累计失败次数, 达到阈值就请求一次网络重启
+   (lwip_init 会重建 memp 池)以自愈, 避免设备彻底静默。 */
+volatile u32_t g_dbg_tcpip_inpkt_fail = 0;    /* 累计失败次数(诊断用, 可用SWD读取) */
+static u32_t tcpip_inpkt_fail_run = 0;        /* 连续失败计数(达到阈值触发网络重启) */
+extern void eth_set_network_reset(void);      /* 定义在 APP/TASK/src/eth.c */
+
 err_t
 tcpip_input(struct pbuf *p, struct netif *inp)
 {
@@ -182,8 +196,15 @@ tcpip_input(struct pbuf *p, struct netif *inp)
   }
   msg = (struct tcpip_msg *)memp_malloc(MEMP_TCPIP_MSG_INPKT);
   if (msg == NULL) {
+    /* 本地修补: 输入消息池耗尽 → 累计并兜底自愈(见上面的说明) */
+    g_dbg_tcpip_inpkt_fail++;
+    if (++tcpip_inpkt_fail_run >= 200u) {
+      tcpip_inpkt_fail_run = 0;
+      eth_set_network_reset();          /* 请求一次网络重启, 重建 memp 池 */
+    }
     return ERR_MEM;
   }
+  tcpip_inpkt_fail_run = 0;             /* 分配成功, 清零连续失败计数 */
 
   msg->type = TCPIP_MSG_INPKT;
   msg->msg.inp.p = p;

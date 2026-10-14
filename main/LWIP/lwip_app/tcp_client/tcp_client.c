@@ -87,15 +87,16 @@ static void tcp_client1_force_close(void)
 
 	if(lwipdev.tcp_client1 != 0)
 	{
-		/* 兜底: 任务未按预期退出。先删任务(使其脱离各等待链), 再释放连接对象。 */
+		/* 兜底: 任务未按预期退出。先摘指针再删任务, 最后释放连接对象。 */
+		struct netconn *old_conn = tcp_cilent1_conn;   // 先摘到本地, 避免与任务并发修改
+		tcp_cilent1_conn = NULL;
 		OS_ENTER_CRITICAL();		// 关中断
 		OSTaskDel(TCP_CLIENT1_PRIO);
 		OS_EXIT_CRITICAL();			// 开中断
-		if(tcp_cilent1_conn != NULL)
+		if(old_conn != NULL)
 		{
-			netconn_close(tcp_cilent1_conn);                            //关闭连接
-			netconn_delete(tcp_cilent1_conn);                           //删除连接
-			tcp_cilent1_conn = NULL;
+			netconn_close(old_conn);                            //关闭连接
+			netconn_delete(old_conn);                           //删除连接
 		}
 		lwipdev.tcp_client1 = 0;
 	}
@@ -127,14 +128,15 @@ static void tcp_backup_force_close(void)
 
 	if(lwipdev.tcp_client_backup != 0)
 	{
+		struct netconn *old_conn = tcp_backup_conn;    // 先摘到本地, 避免与任务并发修改
+		tcp_backup_conn = NULL;
 		OS_ENTER_CRITICAL();		// 关中断
 		OSTaskDel(TCP_BACKUP_PRIO);
 		OS_EXIT_CRITICAL();			// 开中断
-		if(tcp_backup_conn != NULL)
+		if(old_conn != NULL)
 		{
-			netconn_close(tcp_backup_conn);                             //关闭连接
-			netconn_delete(tcp_backup_conn);                            //删除连接
-			tcp_backup_conn = NULL;
+			netconn_close(old_conn);                             //关闭连接
+			netconn_delete(old_conn);                            //删除连接
 		}
 		lwipdev.tcp_client_backup = 0;
 	}
@@ -219,22 +221,29 @@ static void tcp_cilent1_thread(void *arg)
 		else if(recv_err == ERR_CLSD||recv_err==ERR_RST)      //接收到关闭或复位数据
 		{
 			CLIENT1_ERROR:
-			if(tcp_cilent1_conn != NULL)  // 可能已被"强制关闭旧HTTP连接"释放, 避免二次释放
 			{
-				netconn_close(tcp_cilent1_conn);                            //关闭连接
-				netconn_delete(tcp_cilent1_conn);                           //删除连接
+				/* 关键顺序: 先摘到本地并清空全局指针, 再释放连接, 最后才清槽位标志。
+				   否则: netconn_delete 会阻塞等待 tcpip 线程, 期间服务器线程若"协作关闭"等待超时
+				   走兜底分支, 就会对同一个 netconn 再释放一次 → 双重 OSQDel/OSSemDel 与重复 myfree,
+				   破坏 uCOS 队列/事件池与 SRAM 堆(表现为后续 accept 全部失败、设备对新连接回 RST)。*/
+				struct netconn *old_conn = tcp_cilent1_conn;
 				tcp_cilent1_conn = NULL;
+				if(lwipdev.client_websocket_id == 1)
+				{
+					lwipdev.client_websocket_id = 0;
+					eth_set_network_reset();
+				}
+				if(old_conn != NULL)
+				{
+					netconn_close(old_conn);                            //关闭连接
+					netconn_delete(old_conn);                           //删除连接
+				}
+				lwipdev.tcp_client1 = 0;                          //第 client->num 个设备状态置0 表示客户端未连接
+				if(TCP_CLIENT_DEBUG) printf("cilent1...2\n");
+				OS_ENTER_CRITICAL();		// 关中断
+				OSTaskDel(TCP_CLIENT1_PRIO);	// 删除TCP任务
+				OS_EXIT_CRITICAL();			// 开中断
 			}
-			if(lwipdev.client_websocket_id == 1)
-			{
-				lwipdev.client_websocket_id = 0;
-				eth_set_network_reset();
-			}
-			lwipdev.tcp_client1 = 0;                          //第 client->num 个设备状态置0 表示客户端未连接
-			if(TCP_CLIENT_DEBUG) printf("cilent1...2\n");
-			OS_ENTER_CRITICAL();		// 关中断
-			OSTaskDel(TCP_CLIENT1_PRIO);	// 删除TCP任务
-			OS_EXIT_CRITICAL();			// 开中断
 		}
 		OSTimeDly(1);				/* 1 tick = 5ms @200Hz, 按节拍显式延时, 避免 ms->tick 换算陷阱 */
 	}
@@ -295,22 +304,26 @@ static void tcp_backup_thread(void *arg)
 		else if(recv_err == ERR_CLSD||recv_err==ERR_RST)      //接收到关闭或复位数据
 		{
 			BACKUP_ERROR:
-			if(tcp_backup_conn != NULL)  // 可能已被"强制关闭"释放, 避免二次释放
 			{
-				netconn_close(tcp_backup_conn);                             //关闭连接
-				netconn_delete(tcp_backup_conn);                            //删除连接
+				/* 与 client1 同样的顺序: 先摘指针 → 释放连接 → 最后清槽位标志, 避免二次释放 */
+				struct netconn *old_conn = tcp_backup_conn;
 				tcp_backup_conn = NULL;
+				if(lwipdev.client_websocket_id == 1)
+				{
+					lwipdev.client_websocket_id = 0;
+					eth_set_network_reset();
+				}
+				if(old_conn != NULL)
+				{
+					netconn_close(old_conn);                             //关闭连接
+					netconn_delete(old_conn);                            //删除连接
+				}
+				lwipdev.tcp_client_backup = 0;
+				if(TCP_CLIENT_DEBUG) printf("backup...2\n");
+				OS_ENTER_CRITICAL();		// 关中断
+				OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
+				OS_EXIT_CRITICAL();			// 开中断
 			}
-			if(lwipdev.client_websocket_id == 1)
-			{
-				lwipdev.client_websocket_id = 0;
-				eth_set_network_reset();
-			}
-			lwipdev.tcp_client_backup = 0;
-			if(TCP_CLIENT_DEBUG) printf("backup...2\n");
-			OS_ENTER_CRITICAL();		// 关中断
-			OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
-			OS_EXIT_CRITICAL();			// 开中断
 		}
 		OSTimeDly(1);				/* 1 tick = 5ms @200Hz, 按节拍显式延时, 避免 ms->tick 换算陷阱 */
 	}
