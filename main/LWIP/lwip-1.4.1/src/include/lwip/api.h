@@ -191,6 +191,10 @@ struct netconn {
 #endif /* LWIP_TCP */
   /** A callback function that is informed about events for this netconn */
   netconn_callback callback;
+  /** 本地诊断: netconn 代数标记。netconn 结构体内存(memp)会被复用, 仅凭指针无法区分
+      "良性地址复用"与"对已释放句柄的重复操作"; 每次分配时代数递增, do_delconn 等处
+      只有在"同地址+同代数"再次出现时才判定为真实重复操作。 */
+  u32_t dbg_gen;
 };
 
 /** Register an Network connection event */

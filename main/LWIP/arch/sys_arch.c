@@ -89,6 +89,18 @@ volatile u32_t g_dbg_mbox_alc_addr[SYS_MBOX_HIST];
 volatile u32_t g_dbg_mbox_alc_lr[SYS_MBOX_HIST];
 volatile u32_t g_dbg_mbox_alc_ptr;
 
+/* ===== 邮箱所有权表: sys_mbox_new 登记(地址+代数), sys_mbox_free 校验后注销 =====
+   作用: sys_mbox_free 收到的指针若是"已释放过的旧 TQ_DESCR"(已被注销, 或其内存已被
+   新邮箱复用而指针代数不符), 一律拒绝释放并计数——从根上杜绝"重复释放/释放别人的邮箱"
+   造成的 uCOS OS_Q+OS_EVENT 成对丢失(此前表现为 free_invalid 与队列/事件池缓慢枯竭)。 */
+#define MBOX_LIVE_HIST  32
+static PQ_DESCR s_ml_addr[MBOX_LIVE_HIST];
+static u32_t    s_ml_gen[MBOX_LIVE_HIST];
+static u32_t    s_ml_idx = 0;
+volatile u32_t g_dbg_mbox_gen = 0;         /* 邮箱分配代数计数 */
+volatile u32_t g_dbg_mbox_double_real = 0; /* 真·重复释放(地址已被注销) */
+volatile u32_t g_dbg_mbox_stale_ptr = 0;   /* 陈旧指针(地址存活但代数不符) */
+
 /* 取"本函数的调用者返回地址"(即调用 sys_mbox_new/free 那条 BL 的下一条指令地址,
    位于调用者内部; Thumb 位为1, 查 map 时用 (lr & ~1))。
    注意: 必须在本函数体内直接使用 __builtin_return_address(0), 若放到辅助函数里
@@ -112,7 +124,15 @@ err_t sys_mbox_new( sys_mbox_t *mbox, int size)
 		LWIP_ASSERT("OSQCreate",(*mbox)->pQ!=NULL); 
 		if((*mbox)->pQ!=NULL)
 		{
+			u32_t k, slot = MBOX_LIVE_HIST;
 			g_dbg_mbox_new++;                                // 调试计数
+			(*mbox)->dbg_gen = ++g_dbg_mbox_gen;             // 所有权/诊断: 代数标记
+			for(k=0;k<MBOX_LIVE_HIST;k++){                   // 存活表登记(地址复用原位更新)
+				if(s_ml_addr[k]==*mbox){slot=k;break;}
+				if((slot==MBOX_LIVE_HIST)&&(s_ml_addr[k]==NULL)){slot=k;}
+			}
+			if(slot==MBOX_LIVE_HIST){slot=s_ml_idx;s_ml_idx=(s_ml_idx+1u)%MBOX_LIVE_HIST;}
+			s_ml_addr[slot]=*mbox;s_ml_gen[slot]=(*mbox)->dbg_gen;
 			g_dbg_mbox_alloc_lr = lr;                        // 诊断: 记录最近一次创建来源
 			s_mbox_alc[s_mbox_alc_idx]    = *mbox;           /* 诊断: 记录分配(环形) */
 			s_mbox_alc_lr[s_mbox_alc_idx] = lr;
@@ -151,6 +171,35 @@ void sys_mbox_free(sys_mbox_t * mbox)
 	{
 		*mbox=NULL;
 		return;
+	}
+	/* 所有权校验: 只有"存活表中地址匹配且代数一致"的邮箱才允许真正释放。
+	   - 地址已注销(不在表): 真·重复释放 → 拒绝;
+	   - 地址在表但代数不符: 该 TQ_DESCR 内存已被新邮箱复用, 本指针是陈旧指针 → 拒绝。
+	   两种情况都直接返回, 不再 OSQDel/myfree, 保证 uCOS 队列/事件池与 SRAM 堆不受破坏。 */
+	{
+		u32_t k;
+		u8_t found = 0;
+		for(k=0;k<MBOX_LIVE_HIST;k++)
+		{
+			if(s_ml_addr[k]==m_box)
+			{
+				found = 1;
+				if(s_ml_gen[k]!=m_box->dbg_gen)
+				{
+					g_dbg_mbox_stale_ptr++;              // 陈旧指针(内存已被新邮箱复用)
+					*mbox=NULL;
+					return;
+				}
+				s_ml_addr[k]=NULL;s_ml_gen[k]=0;         // 注销所有权
+				break;
+			}
+		}
+		if(!found)
+		{
+			g_dbg_mbox_double_real++;                    // 真·重复释放(地址已被注销)
+			*mbox=NULL;
+			return;
+		}
 	}
 
 	/* 真·重复释放/脏指针判定: 事件对象已不是"队列" → 该邮箱此前已被释放并回收。

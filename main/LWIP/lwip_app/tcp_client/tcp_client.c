@@ -63,6 +63,8 @@ uint16_t tcp_backup_flag;								// 备用服务器数据发送标志位
 static volatile uint8_t tcp_client1_close_req = 0;
 static volatile uint8_t tcp_backup_close_req  = 0;
 
+volatile u32_t g_dbg_task_create_fail = 0;   /* 诊断: OSTaskCreateExt 失败次数(会触发唯一释放点) */
+
 /************************************************************
 * Function name	: tcp_client1_force_close
 * Description	: 关闭主槽(client1)旧连接(协作式)
@@ -87,16 +89,19 @@ static void tcp_client1_force_close(void)
 
 	if(lwipdev.tcp_client1 != 0)
 	{
-		/* 兜底: 任务未按预期退出。先摘指针再删任务, 最后释放连接对象。 */
-		struct netconn *old_conn = tcp_cilent1_conn;   // 先摘到本地, 避免与任务并发修改
+		/* 兜底: 任务未按预期退出。临界区内原子"摘指针", 再删任务, 最后释放连接对象。 */
+		struct netconn *old_conn;
+		OS_ENTER_CRITICAL();		// 关中断: 单一属主——摘指针必须原子, 杜绝与任务并发双释放
+		old_conn = tcp_cilent1_conn;
 		tcp_cilent1_conn = NULL;
+		OS_EXIT_CRITICAL();			// 开中断
 		OS_ENTER_CRITICAL();		// 关中断
 		OSTaskDel(TCP_CLIENT1_PRIO);
 		OS_EXIT_CRITICAL();			// 开中断
 		if(old_conn != NULL)
 		{
-			netconn_close(old_conn);                            //关闭连接
-			netconn_delete(old_conn);                           //删除连接
+			netconn_delete(old_conn);   /* 单独 delete 即含: drain + 优雅关闭(do_close_internal) + 释放,
+			                               不再先 netconn_close(那会对同一连接触发第二次 drain) */
 		}
 		lwipdev.tcp_client1 = 0;
 	}
@@ -128,15 +133,18 @@ static void tcp_backup_force_close(void)
 
 	if(lwipdev.tcp_client_backup != 0)
 	{
-		struct netconn *old_conn = tcp_backup_conn;    // 先摘到本地, 避免与任务并发修改
+		/* 与主槽兜底一致: 临界区原子摘指针 → 删任务 → 只 delete(不再 close) */
+		struct netconn *old_conn;
+		OS_ENTER_CRITICAL();		// 关中断
+		old_conn = tcp_backup_conn;
 		tcp_backup_conn = NULL;
+		OS_EXIT_CRITICAL();			// 开中断
 		OS_ENTER_CRITICAL();		// 关中断
 		OSTaskDel(TCP_BACKUP_PRIO);
 		OS_EXIT_CRITICAL();			// 开中断
 		if(old_conn != NULL)
 		{
-			netconn_close(old_conn);                             //关闭连接
-			netconn_delete(old_conn);                            //删除连接
+			netconn_delete(old_conn);   /* 只 delete: drain + 优雅关闭 + 释放, 一次完成 */
 		}
 		lwipdev.tcp_client_backup = 0;
 	}
@@ -222,12 +230,18 @@ static void tcp_cilent1_thread(void *arg)
 		{
 			CLIENT1_ERROR:
 			{
-				/* 关键顺序: 先摘到本地并清空全局指针, 再释放连接, 最后才清槽位标志。
+				/* 关键顺序: 临界区内原子"摘指针"(单一属主) → 释放连接 → 最后才清槽位标志。
 				   否则: netconn_delete 会阻塞等待 tcpip 线程, 期间服务器线程若"协作关闭"等待超时
 				   走兜底分支, 就会对同一个 netconn 再释放一次 → 双重 OSQDel/OSSemDel 与重复 myfree,
-				   破坏 uCOS 队列/事件池与 SRAM 堆(表现为后续 accept 全部失败、设备对新连接回 RST)。*/
-				struct netconn *old_conn = tcp_cilent1_conn;
+				   破坏 uCOS 队列/事件池与 SRAM 堆(表现为后续 accept 全部失败、设备对新连接回 RST)。
+				   另: 只调 netconn_delete(其内部会 drain + do_close_internal 优雅关闭 + 释放),
+				   不再先 netconn_close —— 后者会对同一连接多触发一次 drain(do_close 分支),
+				   一旦句柄被复用就会释放别人的邮箱(追踪已证实: 两次释放均来自 netconn_drain)。*/
+				struct netconn *old_conn;
+				OS_ENTER_CRITICAL();		// 关中断: 单一属主
+				old_conn = tcp_cilent1_conn;
 				tcp_cilent1_conn = NULL;
+				OS_EXIT_CRITICAL();			// 开中断
 				if(lwipdev.client_websocket_id == 1)
 				{
 					lwipdev.client_websocket_id = 0;
@@ -235,8 +249,7 @@ static void tcp_cilent1_thread(void *arg)
 				}
 				if(old_conn != NULL)
 				{
-					netconn_close(old_conn);                            //关闭连接
-					netconn_delete(old_conn);                           //删除连接
+					netconn_delete(old_conn);                           //删除连接(含优雅关闭与资源释放)
 				}
 				lwipdev.tcp_client1 = 0;                          //第 client->num 个设备状态置0 表示客户端未连接
 				if(TCP_CLIENT_DEBUG) printf("cilent1...2\n");
@@ -305,9 +318,12 @@ static void tcp_backup_thread(void *arg)
 		{
 			BACKUP_ERROR:
 			{
-				/* 与 client1 同样的顺序: 先摘指针 → 释放连接 → 最后清槽位标志, 避免二次释放 */
-				struct netconn *old_conn = tcp_backup_conn;
+				/* 与 client1 相同: 临界区原子摘指针 → 只 netconn_delete(不再 close) → 最后清标志 */
+				struct netconn *old_conn;
+				OS_ENTER_CRITICAL();		// 关中断: 单一属主
+				old_conn = tcp_backup_conn;
 				tcp_backup_conn = NULL;
+				OS_EXIT_CRITICAL();			// 开中断
 				if(lwipdev.client_websocket_id == 1)
 				{
 					lwipdev.client_websocket_id = 0;
@@ -315,8 +331,7 @@ static void tcp_backup_thread(void *arg)
 				}
 				if(old_conn != NULL)
 				{
-					netconn_close(old_conn);                             //关闭连接
-					netconn_delete(old_conn);                            //删除连接
+					netconn_delete(old_conn);                            //删除连接(含优雅关闭与资源释放)
 				}
 				lwipdev.tcp_client_backup = 0;
 				if(TCP_CLIENT_DEBUG) printf("backup...2\n");
@@ -356,10 +371,12 @@ static int8_t tcp_primary_client_init(void *arg)
 		return OS_ERR_NONE;
 	}
 
-	/* 任务创建失败: 释放连接, 避免连接无人处理而悬空 */
+	/* 任务创建失败: 只清指针, 不在此处释放连接!
+	   连接的释放统一收敛到 tcp_client_init() 的唯一失败出口, 否则会在那里被再次
+	   netconn_delete 一次(双重 do_delconn → 第二次作用在已释放/已被复用的句柄上,
+	   会 drain 掉新属主的邮箱 → uCOS OS_Q/OS_EVENT 成对丢失)。 */
 	if(TCP_CLIENT_DEBUG) printf("tcp_cilent1 task create err:%d\r\n",err);
-	netconn_close(tcp_cilent1_conn);
-	netconn_delete(tcp_cilent1_conn);
+	g_dbg_task_create_fail++;
 	tcp_cilent1_conn = NULL;
 	return err;
 }
@@ -392,28 +409,33 @@ static int8_t tcp_backup_client_init(void *arg)
 	}
 
 	if(TCP_CLIENT_DEBUG) printf("tcp_backup task create err:%d\r\n",err);
-	netconn_close(tcp_backup_conn);
-	netconn_delete(tcp_backup_conn);
-	tcp_backup_conn = NULL;
+	g_dbg_task_create_fail++;
+	tcp_backup_conn = NULL;   /* 只清指针: 释放统一由 tcp_client_init() 的唯一失败出口负责 */
 	return err;
 }
 
 //创建TCP客户端线程
 //返回值:OS_ERR_NONE 创建成功; 其它 失败(或连接被拒绝)
+//注意: arg(新连接 netconn) 的释放**只发生在本函数**(拒绝分支或统一失败出口);
+//      tcp_primary/tcp_backup_client_init 失败时只清槽位指针、不释放连接,
+//      否则会形成双重 netconn_delete(第二次 do_delconn 作用在已释放/复用的句柄上)。
 int8_t tcp_client_init(void *arg)
 {
 	int8_t err = OS_ERR_NONE;
 
 	/* 无活动连接: 走常规主槽 */
 	if((lwipdev.tcp_client1 == 0) && (lwipdev.tcp_client_backup == 0))
-		return tcp_primary_client_init(arg);
+	{
+		err = tcp_primary_client_init(arg);
+		if(err != OS_ERR_NONE)goto tcp_client_init_fail;   // 统一失败出口(释放一次)
+		return OS_ERR_NONE;
+	}
 
 	/* 已有活动连接为 WebSocket: 属正常长连接, 不启用备用服务器, 保持原拒绝行为 */
 	if(lwipdev.client_websocket_id == 1)
 	{
 		if(TCP_CLIENT_DEBUG) printf("websocket active, reject new connection\r\n");
-		netconn_close((struct netconn *)arg);
-		netconn_delete((struct netconn *)arg);
+		netconn_delete((struct netconn *)arg);   /* 只 delete: drain+关闭+释放一次完成 */
 		return -1;
 	}
 
@@ -431,11 +453,11 @@ int8_t tcp_client_init(void *arg)
 		err = tcp_primary_client_init(arg);        // 新连接回到主槽
 	}
 
+tcp_client_init_fail:
 	if(err != OS_ERR_NONE)
 	{
-		/* 槽位任务创建失败: 释放新连接, 避免无人处理而悬空 */
+		/* 唯一的失败释放点: 释放新连接, 避免无人处理而悬空 */
 		if(TCP_CLIENT_DEBUG) printf("http slot create err:%d\r\n",err);
-		netconn_close((struct netconn *)arg);
 		netconn_delete((struct netconn *)arg);
 		return -1;
 	}
@@ -633,25 +655,33 @@ void tcp_client_stop_function(void)
 	OSTaskDel(TCP_BACKUP_PRIO);	// 删除备用任务
 	OS_EXIT_CRITICAL();			// 开中断
 
-	/* ③ 摘指针(先清全局, 之后才释放), 避免任何路径二次释放同一 netconn */
-	if(tcp_cilent1_conn != NULL)
+	/* ③ 摘指针(临界区内原子清全局, 之后才释放), 避免任何路径二次释放同一 netconn */
 	{
-		struct netconn *c1 = tcp_cilent1_conn;
+		struct netconn *c1;
+		OS_ENTER_CRITICAL();		// 关中断: 单一属主
+		c1 = tcp_cilent1_conn;
 		tcp_cilent1_conn = NULL;
-		netconn_close(c1);                            //关闭连接
-		netconn_delete(c1);                           //删除连接
+		OS_EXIT_CRITICAL();			// 开中断
+		if(c1 != NULL)
+		{
+			netconn_delete(c1);                           //删除连接(含优雅关闭与资源释放)
+		}
 	}
 	lwipdev.tcp_client1 = 0;   //第 client->num 个设备状态置0 表示客户端未连接
 	if(lwipdev.client_websocket_id == 1)
 		lwipdev.client_websocket_id = 0;
 
 	/* 备用服务器连接同步关闭(仅HTTP场景) */
-	if(tcp_backup_conn != NULL)
 	{
-		struct netconn *cb = tcp_backup_conn;
+		struct netconn *cb;
+		OS_ENTER_CRITICAL();		// 关中断: 单一属主
+		cb = tcp_backup_conn;
 		tcp_backup_conn = NULL;
-		netconn_close(cb);                            //关闭连接
-		netconn_delete(cb);                           //删除连接
+		OS_EXIT_CRITICAL();			// 开中断
+		if(cb != NULL)
+		{
+			netconn_delete(cb);                           //删除连接(含优雅关闭与资源释放)
+		}
 	}
 	lwipdev.tcp_client_backup = 0;
 

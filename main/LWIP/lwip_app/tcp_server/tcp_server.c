@@ -158,12 +158,12 @@ void tcp_server_stop_function(void)
 	tcp_client_stop_function();
 	tcp_server_newconn = NULL;
 
-	/* 关闭tcp服务器(仅监听对象) */
+	/* 关闭tcp服务器(仅监听对象): 只 delete 即可(内部会排空 acceptmbox 并释放监听 pcb),
+	   不再先 close —— netconn_close 对 LISTEN 状态无实际作用, 徒增一次 API 往返 */
 	if(lwipdev.tcp_server_status != LWIP_TCP_NO_CONNECT)
 	{
 		if(tcp_server_conn!= NULL)
 		{
-			netconn_close(tcp_server_conn);
 			netconn_delete(tcp_server_conn);
 		}
 	}

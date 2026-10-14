@@ -47,6 +47,7 @@
 typedef struct {
     OS_EVENT*   pQ;    //UCOS中指向事件控制块的指针
     void*       pvQEntries[MAX_QUEUE_ENTRIES];//消息队列 MAX_QUEUE_ENTRIES消息队列中最多消息数
+    volatile unsigned int dbg_gen; //诊断: 邮箱代数标记(mymalloc 块会被复用, 用于识别陈旧指针)
 } TQ_DESCR, *PQ_DESCR;
 
 

@@ -416,7 +416,7 @@ void print_search_ack_function(uint8_t *pdata, uint16_t *len,uint8_t ack,uint8_t
 			break;
 		default: break;
 	}
-	my_cjson_join_string_function(pdata,(uint8_t*)"tnam",(uint8_t*)"FNVIMT_JY",1);	
+	my_cjson_join_string_function(pdata,(uint8_t*)"tnam",(uint8_t*)"÷«Õ®∞Ê",1);	
 	/* ÷’∂À–Ú¡–∫≈ */
 	memset(temp,0,sizeof(temp));
 	start_get_device_id_str((uint8_t*)temp);

@@ -61,6 +61,11 @@ static void netconn_drain(struct netconn *conn);
 /* forward declaration: 本地诊断(定义在本文件后部, netconn_free() 会先用到) */
 static void dbg_nc_freed(void *conn, u32_t lr);
 static void dbg_nc_check(void *conn, u32_t lr);
+static void dbg_nc_alloc_reg(void *conn, u32_t gen);
+static void dbg_nc_free_unreg(void *conn, u32_t gen);
+static void dbg_nc_check_live(void *conn, u32_t gen, u32_t lr);
+/* 本地诊断: netconn 代数计数(定义在本文件后部, netconn_alloc 先用到) */
+extern volatile u32_t g_dbg_conn_gen;
 
 #define SET_NONBLOCKING_CONNECT(conn, val)  do { if(val) { \
   (conn)->flags |= NETCONN_FLAG_IN_NONBLOCKING_CONNECT; \
@@ -642,6 +647,8 @@ netconn_alloc(enum netconn_type t, netconn_callback callback)
 #endif /* LWIP_TCP */
 #if LWIP_SO_SNDTIMEO
   conn->send_timeout = 0;
+  conn->dbg_gen = ++g_dbg_conn_gen;   /* 本地诊断: 分配时写入代数标记 */
+  dbg_nc_alloc_reg(conn, conn->dbg_gen);   /* 本地诊断: 存活表登记 */
 #endif /* LWIP_SO_SNDTIMEO */
 #if LWIP_SO_RCVTIMEO
   conn->recv_timeout = 0;
@@ -709,6 +716,29 @@ volatile u32_t g_dbg_drain_dup_prev = 0;    /* 首次 netconn_drain 的调用者
 volatile u32_t g_dbg_drain_conn[DREN_HIST]; /* 最近 drain 的 conn(环形) */
 volatile u32_t g_dbg_drain_lr[DREN_HIST];   /* 对应调用者返回地址 */
 volatile u32_t g_dbg_drain_idx = 0;
+volatile u32_t g_dbg_drain_tcb[DREN_HIST];  /* 对应执行任务的 OSTCBCur(判定是否跨线程) */
+volatile u32_t g_dbg_drain_ts[DREN_HIST];   /* 对应时间戳 OSTimeGet(判定两次相隔多久) */
+volatile u32_t g_dbg_drain_dup_tcb = 0;     /* 后一次 drain 的任务 */
+volatile u32_t g_dbg_drain_dup_prev_tcb = 0;/* 首次 drain 的任务 */
+volatile u32_t g_dbg_drain_dup_ts = 0;      /* 后一次 drain 的时间戳 */
+volatile u32_t g_dbg_drain_dup_prev_ts = 0; /* 首次 drain 的时间戳 */
+
+/* netconn 代数计数: netconn_alloc 时递增并写入 conn->dbg_gen。
+   只有"同地址+同代数"再次被 do_delconn/drain 时, 才是真实的"对已释放句柄的重复操作"。 */
+volatile u32_t g_dbg_conn_gen = 0;
+volatile u32_t g_dbg_ddel_real = 0;         /* 真·重复 delete 次数(同地址+同代数) */
+volatile u32_t g_dbg_ddel_real_conn = 0;    /* 真重复的那个 conn 地址 */
+volatile u32_t g_dbg_ddel_real_gen = 0;     /* 其代数 */
+volatile u32_t g_dbg_ddel_real_lr = 0;      /* 后一次 delete 的调用者返回地址 */
+volatile u32_t g_dbg_ddel_real_ts = 0;      /* 后一次 delete 的时间戳 */
+volatile u32_t g_dbg_ddel_real_prev_lr = 0; /* 首次 delete 的调用者返回地址 */
+volatile u32_t g_dbg_ddel_real_prev_ts = 0; /* 首次 delete 的时间戳 */
+#define DDEL_HIST   8
+static u32_t s_ddel_conn[DDEL_HIST];
+static u32_t s_ddel_gen[DDEL_HIST];
+static u32_t s_ddel_lr[DDEL_HIST];
+static u32_t s_ddel_ts[DDEL_HIST];
+static u32_t s_ddel_idx = 0;
 
 /* ================= 本地诊断: "使用已释放 netconn"追踪 =================
    原理: netconn_free() 时把该 netconn 指针与"释放者返回地址"记入环形表;
@@ -731,6 +761,64 @@ static void dbg_nc_freed(void *conn, u32_t lr)
   s_ncfree[s_ncfree_idx]    = conn;
   s_ncfree_lr[s_ncfree_idx] = lr;
   s_ncfree_idx = (s_ncfree_idx + 1u) % NCFREE_HIST;
+  dbg_nc_free_unreg(conn, ((struct netconn *)conn)->dbg_gen);   /* 从存活表注销 */
+}
+
+/* ===== 存活登记表: netconn_alloc 登记(地址+代数), netconn_free 注销 =====
+   用途: 抓"用陈旧句柄操作新连接"——若 do_delconn 收到的地址在表中存在、但代数与
+   表中不一致, 说明这个句柄属于一个【已被释放的旧 netconn】, 而该地址现在属于
+   一个【更新的 netconn】: 继续操作会释放新属主的邮箱(盗走 OS_Q/OS_EVENT)。 */
+#define LIVE_HIST   32
+static u32_t s_live_conn[LIVE_HIST];
+static u32_t s_live_gen[LIVE_HIST];
+static u32_t s_live_idx = 0;
+volatile u32_t g_dbg_stale_gen_cnt = 0;      /* 命中"陈旧代数句柄"操作次数 */
+volatile u32_t g_dbg_stale_gen_addr = 0;     /* 该地址 */
+volatile u32_t g_dbg_stale_gen_lr = 0;       /* 本次操作的调用者返回地址(元凶) */
+volatile u32_t g_dbg_stale_gen_usedgen = 0;  /* 陈旧句柄携带的代数 */
+volatile u32_t g_dbg_stale_gen_livegen = 0;  /* 表中登记(新属主)的代数 */
+
+static void dbg_nc_alloc_reg(void *conn, u32_t gen)
+{
+  u32_t k;
+  u32_t slot = LIVE_HIST;
+  for (k = 0; k < LIVE_HIST; k++) {
+    if (s_live_conn[k] == (u32_t)conn) { slot = k; break; }   /* 地址复用: 原位更新 */
+    if ((slot == LIVE_HIST) && (s_live_conn[k] == 0)) { slot = k; }
+  }
+  if (slot == LIVE_HIST) { slot = s_live_idx; s_live_idx = (s_live_idx + 1u) % LIVE_HIST; }
+  s_live_conn[slot] = (u32_t)conn;
+  s_live_gen[slot]  = gen;
+}
+
+static void dbg_nc_free_unreg(void *conn, u32_t gen)
+{
+  u32_t k;
+  for (k = 0; k < LIVE_HIST; k++) {
+    if ((s_live_conn[k] == (u32_t)conn) && (s_live_gen[k] == gen)) {
+      s_live_conn[k] = 0;
+      s_live_gen[k]  = 0;
+      break;
+    }
+  }
+}
+
+static void dbg_nc_check_live(void *conn, u32_t gen, u32_t lr)
+{
+  u32_t k;
+  if (conn == NULL) { return; }
+  for (k = 0; k < LIVE_HIST; k++) {
+    if (s_live_conn[k] == (u32_t)conn) {
+      if (s_live_gen[k] != gen) {          /* 地址存活但代数不同: 陈旧句柄! */
+        g_dbg_stale_gen_cnt++;
+        g_dbg_stale_gen_addr    = (u32_t)conn;
+        g_dbg_stale_gen_lr      = lr;      /* 本次操作者(元凶路径) */
+        g_dbg_stale_gen_usedgen = gen;     /* 陈旧句柄的代数 */
+        g_dbg_stale_gen_livegen = s_live_gen[k];  /* 现属主的代数 */
+      }
+      return;
+    }
+  }
 }
 
 static void dbg_nc_check(void *conn, u32_t lr)
@@ -773,6 +861,8 @@ netconn_drain(struct netconn *conn)
      重复 drain/释放"。若同一 conn 在最近 DREN_HIST 次中出现两次, 说明存在重复释放路径。 */
   {
     u32_t dlr = (u32_t)__builtin_return_address(0);
+    u32_t dts = (u32_t)OSTimeGet();
+    u32_t dtcb = (u32_t)OSTCBCur;
     u32_t k;
     g_dbg_drain_cnt++;
     for (k = 0; k < DREN_HIST; k++) {
@@ -781,11 +871,17 @@ netconn_drain(struct netconn *conn)
         g_dbg_drain_dup_conn = (u32_t)conn;
         g_dbg_drain_dup_lr   = dlr;                  /* 后一次调用者 */
         g_dbg_drain_dup_prev = g_dbg_drain_lr[k];    /* 首次调用者 */
+        g_dbg_drain_dup_tcb = dtcb;
+        g_dbg_drain_dup_prev_tcb = g_dbg_drain_tcb[k];
+        g_dbg_drain_dup_ts = dts;
+        g_dbg_drain_dup_prev_ts = g_dbg_drain_ts[k];
         break;
       }
     }
     g_dbg_drain_conn[g_dbg_drain_idx] = (u32_t)conn;
     g_dbg_drain_lr[g_dbg_drain_idx]   = dlr;
+    g_dbg_drain_tcb[g_dbg_drain_idx]  = dtcb;
+    g_dbg_drain_ts[g_dbg_drain_idx]   = dts;
     g_dbg_drain_idx = (g_dbg_drain_idx + 1u) % DREN_HIST;
   }
 
@@ -955,6 +1051,32 @@ void
 do_delconn(struct api_msg_msg *msg)
 {
   dbg_nc_check(msg->conn, (u32_t)__builtin_return_address(0));  /* 诊断: 是否在操作已释放的 netconn */
+  {   /* 本地诊断: 真·重复 delete 检测——只有"同地址+同代数"再次被 delete 才算真实重复,
+         彻底排除 memp 块地址复用造成的误报 */
+    u32_t dlr = (u32_t)__builtin_return_address(0);
+    u32_t dts = (u32_t)OSTimeGet();
+    u32_t k;
+    if (msg->conn != NULL) {
+      dbg_nc_check_live(msg->conn, msg->conn->dbg_gen, dlr);  /* 本地诊断: 陈旧代数句柄检测 */
+      for (k = 0; k < DDEL_HIST; k++) {
+        if ((s_ddel_conn[k] == (u32_t)msg->conn) && (s_ddel_gen[k] == msg->conn->dbg_gen)) {
+          g_dbg_ddel_real++;
+          g_dbg_ddel_real_conn = (u32_t)msg->conn;
+          g_dbg_ddel_real_gen  = msg->conn->dbg_gen;
+          g_dbg_ddel_real_lr   = dlr;
+          g_dbg_ddel_real_ts   = dts;
+          g_dbg_ddel_real_prev_lr  = s_ddel_lr[k];
+          g_dbg_ddel_real_prev_ts  = s_ddel_ts[k];
+          break;
+        }
+      }
+      s_ddel_conn[s_ddel_idx] = (u32_t)msg->conn;
+      s_ddel_gen[s_ddel_idx]  = msg->conn->dbg_gen;
+      s_ddel_lr[s_ddel_idx]   = dlr;
+      s_ddel_ts[s_ddel_idx]   = dts;
+      s_ddel_idx = (s_ddel_idx + 1u) % DDEL_HIST;
+    }
+  }
   /* @todo TCP: abort running write/connect? */
  if ((msg->conn->state != NETCONN_NONE) &&
      (msg->conn->state != NETCONN_LISTEN) &&
