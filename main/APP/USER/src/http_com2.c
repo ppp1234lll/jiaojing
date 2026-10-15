@@ -9,6 +9,7 @@
 #include "lwip_comm.h"
 #include "cJSON.h"
 #include "appconfig.h"
+#include "timer.h"
 #include "includes.h"
 #include "error.h"
 #include "queue.h"

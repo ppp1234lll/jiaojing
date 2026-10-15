@@ -9,6 +9,7 @@
 #include "lwip_comm.h"
 #include "cJSON.h"
 #include "appconfig.h"
+#include "timer.h"
 #include "includes.h"
 #include "error.h"
 #include "queue.h"
@@ -21,9 +22,9 @@
 #include "myencrypt.h"
 #include "cmox_crypto.h"
 
-//¿Í»§¶Ë3´¦Àí
+//ï¿½Í»ï¿½ï¿½ï¿½3ï¿½ï¿½ï¿½ï¿½
 sys_json_t			sg_json_t3 			= {0};
-queue_s 				sg_queue_http3	=	{0};	// ¶ÓÁÐ3	
+queue_s 				sg_queue_http3	=	{0};	// ï¿½ï¿½ï¿½ï¿½3	
 com_http_cmd_t 	com_http_cmd3 	=	{0};	
 com_websocket_data_t sg_websocket3 = {0};
 sys_event_t     sg_event_param3 = {0};
@@ -32,7 +33,7 @@ uint8_t http_buff3[1000];
 /************************************************************
 *
 * Function name	: http_com_buff_init
-* Description	: HTTP¶ÓÁÐ³õÊ¼»¯
+* Description	: HTTPï¿½ï¿½ï¿½Ð³ï¿½Ê¼ï¿½ï¿½
 * Parameter		: 
 * Return		: 
 *	
@@ -45,7 +46,7 @@ void http_com_buff_init3(void)
 /************************************************************
 *
 * Function name	: http_com_stroage_data3
-* Description	: ½«Êý¾Ý´æ´¢µ½»º´æÇø3
+* Description	: ï¿½ï¿½ï¿½ï¿½ï¿½Ý´æ´¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½3
 * Parameter		: 
 * Return		: 
 *	
@@ -58,7 +59,7 @@ void http_com_stroage_data3(uint8_t *buff,uint16_t len)
 /************************************************************
 *
 * Function name	: com_deal_http_info_function
-* Description	: HTTPÊý¾Ý´¦Àí
+* Description	: HTTPï¿½ï¿½ï¿½Ý´ï¿½ï¿½ï¿½
 * Parameter		: 
 * Return		: 
 *	
@@ -83,7 +84,7 @@ int8_t com_deal_http_info_function3(void)
 				http_data_send_function(HTTP_WEBSOCKET_PING,3);
 			else
 			{
-				http_websocket_event_param((char*)sg_websocket3.buf,&sg_event_param3); // ´¦ÀíÊÂ¼þÐÅÏ¢
+				http_websocket_event_param((char*)sg_websocket3.buf,&sg_event_param3); // ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½Ï¢
 				http_event_anay_param(&sg_event_param3,3);
 			}
 		}
@@ -91,7 +92,7 @@ int8_t com_deal_http_info_function3(void)
 		{
 			memset(local_ipbuf,0,20);
 			sprintf(local_ipbuf,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-			str = strstr((char *)http_buff3,HTTP_UPGRATE_WEBSOCKET1); // ÅÐ¶ÏÊÇ·ñÊÇÐ­Òé×ª»»
+			str = strstr((char *)http_buff3,HTTP_UPGRATE_WEBSOCKET1); // ï¿½Ð¶ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Ð­ï¿½ï¿½×ªï¿½ï¿½
 			if(str != NULL)
 			{
 				sprintf(local_ipbuf,"%d.%d.%d.%d:%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3],local->port);
@@ -100,12 +101,12 @@ int8_t com_deal_http_info_function3(void)
 				str = strstr((char *)str,"Sec-WebSocket-Key:");
 				sscanf((char*)str,"%*[^: ]: %[^\r\n]",web_key_data.key); 
 				com_http_cmd3.http_cmd = 1;
-				if((strcmp(com_http_cmd3.host_ip,local_ipbuf) == 0)|| // ÅÐ¶ÏIPÊÇ·ñÕýÈ·
+				if((strcmp(com_http_cmd3.host_ip,local_ipbuf) == 0)|| // ï¿½Ð¶ï¿½IPï¿½Ç·ï¿½ï¿½ï¿½È·
 					 (strcmp(com_http_cmd3.host_ip,TEST_SERVER) == 0))
 				{
 					if(HTTP_COM_DEBUG) printf("HTTP_WEBSOCKET\n");
 					if(lwipdev.client_websocket_id == 0)
-						lwipdev.client_websocket_id = 3; // ÅÐ¶Ï¿Í»§¶Ë±àºÅ
+						lwipdev.client_websocket_id = 3; // ï¿½Ð¶Ï¿Í»ï¿½ï¿½Ë±ï¿½ï¿½
 					com_http_cmd3.http_cmd = 0;
 					http_data_send_function(HTTP_WEBSOCKET,3);			
 					return 0;
@@ -113,35 +114,35 @@ int8_t com_deal_http_info_function3(void)
 			}
 			else
 			{
-				str = strstr((char *)http_buff3,HTTP_CERTIFIED_HANDSHAKE); // ÕªÒªÈÏÖ¤
+				str = strstr((char *)http_buff3,HTTP_CERTIFIED_HANDSHAKE); // ÕªÒªï¿½ï¿½Ö¤
 				if(str != NULL)
 				{
-					str = strstr((char *)http_buff3,HTTP_AUTHORIZATION); // ÕªÒªÈÏÖ¤
+					str = strstr((char *)http_buff3,HTTP_AUTHORIZATION); // ÕªÒªï¿½ï¿½Ö¤
 					if(str != NULL)
 						com_http_cmd3.http_cmd = 3; 
 					else
-						com_http_cmd3.http_cmd = 2; // Ê×´Î·µ»Ø
+						com_http_cmd3.http_cmd = 2; // ï¿½×´Î·ï¿½ï¿½ï¿½
 				}
 				http_com_data_deal((char *)http_buff3,&com_http_cmd3);
 			}
 			if(HTTP_COM_DEBUG) printf("com_http_cmd3:%s......%s\n",com_http_cmd3.cmd,com_http_cmd3.host_ip);
-			if(strcmp(com_http_cmd3.host_ip,local_ipbuf) == 0) // ÅÐ¶ÏIPÊÇ·ñÕýÈ·
+			if(strcmp(com_http_cmd3.host_ip,local_ipbuf) == 0) // ï¿½Ð¶ï¿½IPï¿½Ç·ï¿½ï¿½ï¿½È·
 			{
 				switch(com_http_cmd3.http_cmd)
 				{
-					case 1: // Ð­Òé×ª»»
+					case 1: // Ð­ï¿½ï¿½×ªï¿½ï¿½
 						com_http_cmd3.http_cmd = 0;
 						if(lwipdev.client_websocket_id == 0)
-							lwipdev.client_websocket_id = 3; // ÅÐ¶Ï¿Í»§¶Ë±àºÅ
+							lwipdev.client_websocket_id = 3; // ï¿½Ð¶Ï¿Í»ï¿½ï¿½Ë±ï¿½ï¿½
 						http_data_send_function(HTTP_WEBSOCKET,3);						
 						break;
 
-					case 2: // Ê×´ÎÈÏÖ¤
+					case 2: // ï¿½×´ï¿½ï¿½ï¿½Ö¤
 						com_http_cmd3.http_cmd = 0;
 						http_data_send_function(HTTP_ATTESTATION,3);				
 						break;	
 
-					case 3: // ÈÏÖ¤½á¹û
+					case 3: // ï¿½ï¿½Ö¤ï¿½ï¿½ï¿½
 						com_http_cmd3.http_cmd = 0;
 						if(http_ack_certification_calculations(&com_http_cmd3) == 1)
 							http_data_send_function(HTTP_CALCULATION_OK,3);
@@ -151,38 +152,38 @@ int8_t com_deal_http_info_function3(void)
 					default:
 						if(http_ack_certification_calculations(&com_http_cmd3) == 1)
 						{
-							if(HTTP_COM_DEBUG) printf("ÑéÖ¤³É¹¦....\n");
-							if(strcmp(com_http_cmd3.cmd ,BoxSubModelMgr_GetSmartBoxDevList)==0 ) //»ñÈ¡»úÏä¹ÜÀíµÄÉè±¸ÁÐ±í
+							if(HTTP_COM_DEBUG) printf("ï¿½ï¿½Ö¤ï¿½É¹ï¿½....\n");
+							if(strcmp(com_http_cmd3.cmd ,BoxSubModelMgr_GetSmartBoxDevList)==0 ) //ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è±¸ï¿½Ð±ï¿½
 								http_data_send_function(BoxDevList,3);
-							else if(strcmp(com_http_cmd3.cmd ,DynamicCapability_GetDomains)==0 ) // Ë®½þ
+							else if(strcmp(com_http_cmd3.cmd ,DynamicCapability_GetDomains)==0 ) // Ë®ï¿½ï¿½
 								http_data_send_function(DOMINS,3);
-							else if(strcmp(com_http_cmd3.cmd ,WaterOutSense_WaterOutStatus)==0 ) // Ë®½þ
+							else if(strcmp(com_http_cmd3.cmd ,WaterOutSense_WaterOutStatus)==0 ) // Ë®ï¿½ï¿½
 								http_data_send_function(WATER_OUT,3);
-							else if(strcmp(com_http_cmd3.cmd ,InfoMgr_DeviceDescription)==0 ) // Éè±¸ÐÅÏ¢
+							else if(strcmp(com_http_cmd3.cmd ,InfoMgr_DeviceDescription)==0 ) // ï¿½è±¸ï¿½ï¿½Ï¢
 								http_data_send_function(DEV_INFO,3);
-							else if(strcmp(com_http_cmd3.cmd ,InfoMgr_DeviceServiceDescription)==0 ) // Éè±¸Éú²úÐÅÏ¢
+							else if(strcmp(com_http_cmd3.cmd ,InfoMgr_DeviceServiceDescription)==0 ) // ï¿½è±¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
 								http_data_send_function(DEV_PRODUCE,3);
-							else if(strcmp(com_http_cmd3.cmd ,InfoMgr_DeviceVersion)==0 ) // Éè±¸°æ±¾ÐÅÏ¢
+							else if(strcmp(com_http_cmd3.cmd ,InfoMgr_DeviceVersion)==0 ) // ï¿½è±¸ï¿½æ±¾ï¿½ï¿½Ï¢
 								http_data_send_function(DEV_VERSION,3);
-							else if(strcmp(com_http_cmd3.cmd ,DeviceTiltDetection_DevRealtimeTiltData)==0 ) // ÇãÐ±¶È
+							else if(strcmp(com_http_cmd3.cmd ,DeviceTiltDetection_DevRealtimeTiltData)==0 ) // ï¿½ï¿½Ð±ï¿½ï¿½
 								http_data_send_function(ANGLE_DATA,3);
-							else if(strcmp(com_http_cmd3.cmd ,Humiture_Temperature)==0 ) // ÎÂ¶È
+							else if(strcmp(com_http_cmd3.cmd ,Humiture_Temperature)==0 ) // ï¿½Â¶ï¿½
 								http_data_send_function(TEMPERATURE_DATA,3);
-							else if(strcmp(com_http_cmd3.cmd ,Humiture_Humidity)==0 ) // Êª¶È
+							else if(strcmp(com_http_cmd3.cmd ,Humiture_Humidity)==0 ) // Êªï¿½ï¿½
 								http_data_send_function(HUMIDITY_DATA,3);
-							else if(strcmp(com_http_cmd3.cmd ,Fan_FanStatus)==0 ) // ·çÉÈ×´Ì¬
+							else if(strcmp(com_http_cmd3.cmd ,Fan_FanStatus)==0 ) // ï¿½ï¿½ï¿½ï¿½×´Ì¬
 								http_data_send_function(FAN_TWO_STATUS,3);
-							else if(strcmp(com_http_cmd3.cmd ,BoxDoorMgr_BoxDoorStatus)==0 ) // »úÏäÃÅ×´Ì¬
+							else if(strcmp(com_http_cmd3.cmd ,BoxDoorMgr_BoxDoorStatus)==0 ) // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
 								http_data_send_function(BOX_STATUS,3);
-							else if(strcmp(com_http_cmd3.cmd ,NetworkAddress_IPAddressCfgList)==0 ) // ÍøÂçÐÅÏ¢
+							else if(strcmp(com_http_cmd3.cmd ,NetworkAddress_IPAddressCfgList)==0 ) // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
 								http_data_send_function(NETWORK_VERSION,3);
-							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_DeviceRealTimePowerParam)==0 ) // µçÁ¦²ÎÊý
+							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_DeviceRealTimePowerParam)==0 ) // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 								http_data_send_function(POWER_DATA,3);	
-							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_PowerPortSwitchTimePlan)==0 ) // µç¿Ú¿ª¹ØÊ±¼ä
+							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_PowerPortSwitchTimePlan)==0 ) // ï¿½ï¿½Ú¿ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
 								http_data_send_function(POWER_PLAN_TIME,3);	
-							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_GetPowerPortStatusList)==0 ) // »ñÈ¡¹©µç¿Ú×´Ì¬ÁÐ±í
+							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_GetPowerPortStatusList)==0 ) // ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½Ð±ï¿½
 								http_data_send_function(POWER_PORT_STATUS,3);	
-							else if(strcmp(com_http_cmd3.cmd ,DeviceTiltDetection_DevTiltDetectionParam)==0 ) // Éè±¸ÇãÐ±¼ì²â²ÎÊý
+							else if(strcmp(com_http_cmd3.cmd ,DeviceTiltDetection_DevTiltDetectionParam)==0 ) // ï¿½è±¸ï¿½ï¿½Ð±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 							{
 								http_deal_json_param(&sg_json_t3,(char*)http_buff3);							
 								if(http_com_deal_configure_angle(sg_json_t3.buf)<0)
@@ -190,7 +191,7 @@ int8_t com_deal_http_info_function3(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,3);	
 							}
-							else if(strcmp(com_http_cmd3.cmd ,Humiture_HumidityAlarmThreshold)==0 ) // Êª¶È¸æ¾¯ãÐÖµ
+							else if(strcmp(com_http_cmd3.cmd ,Humiture_HumidityAlarmThreshold)==0 ) // Êªï¿½È¸æ¾¯ï¿½ï¿½Öµ
 							{
 								http_deal_json_param(&sg_json_t3,(char*)http_buff3);							
 								if(http_com_deal_configure_humiture(sg_json_t3.buf)<0)
@@ -198,7 +199,7 @@ int8_t com_deal_http_info_function3(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,3);				
 							}
-							else if(strcmp(com_http_cmd3.cmd ,Humiture_TemperatureAlarmThreshold)==0 ) // ÎÂ¶È¸æ¾¯ãÐÖµ
+							else if(strcmp(com_http_cmd3.cmd ,Humiture_TemperatureAlarmThreshold)==0 ) // ï¿½Â¶È¸æ¾¯ï¿½ï¿½Öµ
 							{
 								http_deal_json_param(&sg_json_t3,(char*)http_buff3);							
 								if(http_com_deal_configure_temperature(sg_json_t3.buf)<0)
@@ -206,7 +207,7 @@ int8_t com_deal_http_info_function3(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,3);	
 							}
-							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_ModifyPowerPortWorkParamList)==0 ) // ÐÞ¸Ä¹©µç¿Ú¹¤×÷²ÎÊýÁÐ±í
+							else if(strcmp(com_http_cmd3.cmd ,PowerMgr_ModifyPowerPortWorkParamList)==0 ) // ï¿½Þ¸Ä¹ï¿½ï¿½ï¿½Ú¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½
 							{
 								http_deal_json_param(&sg_json_t3,(char*)http_buff3);							
 								if(http_com_deal_configure_powerport(sg_json_t3.buf)<0)
@@ -214,14 +215,14 @@ int8_t com_deal_http_info_function3(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,3);										
 							}
-							else if(strcmp(com_http_cmd3.cmd ,SystemMaintenance_SystemReset)==0 ) // Éè±¸ÏµÍ³»Ö¸´³ö³§ÉèÖÃ
+							else if(strcmp(com_http_cmd3.cmd ,SystemMaintenance_SystemReset)==0 ) // ï¿½è±¸ÏµÍ³ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 							{
 								W25QXX_Erase_Chip();
 								set_reboot_time_function(1000);
 							}
-							else if(strcmp(com_http_cmd3.cmd ,SystemMaintenance_SystemBasicReset)==0 ) // Éè±¸ÏµÍ³»Ö¸´Ä¬ÈÏÉèÖÃ
+							else if(strcmp(com_http_cmd3.cmd ,SystemMaintenance_SystemBasicReset)==0 ) // ï¿½è±¸ÏµÍ³ï¿½Ö¸ï¿½Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 								app_set_reset_function();
-							else if(strcmp(com_http_cmd3.cmd ,SystemMaintenance_SystemReboot)==0 ) // Éè±¸ÏµÍ³ÖØÆô
+							else if(strcmp(com_http_cmd3.cmd ,SystemMaintenance_SystemReboot)==0 ) // ï¿½è±¸ÏµÍ³ï¿½ï¿½ï¿½ï¿½
 								set_reboot_time_function(1000);		
 							else
 								http_data_send_function(NO_SUPPORT,3);
@@ -262,7 +263,7 @@ Host: 37.10.168.39
 /************************************************************
 *
 * Function name	: com_http_queue_find_info
-* Description	: »ñÈ¡Ò»°üÊý¾Ý
+* Description	: ï¿½ï¿½È¡Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 * Parameter		: 
 * Return		: 
 *	
@@ -276,7 +277,7 @@ int com_http_queue_find_info3(uint8_t *msg,uint16_t size)
 	int buf_length 	= 0;
 	static uint16_t http_length = 0;
 	
-	if(Get_Queue_Count(&sg_queue_http3) > 0 ) // ÓÐÊý¾Ý½ÓÊÕ
+	if(Get_Queue_Count(&sg_queue_http3) > 0 ) // ï¿½ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½ï¿½
 	{	
 		if(com_http_cmd3.data_recving == 0)
 		{
@@ -313,7 +314,7 @@ int com_http_queue_find_info3(uint8_t *msg,uint16_t size)
 						line_start = strstr((char *)(sg_queue_http3.buf+sg_queue_http3.front), "POST");
 						if (line_start == NULL)
 						{					
-							Clear_Queue(&sg_queue_http3);  // Çå¿Õ¶ÓÁÐ
+							Clear_Queue(&sg_queue_http3);  // ï¿½ï¿½Õ¶ï¿½ï¿½ï¿½
 							return -1;
 						}
 						else
@@ -341,14 +342,14 @@ int com_http_queue_find_info3(uint8_t *msg,uint16_t size)
 //					printf("length error\n");
 				if((line_end == NULL)||(line_end<line_start))
 				{
-					Clear_Queue(&sg_queue_http3);  // Çå¿Õ¶ÓÁÐ
+					Clear_Queue(&sg_queue_http3);  // ï¿½ï¿½Õ¶ï¿½ï¿½ï¿½
 					return -1;
 				}
-				if(buf_length !=0)  // ÅÐ¶ÏºóÃæÊÇ·ñÓÐÊý¾Ý
+				if(buf_length !=0)  // ï¿½Ð¶Ïºï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 				{
 					sg_json_t3.len = buf_length;
 					line_str = strstr((char *)line_end, "{");
-					if(line_str == NULL) // ºóÃæÎÞÊý¾Ý
+					if(line_str == NULL) // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 					{
 						com_http_cmd3.data_recving = 1;
 						buf_length = 0;
@@ -369,7 +370,7 @@ int com_http_queue_find_info3(uint8_t *msg,uint16_t size)
 					Dequeue_Bytes_To_Buffer(&sg_queue_http3,msg+length,(line_end-(char *)sg_queue_http3.buf));
 					memset(sg_queue_http3.buf,0,(line_end-(char *)sg_queue_http3.buf));
 					if(sg_queue_http3.count == 0)
-						Clear_Queue(&sg_queue_http3);  // Çå¿Õ¶ÓÁÐ			
+						Clear_Queue(&sg_queue_http3);  // ï¿½ï¿½Õ¶ï¿½ï¿½ï¿½			
 					http_length = line_end+QUEUE_BUF_SIZE-line_start;
 					return http_length;
 				}
@@ -377,7 +378,7 @@ int com_http_queue_find_info3(uint8_t *msg,uint16_t size)
 				{
 					Dequeue_Bytes_To_Buffer(&sg_queue_http3,msg,(line_end-line_start));
 					if(sg_queue_http3.count == 0)
-						Clear_Queue(&sg_queue_http3);  // Çå¿Õ¶ÓÁÐ
+						Clear_Queue(&sg_queue_http3);  // ï¿½ï¿½Õ¶ï¿½ï¿½ï¿½
 					memset(line_start,0,(line_end-line_start));	
 					http_length = line_end-line_start;
 					return http_length;				
