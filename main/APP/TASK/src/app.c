@@ -172,7 +172,8 @@ void app_task_function(void)
 	{
 //		app_detection_collection_param(); 	// 采集数据监测任务
 		app_task_save_function();   				// 存储相关任务
-		com_deal_http_info_function();		// 单服务器: 仅 1 路 HTTP/WebSocket 处理
+		com_deal_http_info_function();
+		com_deal_http_info_function2();		/* 备用槽(上下文2): HTTP 应答/WS(落在备用槽时)处理 */
 		com_deal_main_function(); 					// 处理接收数据
 		app_com_send_function();						// 通信发送
 		app_server_link_status_function();

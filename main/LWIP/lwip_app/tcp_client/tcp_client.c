@@ -150,12 +150,12 @@ static void tcp_backup_force_close(void)
 	}
 	tcp_backup_close_req = 0;
 
-	if(lwipdev.client_websocket_id == 1)
+	if(lwipdev.client_websocket_id == 2)
 	{
 		lwipdev.client_websocket_id = 0;
 		eth_set_network_reset();
 	}
-	http_com_reset_recv_function(); // 清理旧连接可能遗留的半包/解析状态
+	http_com_reset_recv_function2(); // 清理备用槽(上下文2)可能遗留的半包/解析状态
 }
 
 /* 以下 client2/client3 变量保留(供头文件声明的接口使用), 但不再创建对应连接任务 */
@@ -283,7 +283,7 @@ static void tcp_backup_thread(void *arg)
 		link_count++;
 		if(link_count > 1000)
 		{
-			if(lwipdev.client_websocket_id != 1)
+			if(lwipdev.client_websocket_id != 2)   /* 备用槽升级为 WS 时常驻不超时 */
 			{
 				link_count = 0;
 				goto BACKUP_ERROR;
@@ -305,7 +305,7 @@ static void tcp_backup_thread(void *arg)
 			for(q=sg_backup_recvbuf->p;q!=NULL;q=q->next)  //遍历完整个pbuf链表
 			{
 				if(q->len > 0)
-					http_com_stroage_data(q->payload,q->len);
+					http_com_stroage_data2(q->payload,q->len);  /* 备用槽独立解析上下文(http_com2), 与主槽/WS 隔离 */
 				data_len += q->len;
 			}
 			OS_EXIT_CRITICAL();  // 开中断
@@ -324,7 +324,7 @@ static void tcp_backup_thread(void *arg)
 				old_conn = tcp_backup_conn;
 				tcp_backup_conn = NULL;
 				OS_EXIT_CRITICAL();			// 开中断
-				if(lwipdev.client_websocket_id == 1)
+				if(lwipdev.client_websocket_id == 2)
 				{
 					lwipdev.client_websocket_id = 0;
 					eth_set_network_reset();
@@ -423,23 +423,40 @@ int8_t tcp_client_init(void *arg)
 {
 	int8_t err = OS_ERR_NONE;
 
+	/* WebSocket 长连接常驻主槽(client1): 事件通道与会话通道(HTTP)并存, 互不抢占 */
+	if(lwipdev.client_websocket_id == 1)
+	{
+		/* client1 被 WS 占用: 新 HTTP 连接一律由备用槽承接(旧的未及时断开则强关) */
+		if(TCP_CLIENT_DEBUG) printf("websocket on client1, new conn to backup\r\n");
+		if(lwipdev.tcp_client_backup != 0)
+		{
+			tcp_backup_force_close();              // 备用槽只承载 HTTP, 可抢占
+		}
+		err = tcp_backup_client_init(arg);
+		goto tcp_client_init_fail;
+	}
+
+	if(lwipdev.client_websocket_id == 2)
+	{
+		/* 备用槽被 WS 占用(HTTP 忙时平台新建的 WS 升级落在备用槽): HTTP 一律走主槽 */
+		if(TCP_CLIENT_DEBUG) printf("websocket on backup, new conn to client1\r\n");
+		if(lwipdev.tcp_client1 != 0)
+		{
+			tcp_client1_force_close();             // 主槽此时只承载 HTTP, 可抢占
+		}
+		err = tcp_primary_client_init(arg);
+		goto tcp_client_init_fail;
+	}
+
 	/* 无活动连接: 走常规主槽 */
 	if((lwipdev.tcp_client1 == 0) && (lwipdev.tcp_client_backup == 0))
 	{
 		err = tcp_primary_client_init(arg);
-		if(err != OS_ERR_NONE)goto tcp_client_init_fail;   // 统一失败出口(释放一次)
-		return OS_ERR_NONE;
+		goto tcp_client_init_fail;
 	}
 
-	/* 已有活动连接为 WebSocket: 属正常长连接, 不启用备用服务器, 保持原拒绝行为 */
-	if(lwipdev.client_websocket_id == 1)
-	{
-		if(TCP_CLIENT_DEBUG) printf("websocket active, reject new connection\r\n");
-		netconn_delete((struct netconn *)arg);   /* 只 delete: drain+关闭+释放一次完成 */
-		return -1;
-	}
-
-	/* 已有活动连接为"未及时断开的HTTP连接": 立即强制关闭旧连接, 让备用服务器承接新连接 */
+	/* 已有活动连接为"未及时断开的HTTP连接": 立即强制关闭旧连接, 让备用服务器承接新连接
+	   (新连接若随后升级为 WS, 则由 client_websocket_id=2 标记, 之后 HTTP 走主槽) */
 	if(lwipdev.tcp_client1 != 0)  // 旧连接在主槽
 	{
 		if(TCP_CLIENT_DEBUG) printf("http stale on client1, switch to backup\r\n");
@@ -474,12 +491,32 @@ tcp_client_init_fail:
 ************************************************************/
 void tcp_cilent_send_buff(uint8_t *buff, uint16_t len,uint8_t websocket)
 {
-	LWIP_UNUSED_ARG(websocket);
-	/* 实际活动的HTTP连接只会有一个: 优先主槽, 主槽空闲时发往备用槽 */
-	if(lwipdev.tcp_client1)
-		tcp_cilent1_send_buff(buff,len);
-	else if(lwipdev.tcp_client_backup)
-		tcp_backup_send_buff(buff,len);
+	/* WebSocket 通道(事件上报/pong/订阅应答): 按 client_websocket_id 发往 WS 常驻槽 */
+	if(websocket)
+	{
+		lwipdev.client1_id = 0;   /* 清槽位标志, 避免残留影响后续 HTTP 应答分路 */
+		lwipdev.client2_id = 0;
+		if(lwipdev.client_websocket_id == 1)
+			tcp_cilent1_send_buff(buff,len);
+		else if(lwipdev.client_websocket_id == 2)
+			tcp_backup_send_buff(buff,len);
+		return;
+	}
+
+	/* HTTP 应答: 按 http_data_send_function 设置的槽位标志分路
+	   (client1 槽被 WS 占用时不得发往 WS 连接) */
+	if(lwipdev.client1_id == 1)
+	{
+		lwipdev.client1_id = 0;
+		if((lwipdev.client_websocket_id != 1) && lwipdev.tcp_client1)
+			tcp_cilent1_send_buff(buff,len);
+	}
+	if(lwipdev.client2_id == 1)
+	{
+		lwipdev.client2_id = 0;
+		if((lwipdev.client_websocket_id != 2) && lwipdev.tcp_client_backup)
+			tcp_backup_send_buff(buff,len);
+	}
 }
 
 /************************************************************
@@ -684,6 +721,9 @@ void tcp_client_stop_function(void)
 		}
 	}
 	lwipdev.tcp_client_backup = 0;
+	if(lwipdev.client_websocket_id == 2)
+		lwipdev.client_websocket_id = 0;
 
 	http_com_reset_recv_function(); // 清理接收队列/半包状态
+	http_com_reset_recv_function2();
 }

@@ -20,9 +20,9 @@
 #include "myencrypt.h"
 #include "cmox_crypto.h"
 
-//¿Í»§¶Ë2´¦Àí
+//å®¢æˆ·ç«¯2å¤„ç†
 sys_json_t			sg_json_t2 			= {0};
-queue_s 				sg_queue_http2	=	{0};	// ¶ÓÁĞ2	
+queue_s 				sg_queue_http2	=	{0};	// é˜Ÿåˆ—2	
 com_http_cmd_t 	com_http_cmd2 	=	{0};	
 com_websocket_data_t sg_websocket2 = {0};
 sys_event_t     sg_event_param2 = {0};
@@ -31,7 +31,7 @@ uint8_t http_buff2[1000];
 /************************************************************
 *
 * Function name	: http_com_buff_init
-* Description	: HTTP¶ÓÁĞ³õÊ¼»¯
+* Description	: HTTPé˜Ÿåˆ—åˆå§‹åŒ–
 * Parameter		: 
 * Return		: 
 *	
@@ -43,8 +43,22 @@ void http_com_buff_init2(void)
 
 /************************************************************
 *
+* Function name	: http_com_reset_recv_function2
+* Description	: reset backup-slot http recv queue and parse state
+* Parameter		:
+* Return		:
+*
+************************************************************/
+void http_com_reset_recv_function2(void)
+{
+	Clear_Queue(&sg_queue_http2);
+	memset(&com_http_cmd2, 0, sizeof(com_http_cmd_t));
+}
+
+/************************************************************
+*
 * Function name	: http_com_stroage_data2
-* Description	: ½«Êı¾İ´æ´¢µ½»º´æÇø2
+* Description	: å°†æ•°æ®å­˜å‚¨åˆ°ç¼“å­˜åŒº2
 * Parameter		: 
 * Return		: 
 *	
@@ -57,7 +71,7 @@ void http_com_stroage_data2(uint8_t *buff,uint16_t len)
 /************************************************************
 *
 * Function name	: com_deal_http_info_function2
-* Description	: HTTPÊı¾İ´¦Àí2
+* Description	: HTTPæ•°æ®å¤„ç†2
 * Parameter		: 
 * Return		: 
 *	
@@ -82,7 +96,7 @@ int8_t com_deal_http_info_function2(void)
 				http_data_send_function(HTTP_WEBSOCKET_PING,2);
 			else
 			{
-				http_websocket_event_param((char*)sg_websocket2.buf,&sg_event_param2); // ´¦ÀíÊÂ¼şĞÅÏ¢
+				http_websocket_event_param((char*)sg_websocket2.buf,&sg_event_param2); // å¤„ç†äº‹ä»¶ä¿¡æ¯
 				http_event_anay_param(&sg_event_param2,2);
 			}
 		}
@@ -90,7 +104,7 @@ int8_t com_deal_http_info_function2(void)
 		{
 			memset(local_ipbuf,0,20);
 			sprintf(local_ipbuf,"%d.%d.%d.%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3]);
-			str = strstr((char *)http_buff2,HTTP_UPGRATE_WEBSOCKET1); // ÅĞ¶ÏÊÇ·ñÊÇĞ­Òé×ª»»
+			str = strstr((char *)http_buff2,HTTP_UPGRATE_WEBSOCKET1); // åˆ¤æ–­æ˜¯å¦æ˜¯åè®®è½¬æ¢
 			if(str != NULL)
 			{
 				sprintf(local_ipbuf,"%d.%d.%d.%d:%d",local->ip[0],local->ip[1],local->ip[2],local->ip[3],local->port);
@@ -99,12 +113,12 @@ int8_t com_deal_http_info_function2(void)
 				str = strstr((char *)str,"Sec-WebSocket-Key:");
 				sscanf((char*)str,"%*[^: ]: %[^\r\n]",web_key_data.key); 
 				com_http_cmd2.http_cmd = 1;
-				if((strcmp(com_http_cmd2.host_ip,local_ipbuf) == 0)|| // ÅĞ¶ÏIPÊÇ·ñÕıÈ·
+				if((strcmp(com_http_cmd2.host_ip,local_ipbuf) == 0)|| // åˆ¤æ–­IPæ˜¯å¦æ­£ç¡®
 					 (strcmp(com_http_cmd2.host_ip,TEST_SERVER) == 0))
 				{
 					if(HTTP_COM_DEBUG) printf("HTTP_WEBSOCKET\n");
 					if(lwipdev.client_websocket_id == 0)
-						lwipdev.client_websocket_id = 2; // ÅĞ¶Ï¿Í»§¶Ë±àºÅ
+						lwipdev.client_websocket_id = 2; // åˆ¤æ–­å®¢æˆ·ç«¯ç¼–å·
 					com_http_cmd2.http_cmd = 0;
 					http_data_send_function(HTTP_WEBSOCKET,2);			
 					return 0;
@@ -112,35 +126,35 @@ int8_t com_deal_http_info_function2(void)
 			}
 			else
 			{
-				str = strstr((char *)http_buff2,HTTP_CERTIFIED_HANDSHAKE); // ÕªÒªÈÏÖ¤
+				str = strstr((char *)http_buff2,HTTP_CERTIFIED_HANDSHAKE); // æ‘˜è¦è®¤è¯
 				if(str != NULL)
 				{
-					str = strstr((char *)http_buff2,HTTP_AUTHORIZATION); // ÕªÒªÈÏÖ¤
+					str = strstr((char *)http_buff2,HTTP_AUTHORIZATION); // æ‘˜è¦è®¤è¯
 					if(str != NULL)
 						com_http_cmd2.http_cmd = 3; 
 					else
-						com_http_cmd2.http_cmd = 2; // Ê×´Î·µ»Ø
+						com_http_cmd2.http_cmd = 2; // é¦–æ¬¡è¿”å›
 				}
 				http_com_data_deal((char *)http_buff2,&com_http_cmd2);
 			}
 			if(HTTP_COM_DEBUG) printf("com_http_cmd2:%s......%s\n",com_http_cmd2.cmd,com_http_cmd2.host_ip);
-			if(strcmp(com_http_cmd2.host_ip,local_ipbuf) == 0) // ÅĞ¶ÏIPÊÇ·ñÕıÈ·
+			if(strcmp(com_http_cmd2.host_ip,local_ipbuf) == 0) // åˆ¤æ–­IPæ˜¯å¦æ­£ç¡®
 			{
 				switch(com_http_cmd2.http_cmd)
 				{
-					case 1: // Ğ­Òé×ª»»
+					case 1: // åè®®è½¬æ¢
 						com_http_cmd2.http_cmd = 0;
 						if(lwipdev.client_websocket_id == 0)
-							lwipdev.client_websocket_id = 2; // ÅĞ¶Ï¿Í»§¶Ë±àºÅ
+							lwipdev.client_websocket_id = 2; // åˆ¤æ–­å®¢æˆ·ç«¯ç¼–å·
 						http_data_send_function(HTTP_WEBSOCKET,2);						
 						break;
 
-					case 2: // Ê×´ÎÈÏÖ¤
+					case 2: // é¦–æ¬¡è®¤è¯
 						com_http_cmd2.http_cmd = 0;
 						http_data_send_function(HTTP_ATTESTATION,2);				
 						break;	
 
-					case 3: // ÈÏÖ¤½á¹û
+					case 3: // è®¤è¯ç»“æœ
 						com_http_cmd2.http_cmd = 0;
 						if(http_ack_certification_calculations(&com_http_cmd2) == 1)
 							http_data_send_function(HTTP_CALCULATION_OK,2);
@@ -150,38 +164,38 @@ int8_t com_deal_http_info_function2(void)
 					default:
 						if(http_ack_certification_calculations(&com_http_cmd2) == 1)
 						{
-							if(HTTP_COM_DEBUG) printf("ÑéÖ¤³É¹¦....\n");
-							if(strcmp(com_http_cmd2.cmd ,BoxSubModelMgr_GetSmartBoxDevList)==0 ) //»ñÈ¡»úÏä¹ÜÀíµÄÉè±¸ÁĞ±í
+							if(HTTP_COM_DEBUG) printf("éªŒè¯æˆåŠŸ....\n");
+							if(strcmp(com_http_cmd2.cmd ,BoxSubModelMgr_GetSmartBoxDevList)==0 ) //è·å–æœºç®±ç®¡ç†çš„è®¾å¤‡åˆ—è¡¨
 								http_data_send_function(BoxDevList,2);
-							else if(strcmp(com_http_cmd2.cmd ,DynamicCapability_GetDomains)==0 ) // Ë®½ş
+							else if(strcmp(com_http_cmd2.cmd ,DynamicCapability_GetDomains)==0 ) // æ°´æµ¸
 								http_data_send_function(DOMINS,2);
-							else if(strcmp(com_http_cmd2.cmd ,WaterOutSense_WaterOutStatus)==0 ) // Ë®½ş
+							else if(strcmp(com_http_cmd2.cmd ,WaterOutSense_WaterOutStatus)==0 ) // æ°´æµ¸
 								http_data_send_function(WATER_OUT,2);
-							else if(strcmp(com_http_cmd2.cmd ,InfoMgr_DeviceDescription)==0 ) // Éè±¸ĞÅÏ¢
+							else if(strcmp(com_http_cmd2.cmd ,InfoMgr_DeviceDescription)==0 ) // è®¾å¤‡ä¿¡æ¯
 								http_data_send_function(DEV_INFO,2);
-							else if(strcmp(com_http_cmd2.cmd ,InfoMgr_DeviceServiceDescription)==0 ) // Éè±¸Éú²úĞÅÏ¢
+							else if(strcmp(com_http_cmd2.cmd ,InfoMgr_DeviceServiceDescription)==0 ) // è®¾å¤‡ç”Ÿäº§ä¿¡æ¯
 								http_data_send_function(DEV_PRODUCE,2);
-							else if(strcmp(com_http_cmd2.cmd ,InfoMgr_DeviceVersion)==0 ) // Éè±¸°æ±¾ĞÅÏ¢
+							else if(strcmp(com_http_cmd2.cmd ,InfoMgr_DeviceVersion)==0 ) // è®¾å¤‡ç‰ˆæœ¬ä¿¡æ¯
 								http_data_send_function(DEV_VERSION,2);
-							else if(strcmp(com_http_cmd2.cmd ,DeviceTiltDetection_DevRealtimeTiltData)==0 ) // ÇãĞ±¶È
+							else if(strcmp(com_http_cmd2.cmd ,DeviceTiltDetection_DevRealtimeTiltData)==0 ) // å€¾æ–œåº¦
 								http_data_send_function(ANGLE_DATA,2);
-							else if(strcmp(com_http_cmd2.cmd ,Humiture_Temperature)==0 ) // ÎÂ¶È
+							else if(strcmp(com_http_cmd2.cmd ,Humiture_Temperature)==0 ) // æ¸©åº¦
 								http_data_send_function(TEMPERATURE_DATA,2);
-							else if(strcmp(com_http_cmd2.cmd ,Humiture_Humidity)==0 ) // Êª¶È
+							else if(strcmp(com_http_cmd2.cmd ,Humiture_Humidity)==0 ) // æ¹¿åº¦
 								http_data_send_function(HUMIDITY_DATA,2);
-							else if(strcmp(com_http_cmd2.cmd ,Fan_FanStatus)==0 ) // ·çÉÈ×´Ì¬
+							else if(strcmp(com_http_cmd2.cmd ,Fan_FanStatus)==0 ) // é£æ‰‡çŠ¶æ€
 								http_data_send_function(FAN_TWO_STATUS,2);
-							else if(strcmp(com_http_cmd2.cmd ,BoxDoorMgr_BoxDoorStatus)==0 ) // »úÏäÃÅ×´Ì¬
+							else if(strcmp(com_http_cmd2.cmd ,BoxDoorMgr_BoxDoorStatus)==0 ) // æœºç®±é—¨çŠ¶æ€
 								http_data_send_function(BOX_STATUS,2);
-							else if(strcmp(com_http_cmd2.cmd ,NetworkAddress_IPAddressCfgList)==0 ) // ÍøÂçĞÅÏ¢
+							else if(strcmp(com_http_cmd2.cmd ,NetworkAddress_IPAddressCfgList)==0 ) // ç½‘ç»œä¿¡æ¯
 								http_data_send_function(NETWORK_VERSION,2);
-							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_DeviceRealTimePowerParam)==0 ) // µçÁ¦²ÎÊı
+							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_DeviceRealTimePowerParam)==0 ) // ç”µåŠ›å‚æ•°
 								http_data_send_function(POWER_DATA,2);	
-							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_PowerPortSwitchTimePlan)==0 ) // µç¿Ú¿ª¹ØÊ±¼ä
+							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_PowerPortSwitchTimePlan)==0 ) // ç”µå£å¼€å…³æ—¶é—´
 								http_data_send_function(POWER_PLAN_TIME,2);	
-							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_GetPowerPortStatusList)==0 ) // »ñÈ¡¹©µç¿Ú×´Ì¬ÁĞ±í
+							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_GetPowerPortStatusList)==0 ) // è·å–ä¾›ç”µå£çŠ¶æ€åˆ—è¡¨
 								http_data_send_function(POWER_PORT_STATUS,2);	
-							else if(strcmp(com_http_cmd2.cmd ,DeviceTiltDetection_DevTiltDetectionParam)==0 ) // Éè±¸ÇãĞ±¼ì²â²ÎÊı
+							else if(strcmp(com_http_cmd2.cmd ,DeviceTiltDetection_DevTiltDetectionParam)==0 ) // è®¾å¤‡å€¾æ–œæ£€æµ‹å‚æ•°
 							{
 								http_deal_json_param(&sg_json_t2,(char*)http_buff2);							
 								if(http_com_deal_configure_angle(sg_json_t2.buf)<0)
@@ -189,7 +203,7 @@ int8_t com_deal_http_info_function2(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,2);	
 							}
-							else if(strcmp(com_http_cmd2.cmd ,Humiture_HumidityAlarmThreshold)==0 ) // Êª¶È¸æ¾¯ãĞÖµ
+							else if(strcmp(com_http_cmd2.cmd ,Humiture_HumidityAlarmThreshold)==0 ) // æ¹¿åº¦å‘Šè­¦é˜ˆå€¼
 							{
 								http_deal_json_param(&sg_json_t2,(char*)http_buff2);							
 								if(http_com_deal_configure_humiture(sg_json_t2.buf)<0)
@@ -197,7 +211,7 @@ int8_t com_deal_http_info_function2(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,2);				
 							}
-							else if(strcmp(com_http_cmd2.cmd ,Humiture_TemperatureAlarmThreshold)==0 ) // ÎÂ¶È¸æ¾¯ãĞÖµ
+							else if(strcmp(com_http_cmd2.cmd ,Humiture_TemperatureAlarmThreshold)==0 ) // æ¸©åº¦å‘Šè­¦é˜ˆå€¼
 							{
 								http_deal_json_param(&sg_json_t2,(char*)http_buff2);							
 								if(http_com_deal_configure_temperature(sg_json_t2.buf)<0)
@@ -205,7 +219,7 @@ int8_t com_deal_http_info_function2(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,2);	
 							}
-							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_ModifyPowerPortWorkParamList)==0 ) // ĞŞ¸Ä¹©µç¿Ú¹¤×÷²ÎÊıÁĞ±í
+							else if(strcmp(com_http_cmd2.cmd ,PowerMgr_ModifyPowerPortWorkParamList)==0 ) // ä¿®æ”¹ä¾›ç”µå£å·¥ä½œå‚æ•°åˆ—è¡¨
 							{
 								http_deal_json_param(&sg_json_t2,(char*)http_buff2);							
 								if(http_com_deal_configure_powerport(sg_json_t2.buf)<0)
@@ -213,14 +227,14 @@ int8_t com_deal_http_info_function2(void)
 								else
 									http_data_send_function(OPERATE_SUCCESS,2);	
 							}
-							else if(strcmp(com_http_cmd2.cmd ,SystemMaintenance_SystemReset)==0 ) // Éè±¸ÏµÍ³»Ö¸´³ö³§ÉèÖÃ
+							else if(strcmp(com_http_cmd2.cmd ,SystemMaintenance_SystemReset)==0 ) // è®¾å¤‡ç³»ç»Ÿæ¢å¤å‡ºå‚è®¾ç½®
 							{
 								W25QXX_Erase_Chip();
 								set_reboot_time_function(1000);
 							}
-							else if(strcmp(com_http_cmd2.cmd ,SystemMaintenance_SystemBasicReset)==0 ) // Éè±¸ÏµÍ³»Ö¸´Ä¬ÈÏÉèÖÃ
+							else if(strcmp(com_http_cmd2.cmd ,SystemMaintenance_SystemBasicReset)==0 ) // è®¾å¤‡ç³»ç»Ÿæ¢å¤é»˜è®¤è®¾ç½®
 								app_set_reset_function();
-							else if(strcmp(com_http_cmd2.cmd ,SystemMaintenance_SystemReboot)==0 ) // Éè±¸ÏµÍ³ÖØÆô
+							else if(strcmp(com_http_cmd2.cmd ,SystemMaintenance_SystemReboot)==0 ) // è®¾å¤‡ç³»ç»Ÿé‡å¯
 								set_reboot_time_function(1000);		
 							else
 								http_data_send_function(NO_SUPPORT,2);
@@ -261,7 +275,7 @@ Host: 37.10.168.39
 /************************************************************
 *
 * Function name	: com_http_queue_find_info2
-* Description	: »ñÈ¡queue2Ò»°üÊı¾İ
+* Description	: è·å–queue2ä¸€åŒ…æ•°æ®
 * Parameter		: 
 * Return		: 
 *	
@@ -275,7 +289,7 @@ int com_http_queue_find_info2(uint8_t *msg,uint16_t size)
 	int buf_length 	= 0;
 	static uint16_t http_length2 = 0;
 	
-	if(Get_Queue_Count(&sg_queue_http2) > 0 ) // ÓĞÊı¾İ½ÓÊÕ
+	if(Get_Queue_Count(&sg_queue_http2) > 0 ) // æœ‰æ•°æ®æ¥æ”¶
 	{	
 		if(com_http_cmd2.data_recving == 0)
 		{
@@ -312,7 +326,7 @@ int com_http_queue_find_info2(uint8_t *msg,uint16_t size)
 						line_start = strstr((char *)(sg_queue_http2.buf+sg_queue_http2.front), "POST");
 						if (line_start == NULL)
 						{					
-							Clear_Queue(&sg_queue_http2);  // Çå¿Õ¶ÓÁĞ
+							Clear_Queue(&sg_queue_http2);  // æ¸…ç©ºé˜Ÿåˆ—
 							return -1;
 						}
 						else
@@ -340,15 +354,15 @@ int com_http_queue_find_info2(uint8_t *msg,uint16_t size)
 //					printf("length error\n");
 				if((line_end == NULL)||(line_end<line_start))
 				{
-					Clear_Queue(&sg_queue_http2);  // Çå¿Õ¶ÓÁĞ
+					Clear_Queue(&sg_queue_http2);  // æ¸…ç©ºé˜Ÿåˆ—
 					return -1;
 				}
 				
-				if(buf_length !=0)  // ÅĞ¶ÏºóÃæÊÇ·ñÓĞÊı¾İ
+				if(buf_length !=0)  // åˆ¤æ–­åé¢æ˜¯å¦æœ‰æ•°æ®
 				{
 					sg_json_t2.len = buf_length;
 					line_str = strstr((char *)line_end, "{");
-					if(line_str == NULL) // ºóÃæÎŞÊı¾İ
+					if(line_str == NULL) // åé¢æ— æ•°æ®
 					{
 						com_http_cmd2.data_recving = 1;
 						buf_length = 0;
@@ -368,7 +382,7 @@ int com_http_queue_find_info2(uint8_t *msg,uint16_t size)
 					Dequeue_Bytes_To_Buffer(&sg_queue_http2,msg+length,(line_end-(char *)sg_queue_http2.buf));
 					memset(sg_queue_http2.buf,0,(line_end-(char *)sg_queue_http2.buf));	
 					if(sg_queue_http2.count == 0)
-						Clear_Queue(&sg_queue_http2);  // Çå¿Õ¶ÓÁĞ
+						Clear_Queue(&sg_queue_http2);  // æ¸…ç©ºé˜Ÿåˆ—
 					http_length2 = line_end+QUEUE_BUF_SIZE-line_start;
 					return http_length2;
 				}
@@ -377,7 +391,7 @@ int com_http_queue_find_info2(uint8_t *msg,uint16_t size)
 					Dequeue_Bytes_To_Buffer(&sg_queue_http2,msg,(line_end-line_start));
 					memset(line_start,0,(line_end-line_start));	
 					if(sg_queue_http2.count == 0)
-						Clear_Queue(&sg_queue_http2);  // Çå¿Õ¶ÓÁĞ
+						Clear_Queue(&sg_queue_http2);  // æ¸…ç©ºé˜Ÿåˆ—
 					http_length2 = line_end-line_start;
 					return http_length2;				
 				}	

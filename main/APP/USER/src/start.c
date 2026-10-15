@@ -153,6 +153,7 @@ void start_system_init_function(void)
 	save_init_function();	
 	com_recevie_function_init();			// 初始化接收缓冲区
 	http_com_buff_init();
+	http_com_buff_init2();
 	app_get_storage_param_function();	// 获取本地存储的数据
 	update_status_detection();				// 检测上次升级结果并上报平台
 	my_app_run_param_init();

@@ -257,6 +257,7 @@ extern sys_event_t   sg_event_param3;
 void http_com_buff_init(void);
 void http_com_stroage_data(uint8_t *buff,uint16_t len);
 void http_com_reset_recv_function(void); // 复位HTTP接收队列与解析状态(切换连接时清理残留半包)
+void http_com_reset_recv_function2(void); // 复位备用槽HTTP接收队列与解析状态
 int8_t com_deal_http_info_function(void);
 int com_http_queue_find_info(uint8_t *msg,uint16_t size);
 
