@@ -2654,7 +2654,13 @@ void http_com_data_deal(char* data,com_http_cmd_t *com_cmd)
 	str_end = strstr((str1+1)," ");
 	strncpy(com_cmd->cmd, str_start+1,(str_end-str_start-1));
 	str1 = strstr(str1,"\r\nHost");
-	sscanf(str1,"%*[^: ]: %[^\r\n]",com_cmd->host_ip); 	
+	sscanf(str1,"%*[^: ]: %[^\r\n]",com_cmd->host_ip);
+
+	/* Host 头可能带端口(如 192.168.1.100:8088), 截掉端口只留 IP/域名,
+	   否则与设备裸 IP 的 strcmp 必然失败, 所有请求都会走 SERVER_ERROR(500) */
+	str1 = strchr(com_cmd->host_ip,':');
+	if(str1 != NULL)
+		*str1 = '\0';	
 	
 	if((com_cmd->http_cmd != 1)||(com_cmd->http_cmd != 2))
 	{
